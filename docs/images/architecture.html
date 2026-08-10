@@ -1,0 +1,222 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  html,body{margin:0;padding:0;background:#FBFBF9}
+  svg{display:block}
+  text{font-family:Pretendard,sans-serif;fill:#141613}
+  .band-label{font-size:19px;font-weight:800;letter-spacing:-.3px;fill:#3E6348}
+  .band-sub{font-size:13px;font-weight:600;fill:#9B9E96}
+  .box-t{font-size:17.5px;font-weight:800;letter-spacing:-.3px}
+  .box-d{font-size:13.5px;font-weight:500;fill:#71756D}
+  .ext-t{font-size:15.5px;font-weight:800;letter-spacing:-.2px}
+  .ext-d{font-size:12.5px;font-weight:500;fill:#71756D}
+  .note{font-size:12px;font-weight:600;fill:#9B9E96}
+  .pipe-t{font-size:15px;font-weight:800;letter-spacing:-.2px}
+  .pipe-d{font-size:12px;font-weight:500;fill:#71756D}
+  .stepno{font-size:12px;font-weight:800;fill:#548360;letter-spacing:1px}
+  .apilabel{font-size:14px;font-weight:800;fill:#548360;font-family:'IBM Plex Mono',Pretendard,monospace}
+</style>
+<svg width="1680" height="1000" viewBox="0 0 1680 1000" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1680" height="1000" fill="#FBFBF9"/>
+
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7.5" refY="3.2" orient="auto">
+      <path d="M0,0 L7.5,3.2 L0,6.4 z" fill="#141613"/>
+    </marker>
+    <marker id="ard" markerWidth="9" markerHeight="9" refX="7.5" refY="3.2" orient="auto">
+      <path d="M0,0 L7.5,3.2 L0,6.4 z" fill="#9B9E96"/>
+    </marker>
+    <marker id="arg" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto">
+      <path d="M0,0 L8,3.5 L0,7 z" fill="#548360"/>
+    </marker>
+  </defs>
+
+  <!-- ===== 밴드 구분선 ===== -->
+  <line x1="28" y1="170" x2="1290" y2="170" stroke="#E8E8E3" stroke-width="1"/>
+  <line x1="28" y1="330" x2="1290" y2="330" stroke="#E8E8E3" stroke-width="1"/>
+  <line x1="28" y1="520" x2="1290" y2="520" stroke="#E8E8E3" stroke-width="1"/>
+  <line x1="250" y1="30" x2="250" y2="700" stroke="#E8E8E3" stroke-width="1"/>
+
+  <!-- ===== 밴드 라벨 ===== -->
+  <g>
+    <rect x="28" y="72" width="4" height="34" fill="#548360"/>
+    <text class="band-label" x="46" y="90">클라이언트</text>
+    <text class="band-sub" x="46" y="112">사용자 접속 경로</text>
+  </g>
+  <g>
+    <rect x="28" y="228" width="4" height="34" fill="#548360"/>
+    <text class="band-label" x="46" y="246">리버스 프록시</text>
+    <text class="band-sub" x="46" y="268">모든 요청의 진입점</text>
+  </g>
+  <g>
+    <rect x="28" y="400" width="4" height="34" fill="#548360"/>
+    <text class="band-label" x="46" y="418">애플리케이션</text>
+    <text class="band-sub" x="46" y="440">서비스 구성 요소</text>
+  </g>
+  <g>
+    <rect x="28" y="592" width="4" height="34" fill="#548360"/>
+    <text class="band-label" x="46" y="610">데이터 계층</text>
+    <text class="band-sub" x="46" y="632">백엔드가 연결</text>
+  </g>
+
+  <!-- ===== 1. 클라이언트 ===== -->
+  <rect x="300" y="40" width="380" height="90" rx="3" fill="#fff" stroke="#141613" stroke-width="1.5"/>
+  <text class="box-t" x="330" y="76">Web (PC · 모바일 반응형)</text>
+  <text class="box-d" x="330" y="102">브라우저로 접속</text>
+
+  <rect x="760" y="40" width="340" height="90" rx="3" fill="#fff" stroke="#141613" stroke-width="1.5"/>
+  <text class="box-t" x="790" y="76">Android App (Flutter)</text>
+  <text class="box-d" x="790" y="102">API 직접 호출 · FCM 수신</text>
+
+  <!-- ===== 2. Caddy ===== -->
+  <rect x="300" y="195" width="800" height="90" rx="3" fill="#141613"/>
+  <text class="box-t" x="330" y="231" style="fill:#fff">Caddy</text>
+  <text class="box-d" x="330" y="257" style="fill:#C3C5BE">리버스 프록시 · 자동 HTTPS 인증서 발급</text>
+
+  <!-- ===== 3. 애플리케이션 ===== -->
+  <rect x="280" y="365" width="320" height="105" rx="3" fill="#fff" stroke="#141613" stroke-width="1.5"/>
+  <text class="box-t" x="306" y="402">프로덕션 프론트엔드</text>
+  <text class="box-d" x="306" y="426">React + Vite 정적 빌드를</text>
+  <text class="box-d" x="306" y="446">nginx가 서빙</text>
+
+  <rect x="620" y="365" width="300" height="105" rx="3" fill="#fff" stroke="#E8E8E3" stroke-width="1.5"/>
+  <text class="box-t" x="646" y="402">개발 프론트엔드</text>
+  <text class="box-d" x="646" y="426">Vite watch 서버</text>
+  <text class="box-d" x="646" y="446">수정 즉시 반영 (HMR)</text>
+
+  <rect x="940" y="365" width="340" height="105" rx="3" fill="#fff" stroke="#141613" stroke-width="1.5"/>
+  <text class="box-t" x="966" y="402">Backend (Node.js + Fastify)</text>
+  <text class="box-d" x="966" y="426">REST API 서버</text>
+  <text class="box-d" x="966" y="446">봇 스케줄러 내장 (node-cron)</text>
+
+  <!-- ===== 4. 데이터 계층 ===== -->
+  <rect x="280" y="555" width="230" height="110" rx="3" fill="#fff" stroke="#141613" stroke-width="1.5"/>
+  <text class="box-t" x="304" y="592">MariaDB</text>
+  <text class="box-d" x="304" y="617">메인 데이터베이스</text>
+  <text class="box-d" x="304" y="637">일정 · 멤버 · 앨범 · 영상</text>
+
+  <rect x="530" y="555" width="240" height="110" rx="3" fill="#fff" stroke="#141613" stroke-width="1.5"/>
+  <text class="box-t" x="554" y="592">Meilisearch</text>
+  <text class="box-d" x="554" y="617">일정 전문 검색</text>
+  <text class="box-d" x="554" y="637">쓰기마다 색인 동기화</text>
+
+  <rect x="790" y="555" width="200" height="110" rx="3" fill="#fff" stroke="#141613" stroke-width="1.5"/>
+  <text class="box-t" x="814" y="592">Redis</text>
+  <text class="box-d" x="814" y="617">조회 캐시</text>
+  <text class="box-d" x="814" y="637">월별 일정 등</text>
+
+  <rect x="1010" y="555" width="270" height="110" rx="3" fill="#fff" stroke="#141613" stroke-width="1.5"/>
+  <text class="box-t" x="1034" y="592">RustFS (S3 호환)</text>
+  <text class="box-d" x="1034" y="617">오브젝트 스토리지</text>
+  <text class="box-d" x="1034" y="637">이미지 · 포스터 원본/썸네일</text>
+
+  <!-- ===== 화살표: 클라이언트 → Caddy ===== -->
+  <path d="M490,130 L490,190" stroke="#141613" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+  <path d="M930,130 L930,190" stroke="#141613" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+
+  <!-- ===== 화살표: Caddy → 앱 계층 ===== -->
+  <path d="M440,285 L440,360" stroke="#141613" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+  <path d="M770,285 L770,360" stroke="#141613" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+  <path d="M1110,285 L1110,360" stroke="#548360" stroke-width="2.2" fill="none" marker-end="url(#arg)"/>
+  <text class="apilabel" x="1124" y="330">/api</text>
+
+  <!-- ===== 화살표: Backend → 데이터 계층 (버스) ===== -->
+  <path d="M1110,470 L1110,512" stroke="#141613" stroke-width="1.8" fill="none"/>
+  <path d="M395,512 L1145,512" stroke="#141613" stroke-width="1.8" fill="none"/>
+  <path d="M395,512 L395,550" stroke="#141613" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+  <path d="M650,512 L650,550" stroke="#141613" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+  <path d="M890,512 L890,550" stroke="#141613" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+  <path d="M1145,512 L1145,550" stroke="#141613" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+
+  <!-- ===== 외부 서비스 패널 ===== -->
+  <rect x="1320" y="30" width="332" height="670" rx="3" fill="#fff" stroke="#548360" stroke-width="1.5"/>
+  <text class="band-label" x="1346" y="66">외부 서비스</text>
+  <text class="band-sub" x="1346" y="87">백엔드에서 호출</text>
+
+  <rect x="1342" y="110" width="288" height="88" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+  <text class="ext-t" x="1364" y="146">YouTube Data API</text>
+  <text class="ext-d" x="1364" y="170">채널 영상 → 일정 자동 생성</text>
+
+  <rect x="1342" y="210" width="288" height="88" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+  <text class="ext-t" x="1364" y="246">커뮤니티 게시글</text>
+  <text class="ext-d" x="1364" y="270">일정 원문 크롤링</text>
+
+  <rect x="1342" y="310" width="288" height="88" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+  <text class="ext-t" x="1364" y="346">Google Gemini API</text>
+  <text class="ext-d" x="1364" y="370">글 → 구조화된 일정 데이터</text>
+
+  <rect x="1342" y="410" width="288" height="88" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+  <text class="ext-t" x="1364" y="446">Kakao Map API</text>
+  <text class="ext-d" x="1364" y="470">공연장 좌표 검색</text>
+
+  <rect x="1342" y="510" width="288" height="88" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+  <text class="ext-t" x="1364" y="546">Firebase Cloud Messaging</text>
+  <text class="ext-d" x="1364" y="570">관리자에게 푸시 발송</text>
+
+  <text class="note" x="1342" y="640">※ 지도 표시는 웹 · 앱에서</text>
+  <text class="note" x="1342" y="660">카카오 SDK를 직접 호출합니다</text>
+
+  <!-- 화살표: Backend → 외부 (점선 버스) -->
+  <path d="M1280,417 L1302,417" stroke="#9B9E96" stroke-width="1.5" fill="none" stroke-dasharray="5 4"/>
+  <path d="M1302,154 L1302,554" stroke="#9B9E96" stroke-width="1.5" fill="none" stroke-dasharray="5 4"/>
+  <path d="M1302,154 L1337,154" stroke="#9B9E96" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ard)"/>
+  <path d="M1302,254 L1337,254" stroke="#9B9E96" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ard)"/>
+  <path d="M1302,354 L1337,354" stroke="#9B9E96" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ard)"/>
+  <path d="M1302,454 L1337,454" stroke="#9B9E96" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ard)"/>
+  <path d="M1302,554 L1337,554" stroke="#9B9E96" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ard)"/>
+
+  <!-- ===== 수집 흐름 ===== -->
+  <rect x="24" y="736" width="1628" height="240" rx="3" fill="#fff" stroke="#548360" stroke-width="1.5"/>
+  <rect x="24" y="736" width="392" height="46" fill="#548360"/>
+  <text x="48" y="766" font-size="16" font-weight="800" style="fill:#fff" letter-spacing="-.2">수집 흐름 · Collect &amp; Review</text>
+  <text x="440" y="766" font-size="14" font-weight="700" style="fill:#3E6348">자동으로 바로 등록하지 않고, 관리자가 검토한 뒤 등록합니다</text>
+
+  <!-- 6 단계 : box w=231, gap=38 (48,317,586,855,1124,1393) -->
+  <g>
+    <rect x="48" y="806" width="231" height="140" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+    <text class="stepno" x="70" y="838">STEP 1</text>
+    <text class="pipe-t" x="70" y="866">커뮤니티 게시글</text>
+    <text class="pipe-d" x="70" y="892">일정이 정리된 새 글을</text>
+    <text class="pipe-d" x="70" y="912">주기적으로 확인</text>
+  </g>
+  <path d="M287,876 L309,876" stroke="#548360" stroke-width="2.2" marker-end="url(#arg)"/>
+  <g>
+    <rect x="317" y="806" width="231" height="140" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+    <text class="stepno" x="339" y="838">STEP 2</text>
+    <text class="pipe-t" x="339" y="866">Gemini로 정형화</text>
+    <text class="pipe-d" x="339" y="892">본문을 날짜 · 제목 ·</text>
+    <text class="pipe-d" x="339" y="912">카테고리로 구조화</text>
+  </g>
+  <path d="M556,876 L578,876" stroke="#548360" stroke-width="2.2" marker-end="url(#arg)"/>
+  <g>
+    <rect x="586" y="806" width="231" height="140" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+    <text class="stepno" x="608" y="838">STEP 3</text>
+    <text class="pipe-t" x="608" y="866">중복 검사</text>
+    <text class="pipe-d" x="608" y="892">기존 일정과 대조해</text>
+    <text class="pipe-d" x="608" y="912">이미 있으면 제외</text>
+  </g>
+  <path d="M825,876 L847,876" stroke="#548360" stroke-width="2.2" marker-end="url(#arg)"/>
+  <g>
+    <rect x="855" y="806" width="231" height="140" rx="3" fill="#EDF5EF" stroke="#548360"/>
+    <text class="stepno" x="877" y="838">STEP 4</text>
+    <text class="pipe-t" x="877" y="866">검토 큐에 보관</text>
+    <text class="pipe-d" x="877" y="892">자동 등록하지 않고</text>
+    <text class="pipe-d" x="877" y="912">대기 상태로 적재</text>
+  </g>
+  <path d="M1094,876 L1116,876" stroke="#548360" stroke-width="2.2" marker-end="url(#arg)"/>
+  <g>
+    <rect x="1124" y="806" width="231" height="140" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+    <text class="stepno" x="1146" y="838">STEP 5</text>
+    <text class="pipe-t" x="1146" y="866">관리자 푸시</text>
+    <text class="pipe-d" x="1146" y="892">FCM으로 검토 요청</text>
+    <text class="pipe-d" x="1146" y="912">알림 발송</text>
+  </g>
+  <path d="M1363,876 L1385,876" stroke="#548360" stroke-width="2.2" marker-end="url(#arg)"/>
+  <g>
+    <rect x="1393" y="806" width="231" height="140" rx="3" fill="#FBFBF9" stroke="#E8E8E3"/>
+    <text class="stepno" x="1415" y="838">STEP 6</text>
+    <text class="pipe-t" x="1415" y="866">확인 후 일정 등록</text>
+    <text class="pipe-d" x="1415" y="892">관리자가 보완해</text>
+    <text class="pipe-d" x="1415" y="912">최종 등록</text>
+  </g>
+</svg>
