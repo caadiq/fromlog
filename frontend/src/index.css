@@ -1,0 +1,103 @@
+@import "overlayscrollbars/overlayscrollbars.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── 동적 테마 컬러 (RGB 채널; /api/theme 로 런타임 주입) ── */
+:root {
+  --c-primary: 84 131 96; /* #548360 브랜드 그린 (폴백) */
+  --c-primary-soft: 237 245 239; /* #EDF5EF */
+  --c-primary-deep: 62 99 72; /* #3E6348 */
+}
+
+/* OverlayScrollbars 페이지(main) 스크롤바 테마 — primary green */
+.os-theme-fromis {
+  --os-handle-bg: #c6c8c0;
+  --os-handle-bg-hover: #9b9e96;
+  --os-handle-bg-active: #9b9e96;
+  --os-size: 10px;
+  --os-handle-border-radius: 0;
+  --os-padding-perpendicular: 3px;
+  --os-padding-axis: 2px;
+}
+
+/* 기본 스타일 */
+body {
+  background-color: #fafafa;
+  color: #1a1a1a;
+}
+
+/* 스크롤바 스타일 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c6c8c0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9b9e96;
+}
+
+/* View Transitions API - 앨범 커버 이미지 부드러운 전환 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
+}
+
+/* 앨범 커버 트랜지션 */
+::view-transition-group(*) {
+  animation-duration: 0.4s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::view-transition-old(*) {
+  animation: fade-out 0.3s ease-out both;
+}
+
+::view-transition-new(*) {
+  animation: fade-in 0.3s ease-in both;
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 라이트박스 스크롤바 숨기기 */
+.lightbox-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 스크롤바 숨기기 유틸리티 */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Swiper autoHeight 지원 */
+.swiper-slide {
+  height: auto !important;
+}

@@ -1,0 +1,71 @@
+services:
+  # 개발 서버 (Vite watch) — dev.fromlog.caadiq.co.kr
+  fromlog-frontend:
+    build: ./frontend
+    container_name: fromlog-frontend
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - fromlog-backend
+    networks:
+      - app
+    restart: unless-stopped
+
+  # 프로덕션 (vite build + nginx 정적 서빙) — fromlog.caadiq.co.kr
+  # 배포: docker compose up -d --build fromlog-frontend-prod
+  fromlog-frontend-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: fromlog-frontend-prod
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    depends_on:
+      - fromlog-backend
+    networks:
+      - app
+    restart: unless-stopped
+
+  fromlog-backend:
+    build: ./backend
+    container_name: fromlog-backend
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    networks:
+      - app
+      - db
+    restart: unless-stopped
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: fromlog-meilisearch
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+    volumes:
+      - ./meilisearch_data:/meili_data
+    networks:
+      - app
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: fromlog-redis
+    volumes:
+      - ./redis_data:/data
+    networks:
+      - app
+    restart: unless-stopped
+
+networks:
+  app:
+    external: true
+  db:
+    external: true

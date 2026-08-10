@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard Variable',sans-serif}
+body{width:390px;background:#FBFBF9;color:#141613}
+.top{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #E8E8E3}
+.top .mon{display:flex;align-items:center;gap:12px}
+.top .mon b{font-size:19px;font-weight:900;letter-spacing:-.5px}
+.top .mon span{color:#9B9E96;font-size:13px}
+.top .ic{display:flex;gap:16px;font-size:16px;color:#3D423E}
+.strip{display:flex;gap:0;padding:14px 12px 12px;border-bottom:1px solid #E8E8E3;overflow:hidden}
+.dy{width:52px;flex-shrink:0;text-align:center;padding:8px 0 9px}
+.dy span{display:block;font-size:9px;letter-spacing:1.5px;font-weight:800;color:#9B9E96}
+.dy b{display:block;font-size:17px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+.dy .dots{display:flex;gap:3px;justify-content:center;margin-top:5px;height:5px}
+.dy .dots i{width:5px;height:5px;border-radius:50%}
+.dy.sun span,.dy.sun b{color:#D08585}
+.dy.sat span,.dy.sat b{color:#8598C8}
+.dy.sel{background:#141613}
+.dy.sel span,.dy.sel b{color:#fff}
+.dy.today b{color:#548360}
+.filters{display:flex;gap:6px;padding:12px 20px;border-bottom:1px solid #E8E8E3;overflow:hidden}
+.f{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;letter-spacing:.5px;padding:7px 12px;border:1px solid #E8E8E3;color:#71756D;white-space:nowrap}
+.f.on{background:#141613;color:#fff;border-color:#141613}
+.f i{width:6px;height:6px;border-radius:50%;display:inline-block}
+.datehd{display:flex;align-items:baseline;gap:12px;padding:24px 22px 12px}
+.datehd b{font-size:30px;font-weight:900;letter-spacing:-1px}
+.datehd span{font-size:10.5px;letter-spacing:2px;color:#9B9E96;font-weight:700}
+.list{padding:0 22px 90px}
+.ev{display:flex;align-items:baseline;gap:14px;padding:16px 2px;border-bottom:1px solid #E8E8E3}
+.ev .tm{width:46px;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.ev .tm.na{color:#C6C8C0}
+.ev .t{flex:1;min-width:0}
+.ev .t b{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .t span{font-size:11px;color:#9B9E96;margin-top:2px;display:block}
+.ev .c{font-size:10px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+.und{margin-top:26px}
+.und .hd{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.und .hd b{font-size:10px;letter-spacing:2px;color:#9B9E96;font-weight:800}
+.und .hd .ln{flex:1;border-top:1px dashed #D8DAD2}
+.ev.dashed{border-bottom:1px dashed #D8DAD2}
+.tab{position:fixed;bottom:0;left:0;width:390px;display:flex;background:rgba(251,251,249,.92);backdrop-filter:blur(14px);border-top:1px solid #E8E8E3;padding:11px 0 21px}
+.tab div{flex:1;text-align:center;font-size:10px;letter-spacing:2px;color:#B9BCB3;font-weight:700}
+.tab div.on{color:#141613}
+</style></head><body>
+<div class="top">
+  <div class="mon"><span>‹</span><b>2026. 7</b><span>›</span></div>
+  <div class="ic"><span>▦</span><span>⌕</span></div>
+</div>
+<div class="strip">
+  <div class="dy"><span>THU</span><b>9</b><div class="dots"><i style="background:#ff0033"></i></div></div>
+  <div class="dy"><span>FRI</span><b>10</b><div class="dots"></div></div>
+  <div class="dy sat today"><span>SAT</span><b>11</b><div class="dots"></div></div>
+  <div class="dy sun sel"><span>SUN</span><b>12</b><div class="dots"><i style="background:#ff0033"></i></div></div>
+  <div class="dy"><span>MON</span><b>13</b><div class="dots"><i style="background:#ff0033"></i></div></div>
+  <div class="dy"><span>TUE</span><b>14</b><div class="dots"></div></div>
+  <div class="dy"><span>WED</span><b>15</b><div class="dots"></div></div>
+</div>
+<div class="filters">
+  <span class="f on">전체</span>
+  <span class="f"><i style="background:#ff0033"></i>유튜브</span>
+  <span class="f"><i style="background:#0f1419"></i>X</span>
+  <span class="f"><i style="background:#6366f1"></i>앨범</span>
+  <span class="f"><i style="background:#06b6d4"></i>예능</span>
+</div>
+<div class="datehd"><b>7. 12.</b><span>SUNDAY</span></div>
+<div class="list">
+  <div class="ev"><span class="tm">19:00</span><div class="t"><b>워크돌 EP.5</b><span>워크맨-Workman</span></div><span class="c" style="color:#ff0033">유튜브</span></div>
+  <div class="und">
+    <div class="hd"><b>날짜 미정 — 7월 중</b><div class="ln"></div></div>
+    <div class="ev dashed"><span class="tm na">--:--</span><div class="t"><b>퐁당 스튜디오 촬영분</b><span>7월 중 공개</span></div><span class="c" style="color:#06b6d4">예능</span></div>
+  </div>
+</div>
+<div class="tab"><div>HOME</div><div>MEMBERS</div><div>ALBUMS</div><div class="on">SCHEDULE</div></div>
+</body></html>

@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env (frontend JS 키 등 — 빌드에 포함되더라도 소스 트리에서는 제외)
+frontend/.env
+frontend/.env.local
+
+# Build
+dist/
+build/
+meilisearch_data/
+redis_data/
+
+# Scrape files
+backend/scrape_*.cjs
+backend/scrape_*.js
+backend/scrape_*.txt
+
+# Backup
+backend-backup/
+
+# Kiwi 모델 파일 (용량 큼, 별도 다운로드 필요)
+backend/models/kiwi/models/
+*.apk
+.env
+.env.*
+
+# Firebase 서비스 계정 키 (서버 발송용 — 커밋 금지)
+backend/firebase-service-account.json
+
+# 앱 비밀값 (카카오 네이티브 키·푸시 키·Otto 키) — secrets.example.dart를 복사해 사용
+app/lib/core/secrets.dart
+
+# DB 덤프·데이터 백업 (개인정보·해시 포함 가능 — 커밋 금지)
+backups/

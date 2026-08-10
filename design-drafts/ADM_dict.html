@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard Variable',sans-serif}
+body{width:1600px;background:#FBFBF9;color:#141613}
+.hd{display:flex;align-items:center;padding:0 40px;height:60px;border-bottom:1px solid #E8E8E3}
+.hd .logo{font-size:19px;font-weight:900;letter-spacing:-.5px}
+.hd .tag{font-size:9px;font-weight:800;letter-spacing:2px;background:#141613;color:#fff;padding:4px 8px;margin-left:10px}
+.hd nav{display:flex;gap:24px;margin-left:40px}
+.hd nav span{font-size:11px;font-weight:800;letter-spacing:2px;color:#9B9E96}
+.hd nav span.on{color:#141613}
+.hd .right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.hd .who{font-size:12px;color:#71756D}
+.hd .out{font-size:10px;font-weight:800;letter-spacing:1.5px;border:1px solid #141613;padding:8px 14px}
+.wrap{max-width:980px;margin:0 auto;padding:52px 40px 90px}
+.crumb{font-size:10.5px;letter-spacing:2.5px;font-weight:800;color:#9B9E96}
+.title{margin-top:12px;font-size:44px;font-weight:900;letter-spacing:-2px}
+.title i{font-style:normal;color:transparent;-webkit-text-stroke:1.6px #141613}
+.sub{margin-top:10px;font-size:12.5px;color:#9B9E96}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:2px solid #141613;margin-top:30px}
+.st{padding:20px 6px 18px;border-bottom:1px solid #E8E8E3}
+.st+.st{border-left:1px solid #E8E8E3;padding-left:26px}
+.st .k{font-size:10px;letter-spacing:2px;font-weight:800;color:#9B9E96}
+.st b{display:block;margin-top:7px;font-size:30px;font-weight:900;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.addrow{display:flex;gap:10px;margin-top:36px}
+.inp{flex:1;border-bottom:2px solid #141613;padding:11px 2px 10px;font-size:15px;font-weight:600;color:#C6C8C0}
+.sel{width:220px;border:1px solid #E8E8E3;background:#fff;font-size:12.5px;font-weight:700;color:#3D423E;padding:12px 14px;display:flex;justify-content:space-between}
+.sel span{color:#9B9E96}
+.btn{background:#141613;color:#fff;font-size:11.5px;font-weight:800;letter-spacing:1.5px;padding:0 26px;display:flex;align-items:center}
+.tools{display:flex;gap:10px;margin-top:40px;align-items:flex-end}
+.srch{flex:1;display:flex;gap:8px;border-bottom:1px solid #C6C8C0;padding:9px 2px;font-size:13.5px;color:#C6C8C0}
+.tools .sel{width:170px}
+.tb{width:100%;border-collapse:collapse;margin-top:18px;border-top:2px solid #141613}
+.tb th{font-size:9.5px;letter-spacing:2px;font-weight:800;color:#9B9E96;text-align:left;padding:12px 8px;border-bottom:1px solid #E8E8E3}
+.tb td{font-size:13.5px;font-weight:600;padding:14px 8px;border-bottom:1px solid #E8E8E3}
+.tb .no{color:#C6C8C0;font-weight:800;font-size:12px}
+.pos{font-size:10px;font-weight:800;letter-spacing:1px;background:#F0F0EC;color:#71756D;padding:4px 9px}
+.pos.p{background:#EDF5EF;color:#3E6348}
+.ops span{font-size:11.5px;font-weight:700;color:#71756D;margin-right:14px}
+.ops span.del{color:#C97070;margin-right:0}
+.foot{margin-top:14px;font-size:11.5px;color:#9B9E96;text-align:right}
+</style></head><body>
+<div class="hd">
+  <span class="logo">fromis_9</span><span class="tag">ADMIN</span>
+  <nav><span>DASHBOARD</span><span>MEMBERS</span><span>ALBUMS</span><span class="on">SCHEDULE</span><span>LOGS</span></nav>
+  <div class="right"><span class="who">caadiq 님</span><span class="out">로그아웃</span></div>
+</div>
+<div class="wrap">
+  <div class="crumb">ADMIN / SCHEDULE / DICTIONARY</div>
+  <div class="title">DICTIO<i>NARY</i></div>
+  <div class="sub">검색 형태소 분석기가 사용하는 사용자 사전입니다. 고유명사를 등록하면 검색 품질이 좋아집니다.</div>
+
+  <div class="stats">
+    <div class="st"><div class="k">TOTAL</div><b>128</b></div>
+    <div class="st"><div class="k">고유명사 NNP</div><b>96</b></div>
+    <div class="st"><div class="k">일반명사 NNG</div><b>21</b></div>
+    <div class="st"><div class="k">외국어 SL</div><b>11</b></div>
+  </div>
+
+  <div class="addrow">
+    <div class="inp">추가할 단어를 입력하세요</div>
+    <div class="sel">고유명사 (NNP)<span>▾</span></div>
+    <div class="btn">+ 추가</div>
+  </div>
+
+  <div class="tools">
+    <div class="srch">⌕ 단어 검색</div>
+    <div class="sel">전체 품사<span>▾</span></div>
+  </div>
+  <table class="tb">
+    <tr><th style="width:8%">#</th><th style="width:52%">단어</th><th style="width:20%">품사</th><th>액션</th></tr>
+    <tr><td class="no">01</td><td>프로미스나인</td><td><span class="pos p">NNP</span></td><td class="ops"><span>수정</span><span class="del">삭제</span></td></tr>
+    <tr><td class="no">02</td><td>플로버</td><td><span class="pos p">NNP</span></td><td class="ops"><span>수정</span><span class="del">삭제</span></td></tr>
+    <tr><td class="no">03</td><td>워크돌</td><td><span class="pos p">NNP</span></td><td class="ops"><span>수정</span><span class="del">삭제</span></td></tr>
+    <tr><td class="no">04</td><td>방판소녀들</td><td><span class="pos p">NNP</span></td><td class="ops"><span>수정</span><span class="del">삭제</span></td></tr>
+    <tr><td class="no">05</td><td>세트리스트</td><td><span class="pos">NNG</span></td><td class="ops"><span>수정</span><span class="del">삭제</span></td></tr>
+    <tr><td class="no">06</td><td>Glow ME</td><td><span class="pos">SL</span></td><td class="ops"><span>수정</span><span class="del">삭제</span></td></tr>
+  </table>
+  <div class="foot">128개 단어</div>
+</div>
+</body></html>

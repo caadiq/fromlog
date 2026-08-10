@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard Variable',sans-serif}
+body{width:1600px;background:#FBFBF9;color:#141613}
+.hd{display:flex;align-items:center;padding:0 40px;height:60px;border-bottom:1px solid #E8E8E3}
+.hd .logo{font-size:19px;font-weight:900;letter-spacing:-.5px}
+.hd .tag{font-size:9px;font-weight:800;letter-spacing:2px;background:#141613;color:#fff;padding:4px 8px;margin-left:10px}
+.hd nav{display:flex;gap:24px;margin-left:40px}
+.hd nav span{font-size:11px;font-weight:800;letter-spacing:2px;color:#9B9E96}
+.hd nav span.on{color:#141613}
+.hd .right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.hd .who{font-size:12px;color:#71756D}
+.hd .out{font-size:10px;font-weight:800;letter-spacing:1.5px;border:1px solid #141613;padding:8px 14px}
+.wrap{max-width:1100px;margin:0 auto;padding:52px 40px 90px}
+.top{display:flex;align-items:flex-end;justify-content:space-between}
+.crumb{font-size:10.5px;letter-spacing:2.5px;font-weight:800;color:#9B9E96}
+.title{margin-top:12px;font-size:44px;font-weight:900;letter-spacing:-2px}
+.title i{font-style:normal;color:transparent;-webkit-text-stroke:1.6px #141613}
+.btn{font-size:11.5px;font-weight:800;letter-spacing:1.5px;padding:12px 22px;background:#141613;color:#fff;margin-bottom:8px}
+.srch{display:flex;gap:8px;border-bottom:1px solid #C6C8C0;padding:9px 2px;font-size:13.5px;color:#C6C8C0;width:320px;margin-top:30px}
+.tb{width:100%;border-collapse:collapse;margin-top:18px;border-top:2px solid #141613}
+.tb th{font-size:9.5px;letter-spacing:2px;font-weight:800;color:#9B9E96;text-align:left;padding:12px 8px;border-bottom:1px solid #E8E8E3}
+.tb td{font-size:13.5px;font-weight:600;padding:12px 8px;border-bottom:1px solid #E8E8E3;vertical-align:middle}
+.al{display:flex;align-items:center;gap:14px}
+.al img{width:46px;height:46px;object-fit:cover;border:1px solid #E8E8E3}
+.al b{font-size:14.5px;font-weight:800;letter-spacing:-.2px}
+.al span{display:block;font-size:11px;color:#9B9E96;margin-top:2px;font-weight:500}
+.typ{font-size:10px;font-weight:800;letter-spacing:1px;background:#F0F0EC;color:#71756D;padding:4px 10px}
+.typ.g{background:#EDF5EF;color:#3E6348}
+td.num{font-variant-numeric:tabular-nums}
+.ops span{font-size:11.5px;font-weight:700;color:#71756D;margin-right:14px}
+.ops span.del{color:#C97070;margin-right:0}
+</style></head><body>
+<div class="hd">
+  <span class="logo">fromis_9</span><span class="tag">ADMIN</span>
+  <nav><span>DASHBOARD</span><span>MEMBERS</span><span class="on">ALBUMS</span><span>SCHEDULE</span><span>LOGS</span></nav>
+  <div class="right"><span class="who">caadiq 님</span><span class="out">로그아웃</span></div>
+</div>
+<div class="wrap">
+  <div class="top">
+    <div><div class="crumb">ADMIN / ALBUMS</div><div class="title">AL<i>BUMS</i></div></div>
+    <span class="btn">+ 새 앨범 추가</span>
+  </div>
+
+  <div class="srch">⌕ 앨범명 검색</div>
+  <table class="tb">
+    <tr><th style="width:38%">앨범</th><th style="width:12%">타입</th><th style="width:16%">발매일</th><th style="width:10%">트랙</th><th>관리</th></tr>
+    <tr>
+      <td><div class="al"><img src="https://s3.caadiq.co.kr/fromis-9/album/glow-me/photo/thumb_400/05.webp"><div><b>Glow ME</b><span>glow-me</span></div></div></td>
+      <td><span class="typ g">정규 2집</span></td><td class="num">2026. 7. 21.</td><td class="num">10곡</td>
+      <td class="ops"><span>사진 관리</span><span>수정</span><span class="del">삭제</span></td>
+    </tr>
+    <tr>
+      <td><div class="al"><img src="https://s3.caadiq.co.kr/fromis-9/album/from-our-20s/photo/thumb_400/01.webp"><div><b>From Our 20's</b><span>from-our-20s</span></div></div></td>
+      <td><span class="typ">미니 6집</span></td><td class="num">2025. 6. 25.</td><td class="num">6곡</td>
+      <td class="ops"><span>사진 관리</span><span>수정</span><span class="del">삭제</span></td>
+    </tr>
+    <tr>
+      <td><div class="al"><img src="https://s3.caadiq.co.kr/fromis-9/album/supersonic/photo/thumb_400/01.webp"><div><b>Supersonic</b><span>supersonic</span></div></div></td>
+      <td><span class="typ">싱글 3집</span></td><td class="num">2024. 8. 12.</td><td class="num">3곡</td>
+      <td class="ops"><span>사진 관리</span><span>수정</span><span class="del">삭제</span></td>
+    </tr>
+    <tr>
+      <td><div class="al"><img src="https://s3.caadiq.co.kr/fromis-9/album/unlock-my-world/photo/thumb_400/01.webp"><div><b>Unlock My World</b><span>unlock-my-world</span></div></div></td>
+      <td><span class="typ">정규 1집</span></td><td class="num">2023. 6. 5.</td><td class="num">10곡</td>
+      <td class="ops"><span>사진 관리</span><span>수정</span><span class="del">삭제</span></td>
+    </tr>
+    <tr>
+      <td><div class="al"><img src="https://s3.caadiq.co.kr/fromis-9/album/from-our-memento-box/photo/thumb_400/01.webp"><div><b>from our Memento Box</b><span>from-our-memento-box</span></div></div></td>
+      <td><span class="typ">미니 5집</span></td><td class="num">2022. 6. 27.</td><td class="num">6곡</td>
+      <td class="ops"><span>사진 관리</span><span>수정</span><span class="del">삭제</span></td>
+    </tr>
+  </table>
+</div>
+</body></html>

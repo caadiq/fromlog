@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard Variable',sans-serif}
+body{width:1600px;background:#FBFBF9;color:#141613}
+.hd{display:flex;align-items:center;padding:0 40px;height:60px;border-bottom:1px solid #E8E8E3}
+.hd .logo{font-size:19px;font-weight:900;letter-spacing:-.5px}
+.hd .tag{font-size:9px;font-weight:800;letter-spacing:2px;background:#141613;color:#fff;padding:4px 8px;margin-left:10px}
+.hd nav{display:flex;gap:24px;margin-left:40px}
+.hd nav span{font-size:11px;font-weight:800;letter-spacing:2px;color:#9B9E96}
+.hd nav span.on{color:#141613}
+.hd .right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.hd .who{font-size:12px;color:#71756D}
+.hd .out{font-size:10px;font-weight:800;letter-spacing:1.5px;border:1px solid #141613;padding:8px 14px}
+.wrap{max-width:880px;margin:0 auto;padding:52px 40px 90px}
+.crumb{font-size:10.5px;letter-spacing:2.5px;font-weight:800;color:#9B9E96}
+.title{margin-top:12px;font-size:44px;font-weight:900;letter-spacing:-2px}
+.title i{font-style:normal;color:transparent;-webkit-text-stroke:1.6px #141613}
+.sec{font-size:11px;letter-spacing:3px;font-weight:800;border-top:2px solid #141613;padding-top:14px;margin-top:40px}
+.info{display:grid;grid-template-columns:180px 1fr;gap:34px;margin-top:22px}
+.cover{aspect-ratio:1;border:1px dashed #C6C8C0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#9B9E96;font-size:11px;background:#fff}
+.cover b{font-size:22px;color:#C6C8C0}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:26px 28px}
+.fd{min-width:0}
+.fd.full{grid-column:span 2}
+.lab{font-size:10px;font-weight:800;letter-spacing:2px;color:#9B9E96}
+.inp{border-bottom:2px solid #141613;padding:10px 2px 9px;margin-top:7px;font-size:15px;font-weight:700}
+.inp.ph{color:#C6C8C0;font-weight:500}
+.inp .pre{color:#9B9E96;font-weight:500;font-size:13px}
+.selrow{display:flex;gap:7px;margin-top:8px}
+.selrow span{font-size:11.5px;font-weight:800;letter-spacing:.5px;padding:9px 16px;border:1px solid #E8E8E3;color:#71756D;background:#fff}
+.selrow span.on{background:#141613;color:#fff;border-color:#141613}
+.ta{border:1px solid #E8E8E3;background:#fff;margin-top:8px;padding:13px 14px;font-size:13px;color:#C6C8C0;height:84px}
+.trk{border:1px solid #E8E8E3;background:#fff;margin-top:16px;padding:20px 22px}
+.trk .no{font-size:11px;font-weight:800;letter-spacing:2px;color:#9B9E96;display:flex;align-items:center;gap:10px}
+.trk .no .tt{font-size:9px;letter-spacing:1px;background:#548360;color:#fff;padding:3px 7px}
+.trk .no .rm{margin-left:auto;color:#C97070;font-size:11px;letter-spacing:0;font-weight:700}
+.trow{display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px;margin-top:16px}
+.trow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:18px}
+.addtrk{display:flex;justify-content:center;margin-top:14px;border:1px dashed #C6C8C0;padding:13px 0;font-size:11.5px;font-weight:800;letter-spacing:1.5px;color:#71756D;background:#fff}
+.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:40px;padding-top:24px;border-top:1px solid #E8E8E3}
+.btn{font-size:11.5px;font-weight:800;letter-spacing:1.5px;padding:13px 26px;border:1px solid #E8E8E3;color:#71756D;background:#fff}
+.btn.ink{background:#141613;border-color:#141613;color:#fff}
+</style></head><body>
+<div class="hd">
+  <span class="logo">fromis_9</span><span class="tag">ADMIN</span>
+  <nav><span>DASHBOARD</span><span>MEMBERS</span><span class="on">ALBUMS</span><span>SCHEDULE</span><span>LOGS</span></nav>
+  <div class="right"><span class="who">caadiq 님</span><span class="out">로그아웃</span></div>
+</div>
+<div class="wrap">
+  <div class="crumb">ADMIN / ALBUMS / NEW</div>
+  <div class="title">NEW <i>ALBUM</i></div>
+
+  <div class="sec">ALBUM INFO</div>
+  <div class="info">
+    <div class="cover"><b>+</b>커버 이미지 업로드</div>
+    <div class="fields">
+      <div class="fd"><div class="lab">앨범명</div><div class="inp">Glow ME</div></div>
+      <div class="fd"><div class="lab">폴더명</div><div class="inp"><span class="pre">fromis-9/album/</span>glow-me</div></div>
+      <div class="fd"><div class="lab">앨범 타입</div><div class="selrow"><span class="on">정규</span><span>미니</span><span>싱글</span></div></div>
+      <div class="fd"><div class="lab">앨범 유형</div><div class="inp">정규 2집</div></div>
+      <div class="fd"><div class="lab">발매일</div><div class="inp">2026. 7. 21.</div></div>
+      <div class="fd full"><div class="lab">앨범 설명</div><div class="ta">앨범 소개 텍스트를 입력하세요</div></div>
+    </div>
+  </div>
+
+  <div class="sec">TRACKS — 2</div>
+  <div class="trk">
+    <div class="no">TRACK 01 <span class="tt">TITLE</span><span class="rm">삭제</span></div>
+    <div class="trow">
+      <div class="fd"><div class="lab">곡 제목</div><div class="inp">Vitamin ME</div></div>
+      <div class="fd"><div class="lab">재생시간</div><div class="inp">3:12</div></div>
+      <div class="fd"><div class="lab">영상 타입</div><div class="selrow" style="margin-top:8px"><span class="on">MV</span><span>스페셜</span></div></div>
+    </div>
+    <div class="trow3">
+      <div class="fd"><div class="lab">작사</div><div class="inp" style="font-size:13.5px">이스란, 서지음</div></div>
+      <div class="fd"><div class="lab">작곡</div><div class="inp" style="font-size:13.5px">Ryan S. Jhun, 외</div></div>
+      <div class="fd"><div class="lab">편곡</div><div class="inp" style="font-size:13.5px">Avenue 52</div></div>
+    </div>
+    <div class="trow3" style="grid-template-columns:1fr">
+      <div class="fd"><div class="lab">영상 URL</div><div class="inp ph" style="font-size:13.5px">https://youtu.be/...</div></div>
+    </div>
+  </div>
+  <div class="trk">
+    <div class="no">TRACK 02 <span class="rm">삭제</span></div>
+    <div class="trow">
+      <div class="fd"><div class="lab">곡 제목</div><div class="inp ph">곡 제목 입력</div></div>
+      <div class="fd"><div class="lab">재생시간</div><div class="inp ph">0:00</div></div>
+      <div class="fd"></div>
+    </div>
+  </div>
+  <div class="addtrk">+ 트랙 추가</div>
+
+  <div class="foot"><span class="btn">취소</span><span class="btn ink">저장</span></div>
+</div>
+</body></html>

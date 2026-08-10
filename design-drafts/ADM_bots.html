@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard Variable',sans-serif}
+body{width:1600px;background:#FBFBF9;color:#141613}
+.hd{display:flex;align-items:center;padding:0 40px;height:60px;border-bottom:1px solid #E8E8E3}
+.hd .logo{font-size:19px;font-weight:900;letter-spacing:-.5px}
+.hd .tag{font-size:9px;font-weight:800;letter-spacing:2px;background:#141613;color:#fff;padding:4px 8px;margin-left:10px}
+.hd nav{display:flex;gap:24px;margin-left:40px}
+.hd nav span{font-size:11px;font-weight:800;letter-spacing:2px;color:#9B9E96}
+.hd nav span.on{color:#141613}
+.hd .right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.hd .who{font-size:12px;color:#71756D}
+.hd .out{font-size:10px;font-weight:800;letter-spacing:1.5px;border:1px solid #141613;padding:8px 14px}
+.wrap{max-width:1280px;margin:0 auto;padding:52px 40px 90px}
+.crumb{font-size:10.5px;letter-spacing:2.5px;font-weight:800;color:#9B9E96}
+.title{margin-top:12px;font-size:44px;font-weight:900;letter-spacing:-2px}
+.title i{font-style:normal;color:transparent;-webkit-text-stroke:1.6px #141613}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:2px solid #141613;margin-top:32px}
+.st{padding:22px 6px 20px;border-bottom:1px solid #E8E8E3}
+.st+.st{border-left:1px solid #E8E8E3;padding-left:28px}
+.st .k{font-size:10px;letter-spacing:2.5px;font-weight:800;color:#9B9E96}
+.st b{display:block;margin-top:8px;font-size:34px;font-weight:900;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.st b.g{color:#548360}.st b.r{color:#C0392B}
+.warn{margin-top:18px;border:1px solid #E8D9A8;background:#FBF6E4;color:#8A6D1B;font-size:12px;font-weight:600;padding:13px 18px;display:flex;align-items:center;gap:10px}
+.warn .x{margin-left:auto;color:#B9A25C}
+.sec{display:flex;align-items:baseline;gap:12px;font-size:12px;letter-spacing:3px;font-weight:800;border-top:2px solid #141613;padding-top:14px;margin-top:44px}
+.sec .cnt{font-size:11px;color:#548360;letter-spacing:0}
+.sec .add{margin-left:auto;font-size:10px;letter-spacing:1.5px;border:1px solid #141613;padding:8px 14px}
+.tb{width:100%;border-collapse:collapse;margin-top:14px}
+.tb th{font-size:9.5px;letter-spacing:2px;font-weight:800;color:#9B9E96;text-align:left;padding:10px 8px;border-bottom:1px solid #E8E8E3}
+.tb td{font-size:13px;font-weight:600;padding:15px 8px;border-bottom:1px solid #E8E8E3;vertical-align:baseline}
+.tb .nm{font-weight:800}
+.tb .sub{font-size:11px;color:#9B9E96;font-weight:500;display:block;margin-top:2px}
+.pill{font-size:10px;font-weight:800;letter-spacing:1px;padding:5px 10px}
+.pill.run{background:#EDF5EF;color:#3E6348}
+.pill.stop{background:#F0F0EC;color:#71756D}
+.pill.err{background:#F9E9E7;color:#C0392B}
+.ops span{font-size:11.5px;font-weight:700;color:#71756D;margin-right:14px}
+.ops span.g{color:#548360}
+.ops span.del{color:#C97070;margin-right:0}
+</style></head><body>
+<div class="hd">
+  <span class="logo">fromis_9</span><span class="tag">ADMIN</span>
+  <nav><span>DASHBOARD</span><span>MEMBERS</span><span>ALBUMS</span><span class="on">SCHEDULE</span><span>LOGS</span></nav>
+  <div class="right"><span class="who">caadiq 님</span><span class="out">로그아웃</span></div>
+</div>
+<div class="wrap">
+  <div class="crumb">ADMIN / SCHEDULE / BOTS</div>
+  <div class="title">BOT <i>MANAGER</i></div>
+
+  <div class="stats">
+    <div class="st"><div class="k">TOTAL</div><b>12</b></div>
+    <div class="st"><div class="k">RUNNING</div><b class="g">9</b></div>
+    <div class="st"><div class="k">STOPPED</div><b>2</b></div>
+    <div class="st"><div class="k">ERROR</div><b class="r">1</b></div>
+  </div>
+
+  <div class="warn">⚠ YouTube API 일일 할당량의 82%를 사용했습니다. 폴링 간격을 확인하세요. <span class="x">✕</span></div>
+
+  <div class="sec">YOUTUBE <span class="cnt">6</span><span class="add">+ 봇 추가</span></div>
+  <table class="tb">
+    <tr><th style="width:34%">이름</th><th style="width:26%">채널</th><th style="width:10%">폴링</th><th style="width:10%">상태</th><th>액션</th></tr>
+    <tr><td class="nm">본채널 신규 영상<span class="sub">업로드 감지 · stopOnFound</span></td><td>fromis_9</td><td>5분</td><td><span class="pill run">실행중</span></td><td class="ops"><span>정지</span><span class="g">전체 동기화</span><span>수정</span><span class="del">삭제</span></td></tr>
+    <tr><td class="nm">워크돌 시리즈<span class="sub">매주 월 19:00 버스트</span></td><td>워크맨-Workman</td><td>3초</td><td><span class="pill run">실행중</span></td><td class="ops"><span>정지</span><span class="g">전체 동기화</span><span>수정</span><span class="del">삭제</span></td></tr>
+    <tr><td class="nm">숏츠 수집<span class="sub">본채널 Shorts</span></td><td>fromis_9</td><td>10분</td><td><span class="pill stop">정지됨</span></td><td class="ops"><span class="g">시작</span><span>수정</span><span class="del">삭제</span></td></tr>
+  </table>
+
+  <div class="sec">X <span class="cnt">4</span><span class="add">+ 봇 추가</span></div>
+  <table class="tb">
+    <tr><th style="width:34%">이름</th><th style="width:26%">계정</th><th style="width:10%">폴링</th><th style="width:10%">상태</th><th>액션</th></tr>
+    <tr><td class="nm">공식 계정 수집</td><td>@realfromis_9</td><td>10분</td><td><span class="pill run">실행중</span></td><td class="ops"><span>정지</span><span>수정</span><span class="del">삭제</span></td></tr>
+    <tr><td class="nm">프롬 스토어</td><td>@fromm_store</td><td>30분</td><td><span class="pill err">오류</span></td><td class="ops"><span class="g">시작</span><span>수정</span><span class="del">삭제</span></td></tr>
+  </table>
+
+  <div class="sec">FESTIVAL <span class="cnt">1</span><span class="add">+ 봇 추가</span></div>
+  <table class="tb">
+    <tr><th style="width:34%">이름</th><th style="width:26%">소스</th><th style="width:10%">폴링</th><th style="width:10%">상태</th><th>액션</th></tr>
+    <tr><td class="nm">대학 축제 크롤러<span class="sub">Gemini 파싱</span></td><td>축제 공지 크롤링</td><td>1일</td><td><span class="pill run">실행중</span></td><td class="ops"><span>정지</span><span>수정</span><span class="del">삭제</span></td></tr>
+  </table>
+
+  <div class="sec">MEILISEARCH <span class="cnt">1</span></div>
+  <table class="tb">
+    <tr><th style="width:34%">이름</th><th style="width:26%">대상</th><th style="width:10%">주기</th><th style="width:10%">상태</th><th>액션</th></tr>
+    <tr><td class="nm">검색 인덱스 동기화</td><td>schedules</td><td>매일 00:00</td><td><span class="pill run">실행중</span></td><td class="ops"><span class="g">지금 동기화</span></td></tr>
+  </table>
+</div>
+</body></html>

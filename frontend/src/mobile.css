@@ -1,0 +1,58 @@
+/* 모바일 전용 스타일 */
+
+/* 모바일 html,body 스크롤 방지 */
+html.mobile-layout,
+html.mobile-layout body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 모바일 레이아웃 컨테이너 */
+.mobile-layout-container {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* 모바일 툴바 (기본 56px) */
+.mobile-toolbar {
+  flex-shrink: 0;
+  background-color: #ffffff;
+}
+
+/* 일정 페이지 툴바 (헤더 + 날짜 선택기) */
+.mobile-toolbar-schedule {
+  flex-shrink: 0;
+  background-color: #ffffff;
+}
+
+/* 하단 네비게이션 */
+.mobile-bottom-nav {
+  flex-shrink: 0;
+}
+
+/* 컨텐츠 영역 - 스크롤 가능, 스크롤바 숨김 */
+.mobile-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.mobile-content::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* 모바일 safe-area 지원 (노치, 홈 인디케이터) */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}

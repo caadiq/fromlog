@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Pretendard Variable',sans-serif}
+body{width:1440px;background:#FBFBF9;color:#141613}
+.nav{display:flex;align-items:center;padding:22px 70px;border-bottom:1px solid #E8E8E3}
+.logo{font-weight:800;font-size:19px}
+.nav .links{display:flex;gap:34px;margin-left:60px}
+.nav a{font-size:12px;font-weight:700;letter-spacing:2px;color:#9B9E96;text-decoration:none}
+.nav a.on{color:#141613}
+.nav .r{margin-left:auto;font-size:11px;letter-spacing:2.5px;color:#9B9E96;font-weight:600}
+.head{padding:56px 70px 34px;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid #E8E8E3}
+.head h1{font-size:80px;font-weight:900;letter-spacing:-3.5px;line-height:1}
+.head h1 em{font-style:normal;color:transparent;-webkit-text-stroke:2px #548360}
+.head .mon{display:flex;align-items:center;gap:22px}
+.head .mon b{font-size:30px;font-weight:900;letter-spacing:-1px}
+.head .mon .ar{font-size:17px;color:#9B9E96;cursor:pointer}
+.head .mon .search{font-size:12px;letter-spacing:1.5px;font-weight:800;border:1px solid #141613;padding:11px 20px;margin-left:16px}
+.filters{display:flex;gap:8px;padding:18px 70px;border-bottom:1px solid #E8E8E3}
+.f{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:800;letter-spacing:1px;padding:8px 15px;border:1px solid #E8E8E3;color:#71756D;cursor:pointer}
+.f.on{background:#141613;color:#fff;border-color:#141613}
+.f i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.grid2{display:grid;grid-template-columns:1.05fr .95fr}
+.cal{border-right:1px solid #E8E8E3;padding:36px 50px 70px}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px}
+.dow span{text-align:center;font-size:10.5px;letter-spacing:2px;font-weight:800;color:#9B9E96;padding:8px 0}
+.dow span:first-child{color:#D08585}
+.dow span:last-child{color:#8598C8}
+.days{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid #E8E8E3;border-left:1px solid #E8E8E3}
+.d{aspect-ratio:1.05;border-right:1px solid #E8E8E3;border-bottom:1px solid #E8E8E3;padding:9px 10px;position:relative;font-size:13px;font-weight:700;color:#3D423E}
+.d.mut{color:#C6C8C0;font-weight:500}
+.d.sun{color:#D08585}.d.sat{color:#8598C8}
+.d .dots{position:absolute;left:10px;bottom:9px;display:flex;gap:4px}
+.d .dots i{width:6px;height:6px;border-radius:50%;display:block}
+.d.sel{background:#141613;color:#fff}
+.d.today{box-shadow:inset 0 0 0 2px #548360}
+.list{padding:36px 56px 70px}
+.list .datehd{display:flex;align-items:baseline;gap:16px;border-bottom:2px solid #141613;padding-bottom:14px}
+.list .datehd b{font-size:40px;font-weight:900;letter-spacing:-1.5px}
+.list .datehd span{font-size:12px;letter-spacing:2px;color:#9B9E96;font-weight:700}
+.ev{display:flex;align-items:baseline;gap:18px;padding:20px 2px;border-bottom:1px solid #E8E8E3;cursor:pointer}
+.ev .tm{width:56px;font-size:14px;font-weight:800;color:#141613;font-variant-numeric:tabular-nums}
+.ev .tm.na{color:#C6C8C0}
+.ev .t{flex:1;min-width:0}
+.ev .t b{display:block;font-size:16.5px;font-weight:700;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .t span{font-size:12px;color:#9B9E96;margin-top:3px;display:block}
+.ev .c{font-size:11px;font-weight:800;letter-spacing:.5px;white-space:nowrap}
+.und{margin-top:34px}
+.und .hd{display:flex;align-items:center;gap:12px}
+.und .hd b{font-size:11px;letter-spacing:2.5px;color:#9B9E96;font-weight:800}
+.und .hd .ln{flex:1;border-top:1px dashed #D8DAD2}
+.ev.dashed{border-bottom:1px dashed #D8DAD2}
+
+.pop{position:absolute;top:54px;left:50%;transform:translateX(-58%);width:360px;background:#fff;border:1px solid #141613;box-shadow:0 24px 60px rgba(20,22,19,.16);padding:22px 24px 26px;z-index:20}
+.pop .yr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.pop .yr b{font-size:13px;font-weight:900;letter-spacing:1px}
+.pop .yr span{color:#9B9E96;font-size:14px;cursor:pointer}
+.pop .lab{font-size:10px;letter-spacing:2.5px;font-weight:800;color:#9B9E96;margin:12px 0 8px}
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.pop .cell{text-align:center;padding:11px 0;font-size:13.5px;font-weight:700;color:#3D423E;border:1px solid #E8E8E3;cursor:pointer}
+.pop .cell.sel{background:#141613;color:#fff;border-color:#141613}
+.pop .cell.now{color:#548360;border-color:#548360}
+.pop .cell.sel.now{color:#fff;border-color:#141613}
+.pop .cell.dis{color:#D8DAD2}
+</style></head><body>
+<div class="nav"><div class="logo">fromis_9</div><div class="links"><a href="#">HOME</a><a href="#">MEMBERS</a><a href="#">DISCOGRAPHY</a><a class="on" href="#">SCHEDULE</a></div><div class="r">FAN ARCHIVE — SINCE 2018</div></div>
+<div class="head">
+  <h1>SCHE<em>DULE</em></h1>
+  <div class="mon" style="position:relative">
+    <span class="ar">←</span><b style="color:#548360">2026. 7 <span style="font-size:13px">▾</span></b><span class="ar">→</span><span class="search">⌕ 검색</span>
+    <div class="pop">
+      <div class="yr"><span>‹</span><b>2024 — 2027</b><span>›</span></div>
+      <div class="lab">YEAR</div>
+      <div class="pgrid">
+        <div class="cell dis">2024</div><div class="cell">2025</div><div class="cell sel">2026</div><div class="cell">2027</div>
+      </div>
+      <div class="lab">MONTH</div>
+      <div class="pgrid">
+        <div class="cell">1</div><div class="cell">2</div><div class="cell">3</div><div class="cell">4</div>
+        <div class="cell">5</div><div class="cell">6</div><div class="cell sel now">7</div><div class="cell">8</div>
+        <div class="cell">9</div><div class="cell">10</div><div class="cell">11</div><div class="cell">12</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="filters">
+  <span class="f on">전체</span>
+  <span class="f"><i style="background:#ff0033"></i>유튜브</span>
+  <span class="f"><i style="background:#0f1419"></i>X</span>
+  <span class="f"><i style="background:#a855f7"></i>컴백</span>
+  <span class="f"><i style="background:#6366f1"></i>앨범</span>
+  <span class="f"><i style="background:#f97316"></i>콘서트</span>
+  <span class="f"><i style="background:#06b6d4"></i>예능</span>
+</div>
+<div class="grid2">
+  <div class="cal">
+    <div class="dow"><span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span></div>
+    <div class="days">
+      <div class="d mut">28</div><div class="d mut">29</div><div class="d mut">30</div><div class="d">1<div class="dots"><i style="background:#ff0033"></i></div></div><div class="d">2</div><div class="d">3<div class="dots"><i style="background:#ff0033"></i></div></div><div class="d sat">4</div>
+      <div class="d sun">5</div><div class="d">6<div class="dots"><i style="background:#ff0033"></i><i style="background:#0f1419"></i></div></div><div class="d">7<div class="dots"><i style="background:#0f1419"></i></div></div><div class="d">8<div class="dots"><i style="background:#ff0033"></i></div></div><div class="d">9<div class="dots"><i style="background:#ff0033"></i></div></div><div class="d">10</div><div class="d sat today">11</div>
+      <div class="d sun sel">12<div class="dots"><i style="background:#ff0033"></i></div></div><div class="d">13<div class="dots"><i style="background:#ff0033"></i></div></div><div class="d">14</div><div class="d">15</div><div class="d">16</div><div class="d">17</div><div class="d sat">18</div>
+      <div class="d sun">19</div><div class="d">20</div><div class="d">21<div class="dots"><i style="background:#a855f7"></i><i style="background:#6366f1"></i></div></div><div class="d">22</div><div class="d">23</div><div class="d">24</div><div class="d sat">25</div>
+      <div class="d sun">26</div><div class="d">27</div><div class="d">28</div><div class="d">29</div><div class="d">30</div><div class="d">31</div><div class="d mut">1</div>
+    </div>
+  </div>
+  <div class="list">
+    <div class="datehd"><b>7. 12.</b><span>SUNDAY</span></div>
+    <div class="ev"><span class="tm">19:00</span><div class="t"><b>워크돌 EP.5</b><span>워크맨-Workman</span></div><span class="c" style="color:#ff0033">유튜브</span></div>
+    <div class="und">
+      <div class="hd"><b>날짜 미정 — 7월 중</b><div class="ln"></div></div>
+      <div class="ev dashed"><span class="tm na">--:--</span><div class="t"><b>퐁당 스튜디오 촬영분</b><span>7월 중 공개</span></div><span class="c" style="color:#06b6d4">예능</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

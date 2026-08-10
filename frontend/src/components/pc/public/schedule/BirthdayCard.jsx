@@ -1,0 +1,49 @@
+import { memo } from 'react';
+import { dayjs } from '@/utils';
+
+/**
+ * PC 생일 카드 — 에디토리얼 (design-drafts/D_final_special_cards 시안)
+ */
+const BirthdayCard = memo(function BirthdayCard({ schedule, showYear = false }) {
+  const d = dayjs(schedule.date);
+  const dateStr = `${showYear ? `${d.year()}. ` : ''}${d.month() + 1}. ${d.date()}.`;
+
+  // "HAPPY HAYOUNG DAY" → 가운데 이름만 핑크 강조
+  const m = /^HAPPY (.+) DAY$/.exec(schedule.title || '');
+
+  return (
+    <div
+      className="relative block w-full overflow-hidden border border-[#F2C7D4] px-[22px] py-5 text-left"
+      style={{ background: 'linear-gradient(120deg,#FFF3F7,#FDEFF4 55%,#F4EDF9)' }}
+    >
+      <span className="pointer-events-none absolute -right-[26px] -top-[26px] h-[110px] w-[110px] rounded-full bg-[#E46E96]/10" />
+      <span className="text-[12px] font-extrabold tracking-k3 text-[#D4548A]">HAPPY BIRTHDAY</span>
+      <div className="mt-3 flex items-center gap-4">
+        {schedule.member_image && (
+          <img
+            src={schedule.member_image}
+            alt=""
+            className="h-[58px] w-[58px] rounded-full border-[2.5px] border-white object-cover shadow-[0_4px_14px_rgba(212,84,138,0.22)]"
+          />
+        )}
+        <div className="min-w-0">
+          <h3 className="truncate text-[21px] font-black leading-[1.15] tracking-[-0.4px] text-ink">
+            {m ? (
+              <>
+                HAPPY <em className="not-italic text-[#D4548A]">{m[1]}</em> DAY
+              </>
+            ) : (
+              schedule.title
+            )}
+          </h3>
+          <div className="mt-[3px] text-[13px] font-semibold text-[#A98795]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {dateStr}
+          </div>
+        </div>
+      </div>
+      <span className="absolute bottom-4 right-5 text-[22px]">🎂</span>
+    </div>
+  );
+});
+
+export default BirthdayCard;
