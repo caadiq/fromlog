@@ -574,17 +574,19 @@ function Schedules() {
                           style={isToday && !isSelected ? { boxShadow: `inset 0 0 0 1.5px ${GREEN}` } : undefined}
                         >
                           {day}
-                          <span className="flex h-[5px] gap-[3px]">
+                          <span className="flex h-[5px] gap-[4px]">
                             {daySchedules.map((schedule, idx) => (
                               <span
                                 key={idx}
                                 className="block h-[5px] w-[5px] rounded-full"
                                 style={{
-                                  backgroundColor: isSelected
-                                    ? '#fff'
-                                    : getColorStyle(
-                                        categories.find((c) => c.id === schedule.category_id)?.color
-                                      )?.style?.backgroundColor || '#6b7280',
+                                  // 선택된 날짜에서도 카테고리 색을 유지하고 흰 링만 둘러 구분한다
+                                  // (공개 일정 페이지 EditorialCalendar와 동일한 방식)
+                                  backgroundColor:
+                                    getColorStyle(
+                                      categories.find((c) => c.id === schedule.category_id)?.color
+                                    )?.style?.backgroundColor || '#6b7280',
+                                  boxShadow: isSelected ? '0 0 0 1.5px rgba(255,255,255,0.9)' : 'none',
                                 }}
                               />
                             ))}
