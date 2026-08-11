@@ -244,4 +244,4 @@ PUSH_INTERNAL_KEY=...   # 내부 스크립트가 알림 발송 시 사용
 
 ## 📄 라이선스
 
-MIT License
+[MIT License](LICENSE)
