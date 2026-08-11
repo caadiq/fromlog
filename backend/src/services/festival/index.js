@@ -19,9 +19,63 @@ const LOOKAHEAD_DAYS = 90;
 // DC봇이 큐에 담지 않을 카테고리 — 유튜브는 유튜브 봇들이 전담(스프·이단장·워크돌·입덕투어 등 채널 추적 중)
 const SKIP_CATEGORIES = new Set(['유튜브']);
 
+// 제목 포함관계로 '확실한 중복'이라 단정할 최소 조건.
+// X 일정에는 'ME', 'MEEEEE' 같은 짧은 제목이 있어 길이 제한이 없으면 아무 데나 걸린다.
+// 실제 사례("뮤지컬헬스키친" 7자 ⊂ 12자 = 0.58, "워터뮤직풀파티" 7자 ⊂ 17자 = 0.41)를 통과시키는 값.
+const MIN_TITLE_CHARS = 7;
+const MIN_TITLE_RATIO = 0.4;
+
 /** 제목 정규화 (공백 제거 + 소문자) — 큐 dedup_key용 */
 function normalizeTitle(title) {
   return String(title || '').replace(/\s+/g, '').toLowerCase();
+}
+
+/**
+ * 대조용 정규화 — 공백·구두점·괄호를 모두 걷어내고 소문자로.
+ * "뮤지컬 <헬스키친> - 박지원 출연" → "뮤지컬헬스키친박지원출연"
+ */
+function comparableTitle(title) {
+  return String(title || '')
+    .toLowerCase()
+    .replace(/[^0-9a-z가-힣]/g, '');
+}
+
+/**
+ * 기존 일정과의 중복 여부를 코드로 판정한다.
+ *
+ * AI(is_duplicate)만 믿었더니 표현이 다르면 놓쳤다. 실제로 놓친 사례:
+ *   "뮤지컬 헬스키친"            ↔ "뮤지컬 <헬스키친> - 박지원 출연"
+ *   "워터 뮤직 풀 파티"          ↔ "2026 캐리비안 베이 워터 뮤직 풀파티"
+ *   "ASIA TOUR TOMRROW GLOW. 1일차" ↔ "2026 fromis_9 ASIA TOUR TOMORROW GLOW."
+ * 셋 다 날짜가 정확히 같았으므로, 날짜를 축으로 두 단계로 판정한다.
+ *
+ * @returns {{kind:'exact'|'suspect', match:object} | null}
+ *   exact   — 제목이 서로를 포함. 확실한 중복이라 큐에 담지 않는다.
+ *   suspect — 같은 날짜·같은 카테고리. 담되 "겹칠 수 있음"으로 표시해 사람이 판단한다.
+ */
+function findExistingMatch(item, existing) {
+  if (!item.date) return null;
+
+  // 같은 날짜 + 같은 카테고리만 후보로 둔다.
+  // 카테고리를 안 보면 X 일정(💌 계열 1000여 건)과 엉뚱하게 엮인다.
+  const candidates = existing.filter(
+    e => e.date === item.date && e.category === item.category
+  );
+  if (candidates.length === 0) return null;
+
+  const a = comparableTitle(item.title);
+  if (a.length >= MIN_TITLE_CHARS) {
+    const contained = candidates.find(e => {
+      const b = comparableTitle(e.title);
+      if (b.length < MIN_TITLE_CHARS) return false; // 'me' 같은 짧은 제목은 아무데나 걸린다
+      if (!a.includes(b) && !b.includes(a)) return false;
+      // 짧은 쪽이 긴 쪽의 일부만 차지하면 우연일 수 있어 '의심'으로 넘긴다
+      return Math.min(a.length, b.length) / Math.max(a.length, b.length) >= MIN_TITLE_RATIO;
+    });
+    if (contained) return { kind: 'exact', match: contained };
+  }
+
+  return { kind: 'suspect', match: candidates[0] };
 }
 
 async function festivalBotPlugin(fastify) {
@@ -71,13 +125,27 @@ async function festivalBotPlugin(fastify) {
    * - 다음 크롤에서 같은 제목에 날짜가 생기면 기존 '미정' 행을 날짜 채워 업데이트
    * - dedup_key 유니크로 재적재/무시항목 재등장 방지 (제목에 EP번호가 있어 회차 구분됨)
    */
-  async function enqueueItems(items, sourceRef) {
+  async function enqueueItems(items, sourceRef, existing = []) {
     let added = 0;
     let updated = 0;
+    let skipped = 0;
     for (const it of items) {
       const titleKey = normalizeTitle(it.title);
       const hasDate = !!it.date;
       const members = JSON.stringify(Array.isArray(it.members) ? it.members : []);
+
+      // AI가 놓친 중복을 코드로 한 번 더 거른다
+      const dup = findExistingMatch(it, existing);
+      if (dup?.kind === 'exact') {
+        fastify.log.info(
+          `[dcbot] 기존 일정과 중복이라 건너뜀: "${it.title}" ↔ "${dup.match.title}" (${it.date})`
+        );
+        skipped++;
+        continue;
+      }
+      const dupHint = dup?.kind === 'suspect'
+        ? `${dup.match.date} [${dup.match.category}] ${dup.match.title}`.slice(0, 255)
+        : null;
 
       // 날짜가 생긴 경우: 같은 제목의 '미정' 대기 행이 있으면 채워서 업데이트
       if (hasDate) {
@@ -110,8 +178,8 @@ async function festivalBotPlugin(fastify) {
       const dedupKey = hasDate ? `${it.date}|${titleKey}` : `nodate|${titleKey}`;
       const [res] = await db.query(
         `INSERT IGNORE INTO bot_pending_schedules
-           (source, source_ref, category_name, title, date, time, members, venue_name, description, raw, dedup_key)
-         VALUES ('dc', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (source, source_ref, category_name, title, date, time, members, venue_name, description, raw, dup_hint, dedup_key)
+         VALUES ('dc', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sourceRef,
           it.category || '기타',
@@ -122,12 +190,13 @@ async function festivalBotPlugin(fastify) {
           it.venue_name || null,
           it.description || null,
           JSON.stringify(it),
+          dupHint,
           dedupKey,
         ]
       );
       if (res.affectedRows > 0) added++;
     }
-    return { added, updated };
+    return { added, updated, skipped };
   }
 
   /**
@@ -176,12 +245,14 @@ async function festivalBotPlugin(fastify) {
 
     // 5) 신규(중복 아님)만 큐에 적재 (날짜 미정 포함, 유튜브 제외 — 유튜브 봇 전담)
     const fresh = items.filter(it => it && it.title && !it.is_duplicate && !SKIP_CATEGORIES.has(it.category));
-    const { added, updated } = await enqueueItems(fresh, String(post.postNo));
+    const { added, updated, skipped } = await enqueueItems(fresh, String(post.postNo), existing);
 
     // 6) 글 처리 완료 기록
     await logPost(post.postUrl, (added + updated) > 0 ? 'processed' : 'no_event', added);
 
-    fastify.log.info(`[dcbot] 추출 ${items.length} / 신규 ${fresh.length} / 큐 적재 ${added} / 날짜채움 ${updated}`);
+    fastify.log.info(
+      `[dcbot] 추출 ${items.length} / 신규 ${fresh.length} / 큐 적재 ${added} / 날짜채움 ${updated} / 기존중복 제외 ${skipped}`
+    );
 
     // 7) 새로 적재된 게 있으면 관리자에게 푸시
     if (added > 0) {

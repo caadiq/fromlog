@@ -42,6 +42,8 @@ function rowToItem(r) {
     members: r.members ? parseJsonColumn(r.members) : [],
     venueName: r.venue_name || '',
     description: r.description || '',
+    // 같은 날·같은 카테고리에 비슷한 일정이 이미 있을 때 그 요약 (없으면 '')
+    dupHint: r.dup_hint || '',
     status: r.status,
     createdScheduleId: r.created_schedule_id,
     createdAt: r.created_at,

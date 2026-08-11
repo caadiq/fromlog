@@ -199,7 +199,18 @@ function ScheduleQueue() {
                       {it.category}
                     </span>
                     <span className="truncate text-[15px] font-bold text-ink">{it.title}</span>
+                    {it.dupHint && (
+                      <span className="shrink-0 bg-[#FBF6E4] px-1.5 py-0.5 text-[11px] font-extrabold tracking-k1 text-[#8A6D1B]">
+                        중복 의심
+                      </span>
+                    )}
                   </div>
+                  {/* 같은 날·같은 카테고리에 비슷한 일정이 이미 있을 때 무엇과 겹치는지 보여준다 */}
+                  {it.dupHint && (
+                    <div className="mt-1 truncate text-[12.5px] text-[#8A6D1B]">
+                      이미 있음: {it.dupHint}
+                    </div>
+                  )}
                   <div className="mt-1 flex flex-wrap gap-x-3 text-[12.5px] text-mute">
                     {it.members.length > 0 && <span>멤버: {it.members.join(', ')}</span>}
                     {it.venueName && <span>장소: {it.venueName}</span>}
