@@ -10,6 +10,12 @@
   --c-primary-deep: 62 99 72; /* #3E6348 */
 }
 
+/* 안내(📢) 일정 강조색 — deep과 primary의 중간.
+   고정 hex를 쓰면 앨범 커버 기반 동적 테마와 어긋나므로 두 토큰을 섞어 만든다. */
+.text-notice {
+  color: color-mix(in srgb, rgb(var(--c-primary)) 55%, rgb(var(--c-primary-deep)));
+}
+
 /* OverlayScrollbars 페이지(main) 스크롤바 테마 — primary green */
 .os-theme-fromis {
   --os-handle-bg: #c6c8c0;

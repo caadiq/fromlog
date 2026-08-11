@@ -12,7 +12,7 @@ import { OutlineTitle, EASE } from '@/components/editorial';
 import { fireBirthdayConfetti, fireDebutConfetti, highlightTerm } from '@/utils';
 import { getSchedules, searchSchedules } from '@/api';
 import { useScheduleStore } from '@/stores';
-import { getTodayKST, getScheduleTime, decodeHtmlEntities } from '@/utils';
+import { getTodayKST, getScheduleTime, decodeHtmlEntities, isNoticeSchedule } from '@/utils';
 import { MIN_YEAR, DETAIL_NAV_CATEGORY_IDS, WEEKDAYS, WEEKDAYS_LONG } from '@/constants';
 import { useDocumentTitle, useDialogBackClose, useRecentSearches, useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
 
@@ -109,6 +109,9 @@ function EventRow({ schedule, onClick, dashed = false, subtitle: subtitleOverrid
   const subtitle = subtitleOverride ?? sourceName ?? null;
   const color = getCategoryColor(schedule.category_id, schedule);
   const name = getCategoryName(schedule.category_id, schedule);
+  // 안내(📢) 일정은 시간·제목을 테마색으로 물들여 훑을 때 바로 잡히게 한다.
+  // 배경이 아니라 글자색이라 행 호버(회색 배경)와 겹치지 않는다.
+  const notice = isNoticeSchedule(schedule);
 
   return (
     <Tooltip text={decodeHtmlEntities(schedule.title)} showOnlyOnOverflow className="block w-full">
@@ -120,7 +123,9 @@ function EventRow({ schedule, onClick, dashed = false, subtitle: subtitleOverrid
         }`}
       >
       <span
-        className={`w-16 shrink-0 text-[16px] font-extrabold ${time ? 'text-ink' : 'text-faint'}`}
+        className={`w-16 shrink-0 text-[16px] font-extrabold ${
+          notice ? 'text-notice' : time ? 'text-ink' : 'text-faint'
+        }`}
         style={{ fontVariantNumeric: 'tabular-nums' }}
       >
         {time || '--:--'}
@@ -128,7 +133,9 @@ function EventRow({ schedule, onClick, dashed = false, subtitle: subtitleOverrid
       <span className="min-w-0 flex-1">
         <b
           data-tooltip-overflow
-          className="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[18px] font-bold tracking-[-0.2px]"
+          className={`block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[18px] font-bold tracking-[-0.2px] ${
+            notice ? 'text-notice' : ''
+          }`}
         >
           {decodeHtmlEntities(schedule.title)}
         </b>

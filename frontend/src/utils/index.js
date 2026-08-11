@@ -46,6 +46,7 @@ export {
   getScheduleDate,
   getScheduleTime,
   groupSchedulesByDate,
+  isNoticeSchedule,
 } from './schedule';
 
 // 애니메이션 관련

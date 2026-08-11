@@ -25,6 +25,7 @@ import {
   fireBirthdayConfetti,
   fireDebutConfetti,
   highlightTerm,
+  isNoticeSchedule,
 } from '@/utils';
 import { getSchedules, searchSchedules } from '@/api';
 import { useScheduleStore } from '@/stores';
@@ -44,6 +45,8 @@ function EventRow({ schedule, onClick, dashed = false, subtitle: subtitleOverrid
   const time = getScheduleTime(schedule);
   const subtitle = subtitleOverride ?? schedule.source?.name ?? null;
   const { color, name } = getCategoryInfo(schedule);
+  // 안내(📢) 일정은 시간·제목을 테마색으로 강조 (PC와 동일 규칙)
+  const notice = isNoticeSchedule(schedule);
 
   return (
     <button
@@ -54,13 +57,19 @@ function EventRow({ schedule, onClick, dashed = false, subtitle: subtitleOverrid
       }`}
     >
       <span
-        className={`w-[46px] shrink-0 text-[14.5px] font-extrabold ${time ? 'text-ink' : 'text-faint'}`}
+        className={`w-[46px] shrink-0 text-[14.5px] font-extrabold ${
+          notice ? 'text-notice' : time ? 'text-ink' : 'text-faint'
+        }`}
         style={{ fontVariantNumeric: 'tabular-nums' }}
       >
         {time || '--:--'}
       </span>
       <span className="min-w-0 flex-1">
-        <b className="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[15.5px] font-bold tracking-[-0.2px]">
+        <b
+          className={`block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[15.5px] font-bold tracking-[-0.2px] ${
+            notice ? 'text-notice' : ''
+          }`}
+        >
           {decodeHtmlEntities(schedule.title)}
         </b>
         {subtitle && <span className="mt-0.5 block text-[13px] text-mute">{subtitle}</span>}
