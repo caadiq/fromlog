@@ -155,6 +155,9 @@ function SearchRow({ schedule, term, onClick, getCategoryColor, getCategoryName 
   const d = new Date(`${schedule.date}T00:00:00`);
   const time = getScheduleTime(schedule);
   const title = decodeHtmlEntities(schedule.title);
+  // 검색 결과에서는 제목 대신 날짜를 물들인다.
+  // 제목의 검색어 강조도 초록이라, 제목까지 칠하면 검색어가 묻혀버린다.
+  const notice = isNoticeSchedule(schedule);
 
   return (
     <Tooltip text={title} showOnlyOnOverflow className="block w-full">
@@ -163,7 +166,10 @@ function SearchRow({ schedule, term, onClick, getCategoryColor, getCategoryName 
         onClick={() => onClick?.(schedule)}
         className="grid w-full grid-cols-[140px_1fr_140px_90px] items-center border-b border-hairline px-1 py-[19px] text-left transition-colors hover:bg-canvas"
       >
-      <span className="text-[17.5px] font-extrabold tracking-[-0.3px]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <span
+        className={`text-[17.5px] font-extrabold tracking-[-0.3px] ${notice ? 'text-notice' : ''}`}
+        style={{ fontVariantNumeric: 'tabular-nums' }}
+      >
         {d.getFullYear()}. {d.getMonth() + 1}. {d.getDate()}. {WEEKDAYS[d.getDay()]}
         {time && <span className="mt-0.5 block text-[14.5px] font-bold tracking-k15 text-mute">{time}</span>}
       </span>

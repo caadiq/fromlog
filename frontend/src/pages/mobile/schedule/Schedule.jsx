@@ -88,6 +88,8 @@ function SearchRow({ schedule, term, onClick }) {
   const time = getScheduleTime(schedule);
   const title = decodeHtmlEntities(schedule.title);
   const { color, name } = getCategoryInfo(schedule);
+  // 검색 결과에서는 제목 대신 날짜를 물들인다 (제목의 검색어 강조와 색이 겹치지 않게)
+  const notice = isNoticeSchedule(schedule);
 
   return (
     <button
@@ -103,7 +105,9 @@ function SearchRow({ schedule, term, onClick }) {
           {d.getFullYear()}
         </span>
         <b
-          className="block whitespace-nowrap text-[14.5px] font-extrabold tracking-[-0.3px]"
+          className={`block whitespace-nowrap text-[14.5px] font-extrabold tracking-[-0.3px] ${
+            notice ? 'text-notice' : ''
+          }`}
           style={{ fontVariantNumeric: 'tabular-nums' }}
         >
           {d.getMonth() + 1}.{d.getDate()} {WEEKDAYS[d.getDay()]}
