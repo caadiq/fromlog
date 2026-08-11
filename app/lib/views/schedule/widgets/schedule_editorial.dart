@@ -32,6 +32,11 @@ class EventRow extends StatelessWidget {
     final time = formatHm(schedule.time);
     final subtitle = subtitleOverride ?? schedule.sourceName;
     final color = parseColor(schedule.categoryColor);
+    // 안내(📢) 일정은 시각·제목을 테마색으로 물들여 훑을 때 바로 잡히게 한다 (웹과 동일)
+    final notice = isNoticeSchedule(
+      categoryId: schedule.categoryId,
+      title: schedule.title,
+    );
 
     final row = Padding(
       padding: EdgeInsets.symmetric(horizontal: 2, vertical: 16),
@@ -46,7 +51,9 @@ class EventRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w800,
-                color: time != null ? EColors.ink : EColors.faint,
+                color: notice
+                    ? noticeColor
+                    : (time != null ? EColors.ink : EColors.faint),
               ),
             ),
           ),
@@ -59,11 +66,11 @@ class EventRow extends StatelessWidget {
                   decodeHtmlEntities(schedule.title),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
-                    color: EColors.ink,
+                    color: notice ? noticeColor : EColors.ink,
                   ),
                 ),
                 if (subtitle != null && subtitle.isNotEmpty)
@@ -464,6 +471,12 @@ class SearchRow extends StatelessWidget {
     final time = formatHm(schedule.time);
     final color = parseColor(schedule.categoryColor);
     final dow = weekdaysKo[d.weekday % 7];
+    // 검색 결과에서는 제목 대신 날짜를 물들인다 (웹과 동일).
+    // 제목의 검색어 강조도 초록이라, 제목까지 칠하면 검색어가 묻히기 때문.
+    final notice = isNoticeSchedule(
+      categoryId: schedule.categoryId,
+      title: schedule.title,
+    );
 
     return InkWell(
       onTap: onTap,
@@ -496,11 +509,11 @@ class SearchRow extends StatelessWidget {
                       maxLines: 1,
                       softWrap: false,
                       overflow: TextOverflow.visible,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.3,
-                        color: EColors.ink,
+                        color: notice ? noticeColor : EColors.ink,
                       ),
                     ),
                     if (time != null)

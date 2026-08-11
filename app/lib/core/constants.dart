@@ -60,6 +60,12 @@ Palette appPalette = const Palette(
   deep: EColors.greenDeep,
 );
 
+/// 안내(📢) 일정 강조색 — primary와 deep의 중간.
+/// 웹의 `.text-notice`(color-mix in srgb, primary 55%, deep)와 같은 비율이라
+/// 앨범 커버로 테마가 바뀌어도 웹과 같은 색이 나온다.
+Color get noticeColor =>
+    Color.lerp(appPalette.deep, appPalette.primary, 0.55)!;
+
 /// 공식 소셜 링크 (웹 SOCIAL_LINKS와 동일)
 class SocialLinks {
   static const String youtube = 'https://www.youtube.com/@fromis9_official';
