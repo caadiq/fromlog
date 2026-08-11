@@ -289,7 +289,8 @@ function Logs() {
             <thead>
               <tr>
                 <th className="w-[13%] border-b border-hairline px-2 py-3 text-left text-[12px] font-extrabold tracking-k2 text-mute">시간</th>
-                <th className="w-[14%] border-b border-hairline px-2 py-3 text-left text-[12px] font-extrabold tracking-k2 text-mute">행위자</th>
+                {/* meilisearch-sync 처럼 긴 봇 이름이 옆 칸에 붙지 않도록 여유를 둔다 */}
+                <th className="w-[19%] border-b border-hairline px-2 py-3 text-left text-[12px] font-extrabold tracking-k2 text-mute">행위자</th>
                 <th className="w-[8%] border-b border-hairline px-2 py-3 text-left text-[12px] font-extrabold tracking-k2 text-mute">액션</th>
                 <th className="w-[9%] border-b border-hairline px-2 py-3 text-left text-[12px] font-extrabold tracking-k2 text-mute">카테고리</th>
                 <th className="border-b border-hairline px-2 py-3 text-left text-[12px] font-extrabold tracking-k2 text-mute">내용</th>

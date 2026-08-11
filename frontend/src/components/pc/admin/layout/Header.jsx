@@ -5,14 +5,13 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores';
 
+// 자주 쓰는 관리 메뉴만 상단에 둔다. 테마·로그는 대시보드에서 들어간다.
 const NAV = [
   { to: '/admin/dashboard', label: 'DASHBOARD' },
   { to: '/admin/members', label: 'MEMBERS' },
   { to: '/admin/albums', label: 'ALBUMS' },
-  { to: '/admin/schedule', label: 'SCHEDULE' },
   { to: '/admin/videos', label: 'VIDEOS' },
-  { to: '/admin/theme', label: 'THEME' },
-  { to: '/admin/logs', label: 'LOGS' },
+  { to: '/admin/schedule', label: 'SCHEDULE' },
 ];
 
 function AdminHeader({ user }) {

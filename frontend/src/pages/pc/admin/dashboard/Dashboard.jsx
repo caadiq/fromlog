@@ -62,10 +62,8 @@ const STATS = [
   { key: 'schedules', label: 'SCHEDULES' },
 ];
 
+// 상단 내비에 없는 메뉴만 둔다. 멤버·앨범·영상·일정은 헤더에서 바로 간다.
 const MENU = [
-  { en: 'MEMBERS', ko: '멤버 관리', description: '멤버 프로필 · 사진 · SNS 정보 수정', path: '/admin/members' },
-  { en: 'ALBUMS', ko: '앨범 관리', description: '앨범 · 트랙 · 컨셉 포토 등록과 편집', path: '/admin/albums' },
-  { en: 'SCHEDULE', ko: '일정 관리', description: '일정 추가 · 수정 · 봇 · 사전 관리', path: '/admin/schedule' },
   { en: 'THEME', ko: '테마 컬러', description: '앨범 커버색 자동 · 수동 테마 지정', path: '/admin/theme' },
   { en: 'LOGS', ko: '활동 로그', description: '관리자 · 봇의 모든 활동 기록 열람', path: '/admin/logs' },
 ];
@@ -123,6 +121,7 @@ function AdminDashboard() {
           transition={{ duration: 0.55, ease: EASE, delay: 0.16 }}
         >
           <div className="mt-[52px] text-[13px] font-extrabold tracking-k3">MENU</div>
+          {/* 항목이 2개뿐이어도 4칸 기준을 유지한다 — 빈 칸이 자리를 차지해 카드가 길어지지 않는다 */}
           <div className="mt-4 grid grid-cols-4 gap-3.5">
             {MENU.map((item) => (
               <Link
