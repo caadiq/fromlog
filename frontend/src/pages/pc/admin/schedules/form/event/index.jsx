@@ -16,7 +16,10 @@ import { createEvent } from '@/api/admin/events';
 import { uid } from '@/utils';
 
 // 세부 타입 목록 (현재는 "대학"만)
-const SUBTYPES = [{ value: 'university', label: '대학 축제' }];
+const SUBTYPES = [
+  { value: 'university', label: '대학 축제' },
+  { value: 'general', label: '일반 행사' },
+];
 
 function EventForm() {
   const navigate = useNavigate();
@@ -76,7 +79,7 @@ function EventForm() {
       setToast({ type: 'error', message: '제목을 입력해주세요.' });
       return;
     }
-    if (!schoolName.trim()) {
+    if (subtype === 'university' && !schoolName.trim()) {
       setToast({ type: 'error', message: '학교명을 입력해주세요.' });
       return;
     }
@@ -159,22 +162,24 @@ function EventForm() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: ○○대학교 대동제 초청 공연"
+              placeholder={subtype === 'university' ? '예: ○○대학교 대동제 초청 공연' : '예: 2026 워터밤 서울'}
               className={`${F.underline} mt-1.5`}
             />
           </div>
 
-          {/* 학교명 */}
-          <div>
-            <label className={F.label}>학교명 *</label>
-            <input
-              type="text"
-              value={schoolName}
-              onChange={(e) => setSchoolName(e.target.value)}
-              placeholder="예: 연세대학교"
-              className={`${F.underline} mt-1.5`}
-            />
-          </div>
+          {/* 학교명 — 대학 축제일 때만 */}
+          {subtype === 'university' && (
+            <div>
+              <label className={F.label}>학교명 *</label>
+              <input
+                type="text"
+                value={schoolName}
+                onChange={(e) => setSchoolName(e.target.value)}
+                placeholder="예: 연세대학교"
+                className={`${F.underline} mt-1.5`}
+              />
+            </div>
+          )}
 
           {/* 날짜/시간 */}
           <div className="grid grid-cols-2 gap-7">

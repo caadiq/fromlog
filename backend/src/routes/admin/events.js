@@ -7,7 +7,8 @@ import { logActivity } from '../../utils/log.js';
 import { syncScheduleById } from '../../services/meilisearch/index.js';
 
 const EVENT_CATEGORY_ID = CATEGORY_IDS.EVENT;
-const VALID_SUBTYPES = ['university'];
+// university: 대학 축제(학교명 필수) / general: 일반 행사(페스티벌·외부 행사 등)
+const VALID_SUBTYPES = ['university', 'general'];
 
 /**
  * multipart에서 payload(JSON 문자열) + poster 파일들 추출
@@ -140,11 +141,14 @@ export default async function eventsRoutes(fastify) {
       venue, postUrls = [],
     } = payload;
 
-    if (!title || !date || !schoolName) {
-      return reply.code(400).send({ error: '제목/날짜/학교명은 필수입니다.' });
+    if (!title || !date) {
+      return reply.code(400).send({ error: '제목/날짜는 필수입니다.' });
     }
     if (!VALID_SUBTYPES.includes(subtype)) {
       return reply.code(400).send({ error: `알 수 없는 subtype: ${subtype}` });
+    }
+    if (subtype === 'university' && !schoolName) {
+      return reply.code(400).send({ error: '대학 축제는 학교명이 필수입니다.' });
     }
     if (!venue) {
       return reply.code(400).send({ error: '장소가 필요합니다.' });
@@ -168,7 +172,7 @@ export default async function eventsRoutes(fastify) {
         [
           sid,
           subtype,
-          schoolName,
+          subtype === 'university' ? schoolName : null,
           venueId,
           postUrls.length > 0 ? JSON.stringify(postUrls) : null,
         ]
@@ -248,7 +252,7 @@ export default async function eventsRoutes(fastify) {
          WHERE schedule_id = ?`,
         [
           subtype,
-          schoolName,
+          subtype === 'university' ? schoolName : null,
           venueId,
           postUrls.length > 0 ? JSON.stringify(postUrls) : null,
           id,

@@ -18,7 +18,10 @@ import { useAdminAuth } from '@/hooks/pc/admin';
 import { EASE } from '@/components/editorial';
 import { getEvent, updateEvent } from '@/api/admin/events';
 
-const SUBTYPES = [{ value: 'university', label: '대학 축제' }];
+const SUBTYPES = [
+  { value: 'university', label: '대학 축제' },
+  { value: 'general', label: '일반 행사' },
+];
 
 function EventEditForm() {
   const { id } = useParams();
@@ -101,7 +104,7 @@ function EventEditForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!title.trim() || !schoolName.trim() || !date || !venue) {
+    if (!title.trim() || !date || !venue || (subtype === 'university' && !schoolName.trim())) {
       setToast({ type: 'error', message: '필수 항목을 입력해주세요.' });
       return;
     }
@@ -198,15 +201,17 @@ function EventEditForm() {
               />
             </div>
 
-            <div>
-              <label className={F.label}>학교명 *</label>
-              <input
-                type="text"
-                value={schoolName}
-                onChange={(e) => setSchoolName(e.target.value)}
-                className={`${F.underline} mt-1.5`}
-              />
-            </div>
+            {subtype === 'university' && (
+              <div>
+                <label className={F.label}>학교명 *</label>
+                <input
+                  type="text"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  className={`${F.underline} mt-1.5`}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-7">
               <div>
