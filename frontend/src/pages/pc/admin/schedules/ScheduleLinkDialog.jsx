@@ -2,7 +2,7 @@
  * 고정 링크 추가·수정 다이얼로그
  */
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { EASE } from '@/components/editorial';
 import { useDialogBackClose } from '@/hooks/common';
@@ -15,15 +15,13 @@ function toLocalInput(iso) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-function ScheduleLinkDialog({ item, busy, onClose, onSave }) {
+function DialogBody({ item, busy, onClose, onSave }) {
   const isEdit = !!item.id;
   const [title, setTitle] = useState(item.title || '');
   const [url, setUrl] = useState(item.url || '');
   const [startsAt, setStartsAt] = useState(toLocalInput(item.startsAt));
   const [endsAt, setEndsAt] = useState(toLocalInput(item.endsAt));
   const [error, setError] = useState('');
-
-  useDialogBackClose(true, onClose);
 
   const submit = (e) => {
     e.preventDefault();
@@ -147,6 +145,32 @@ function ScheduleLinkDialog({ item, busy, onClose, onSave }) {
         </div>
       </motion.form>
     </motion.div>
+  );
+}
+
+/**
+ * 바깥 껍데기 — 항상 마운트된 채 isOpen 으로만 여닫는다.
+ *
+ * 조건부 마운트 + useDialogBackClose(true, …) 조합은 StrictMode에서
+ * effect가 두 번 도는 사이 cleanup의 history.back()이 실제 히스토리를 소비해
+ * 저장 직후 이전 페이지로 튕기는 문제가 있었다. 다른 다이얼로그들과 같은 형태로 맞춘다.
+ *
+ * 안쪽 폼은 항목이 바뀔 때마다 key로 새로 만들어 입력값이 남지 않게 한다.
+ */
+function ScheduleLinkDialog({ isOpen, item, busy, onClose, onSave }) {
+  useDialogBackClose(isOpen, onClose);
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <DialogBody
+          key={item?.id ?? 'new'}
+          item={item || {}}
+          busy={busy}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      )}
+    </AnimatePresence>
   );
 }
 

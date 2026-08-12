@@ -7,7 +7,7 @@
 import { useState, useMemo, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link2, GripVertical, ExternalLink } from 'lucide-react';
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -315,16 +315,13 @@ function AdminScheduleLinks() {
         </motion.div>
       </div>
 
-      <AnimatePresence>
-        {dialogItem && (
-          <ScheduleLinkDialog
-            item={dialogItem}
-            busy={busy}
-            onClose={() => setDialogItem(null)}
-            onSave={handleSave}
-          />
-        )}
-      </AnimatePresence>
+      <ScheduleLinkDialog
+        isOpen={!!dialogItem}
+        item={dialogItem}
+        busy={busy}
+        onClose={() => setDialogItem(null)}
+        onSave={handleSave}
+      />
 
       <ConfirmDialog
         isOpen={!!deleting}
