@@ -225,6 +225,12 @@ function AdminScheduleLinks() {
           />
         </motion.div>
 
+        {/* 헤더 다음에 본문이 따라 들어온다 (활동 로그 페이지와 같은 단계) */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: EASE, delay: 0.08 }}
+        >
         <p className="mt-6 text-[14px] leading-[1.7] text-mute">
           일정 페이지 상단에 고정으로 노출할 링크입니다. 투표·스밍 안내처럼{' '}
           <b className="text-ink">지금 참여해야 하는 것</b>을 올려두세요.{' '}
@@ -306,6 +312,7 @@ function AdminScheduleLinks() {
             </div>
           </>
         )}
+        </motion.div>
       </div>
 
       <AnimatePresence>

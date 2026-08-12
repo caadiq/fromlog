@@ -158,6 +158,12 @@ function ScheduleQueue() {
           />
         </motion.div>
 
+        {/* 헤더 다음에 본문이 따라 들어온다 (활동 로그 페이지와 같은 단계) */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: EASE, delay: 0.08 }}
+        >
         <p className="mt-6 text-[14px] leading-[1.7] text-mute">
           DC 갤러리 "앞으로 일정"에서 자동 수집한 신규 일정 후보입니다. 검토 후 <b className="text-ink">등록</b>하거나{' '}
           <b className="text-ink">무시</b>하세요. (기타·행사는 바로 등록, 그 외 카테고리는 일정 추가 폼에서 직접 등록)
@@ -235,6 +241,7 @@ function ScheduleQueue() {
             ))}
           </div>
         )}
+        </motion.div>
       </div>
 
       {/* 등록 다이얼로그 */}
