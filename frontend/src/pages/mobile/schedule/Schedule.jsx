@@ -668,26 +668,15 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
 
   /**
    * 펼쳐진 패널(달력·고정 링크)을 모두 닫는다.
-   * 날짜 선택·검색 진입·목록 스크롤처럼 시선이 옮겨갔을 때 호출한다.
+   * 날짜 선택·검색 진입처럼 시선이 옮겨갔을 때 호출한다.
+   * 스크롤로는 닫지 않는다 — 접히면서 목록 높이가 변해 스크롤이 끊겨 보이고,
+   * 실수로 살짝 스크롤한 경우까지 닫혀버린다.
    */
   const closePanels = useCallback(() => {
     setShowPanel(false);
     setYmMode(false);
     setShowLinks(false);
   }, []);
-
-  /**
-   * 목록을 스크롤하면 펼쳐둔 패널을 닫는다.
-   * 날짜를 바꿀 때 코드가 scrollTop을 0으로 되돌리며 이 이벤트를 발생시키므로,
-   * 실제로 내려간 경우(> 4px)만 닫는다.
-   */
-  const handleContentScroll = useCallback(
-    (e) => {
-      if (!showPanel && !showLinks) return;
-      if (e.currentTarget.scrollTop > 4) closePanels();
-    },
-    [showPanel, showLinks, closePanels]
-  );
 
   // 패널 열기/닫기
   const togglePanel = () => {
@@ -1087,11 +1076,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
       </div>
 
       {/* 컨텐츠 영역 */}
-      <div
-        className="mobile-content bg-paper"
-        ref={contentRef}
-        onScroll={handleContentScroll}
-      >
+      <div className="mobile-content bg-paper" ref={contentRef}>
         {isSearchMode ? (
           /* ── 검색 결과 ── */
           <motion.div
