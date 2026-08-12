@@ -5,24 +5,21 @@
  * 모바일: 헤더 확성기 버튼으로 펼치는 패널 (ScheduleLinkPanel)
  *         — 상시 노출하면 목록 높이가 그만큼 줄고, 툴바가 커진 만큼 스크롤이 생긴다.
  *
+ * 항목 구성은 [마감 배지] 제목 ↗ 로 고정한다.
+ * 유형 이모지는 쓰지 않는다 — 기기마다 글리프가 달라 깨져 보이는 것이 있었다.
+ * 새 탭 아이콘은 마감 유무와 상관없이 항상 끝에 둔다(있다 없다 하면 규칙이 안 보인다).
+ *
  * 노출 중인 항목이 없으면 아무것도 그리지 않는다.
  */
+import { Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink } from 'lucide-react';
 import { getScheduleLinks } from '@/api';
 
-/** 유형별 아이콘 — 관리자 ScheduleLinkDialog 의 KIND_META 와 같은 값 */
-const KIND_EMOJI = {
-  vote: '🗳',
-  stream: '🎧',
-  notice: '📌',
-  etc: '🔗',
-};
-
 /** 마감이 임박했다고 볼 기간 — 헤더 아이콘에 점을 띄우는 기준 */
 const URGENT_DAYS = 7;
 
-/** '2026-08-16T23:59' → '8/16' (타임존 없는 벽시계 문자열이라 문자열로 자른다) */
+/** '2026-08-16T23:59' → '~8/16' (타임존 없는 벽시계 문자열이라 문자열로 자른다) */
 function deadlineLabel(endsAt) {
   const m = /^\d{4}-(\d{2})-(\d{2})/.exec(endsAt || '');
   return m ? `~${Number(m[1])}/${Number(m[2])}` : null;
@@ -50,12 +47,10 @@ export function useScheduleLinks() {
   return { links, hasUrgent: links.some((l) => isUrgent(l.endsAt)) };
 }
 
-/** 마감 배지 또는 새 탭 아이콘 */
-function Trailing({ endsAt }) {
+/** 마감 배지 (종료일 없으면 안 그림) */
+function Deadline({ endsAt }) {
   const label = deadlineLabel(endsAt);
-  if (!label) {
-    return <ExternalLink size={12} className="shrink-0 text-faint-light" aria-label="새 탭에서 열림" />;
-  }
+  if (!label) return null;
   return (
     <span className="shrink-0 bg-[#FBF6E4] px-1.5 py-0.5 text-[10.5px] font-extrabold text-[#8A6D1B]">
       {label}
@@ -63,7 +58,7 @@ function Trailing({ endsAt }) {
   );
 }
 
-/** PC — 필터 줄 아래 한 줄 */
+/** PC — 필터 줄 아래 한 줄. 항목 사이는 가운뎃점으로 나눈다. */
 function ScheduleLinkStrip() {
   const { links } = useScheduleLinks();
   if (links.length === 0) return null;
@@ -73,19 +68,25 @@ function ScheduleLinkStrip() {
       <span className="shrink-0 border-r border-hairline pr-3.5 text-[11.5px] font-extrabold tracking-k2 text-mute">
         NOW
       </span>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2">
-        {links.map((l) => (
-          <a
-            key={l.id}
-            href={l.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-ebody transition-colors hover:text-ink"
-          >
-            <span aria-hidden>{KIND_EMOJI[l.kind] || KIND_EMOJI.etc}</span>
-            {l.title}
-            <Trailing endsAt={l.endsAt} />
-          </a>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+        {links.map((l, i) => (
+          <Fragment key={l.id}>
+            {i > 0 && (
+              <span className="select-none text-[13px] text-faint-light" aria-hidden>
+                ·
+              </span>
+            )}
+            <a
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-ebody transition-colors hover:text-ink"
+            >
+              <Deadline endsAt={l.endsAt} />
+              {l.title}
+              <ExternalLink size={12} className="shrink-0 text-faint-light" aria-label="새 탭에서 열림" />
+            </a>
+          </Fragment>
         ))}
       </div>
     </div>
@@ -109,13 +110,11 @@ export function ScheduleLinkPanel() {
           href={l.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2.5 border-t border-hairline px-5 py-[11px] active:bg-canvas"
+          className="flex items-center gap-2 border-t border-hairline px-5 py-[11px] active:bg-canvas"
         >
-          <span className="shrink-0 text-[14px]" aria-hidden>
-            {KIND_EMOJI[l.kind] || KIND_EMOJI.etc}
-          </span>
+          <Deadline endsAt={l.endsAt} />
           <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-ink">{l.title}</span>
-          <Trailing endsAt={l.endsAt} />
+          <ExternalLink size={13} className="shrink-0 text-faint-light" aria-label="새 탭에서 열림" />
         </a>
       ))}
     </div>

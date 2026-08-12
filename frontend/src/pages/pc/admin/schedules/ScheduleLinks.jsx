@@ -4,7 +4,7 @@
  * 일정 페이지 상단(필터 줄 아래)에 노출할 링크를 관리한다.
  * 순서는 드래그로 정하고, 노출 기간이 지나면 사이트에서 자동으로 사라진다.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -289,18 +289,20 @@ function AdminScheduleLinks() {
                     <span className="shrink-0 border-r border-hairline pr-3.5 text-[11px] font-extrabold tracking-k2 text-mute">
                       NOW
                     </span>
-                    <div className="flex min-w-0 items-center gap-5 overflow-hidden">
-                      {liveItems.map((it) => (
-                        <span key={it.id} className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-bold text-ebody">
-                          {(KIND_META[it.kind] || KIND_META.etc).emoji} {it.title}
-                          {it.endsAt ? (
-                            <span className="bg-[#FBF6E4] px-1.5 py-0.5 text-[10px] font-extrabold text-[#8A6D1B]">
-                              ~{fmt(it.endsAt).split(' ')[0].replace('.', '/').replace(/^0/, '')}
-                            </span>
-                          ) : (
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 overflow-hidden">
+                      {liveItems.map((it, i) => (
+                        <Fragment key={it.id}>
+                          {i > 0 && <span className="select-none text-[12px] text-faint-light">·</span>}
+                          <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-bold text-ebody">
+                            {it.endsAt && (
+                              <span className="bg-[#FBF6E4] px-1.5 py-0.5 text-[10px] font-extrabold text-[#8A6D1B]">
+                                ~{Number(fmt(it.endsAt).slice(0, 2))}/{Number(fmt(it.endsAt).slice(3, 5))}
+                              </span>
+                            )}
+                            {it.title}
                             <ExternalLink size={11} className="text-faint-light" />
-                          )}
-                        </span>
+                          </span>
+                        </Fragment>
                       ))}
                     </div>
                   </div>
