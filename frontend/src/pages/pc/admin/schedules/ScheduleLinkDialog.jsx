@@ -123,7 +123,7 @@ function DialogBody({ item, busy, onClose, onSave }) {
             </div>
           </div>
           <p className="mt-2 text-[11.5px] leading-[1.6] text-faint">
-            시작일을 비우면 바로 노출됩니다. 종료일을 넣으면 <b className="text-ink">~8/16</b> 배지가 붙고, 지나면 자동으로 사라집니다.
+            시작일을 비우면 바로 표시됩니다. 종료일을 넣으면 <b className="text-ink">~8/16</b> 배지가 붙고, 지나면 자동으로 사라집니다.
           </p>
         </div>
 

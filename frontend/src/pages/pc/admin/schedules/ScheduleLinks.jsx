@@ -1,14 +1,14 @@
 /**
  * 관리자 - 일정 고정 링크 관리
  *
- * 일정 페이지 상단(필터 줄 아래)에 노출할 링크를 관리한다.
- * 순서는 드래그로 정하고, 노출 기간이 지나면 사이트에서 자동으로 사라진다.
+ * 일정 페이지 상단(필터 줄 아래)에 표시할 링크를 관리한다.
+ * 순서는 드래그로 정하고, 표시 기간이 지나면 사이트에서 자동으로 사라진다.
  */
 import { useState, useMemo, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Link2, GripVertical, ExternalLink } from 'lucide-react';
+import { Link2, GripVertical, ExternalLink, Megaphone } from 'lucide-react';
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors,
@@ -29,7 +29,7 @@ import { EASE } from '@/components/editorial';
 import { adminScheduleLinkApi } from '@/api/admin';
 import ScheduleLinkDialog from './ScheduleLinkDialog';
 
-/** 노출 기간으로 지금 상태를 판단 */
+/** 표시 기간으로 지금 상태를 판단 */
 function getStatus(item) {
   const now = Date.now();
   if (item.startsAt && new Date(item.startsAt).getTime() > now) return 'wait';
@@ -38,7 +38,7 @@ function getStatus(item) {
 }
 
 const STATUS_META = {
-  live: { label: '노출 중', cls: 'bg-green-soft text-green-deep' },
+  live: { label: '표시 중', cls: 'bg-green-soft text-green-deep' },
   wait: { label: '예정', cls: 'bg-canvas text-mute' },
   over: { label: '기간 지남', cls: 'bg-[#FBF6E4] text-[#8A6D1B]' },
 };
@@ -232,7 +232,7 @@ function AdminScheduleLinks() {
           transition={{ duration: 0.55, ease: EASE, delay: 0.08 }}
         >
         <p className="mt-6 text-[14px] leading-[1.7] text-mute">
-          일정 페이지 상단에 고정으로 노출할 링크입니다. 투표·스밍 안내처럼{' '}
+          일정 페이지 상단에 고정으로 표시할 링크입니다. 투표·스밍 안내처럼{' '}
           <b className="text-ink">지금 참여해야 하는 것</b>을 올려두세요.{' '}
           <b className="text-ink">종료일이 지나면 자동으로 사라집니다.</b>
         </p>
@@ -245,7 +245,7 @@ function AdminScheduleLinks() {
             + 링크 추가
           </button>
           <span className="text-[12.5px] text-faint">
-            드래그로 순서를 바꿀 수 있습니다 · 노출 중인 항목만 사이트에 보입니다
+            드래그로 순서를 바꿀 수 있습니다 · 표시 중인 항목만 사이트에 보입니다
           </span>
         </div>
 
@@ -260,7 +260,7 @@ function AdminScheduleLinks() {
           <>
             <div className="mt-5 border-t-2 border-ink">
               <div className="grid grid-cols-[38px_1fr_230px_150px_100px_130px] items-center gap-3 border-b border-hairline py-3 text-[12px] font-extrabold tracking-k2 text-mute">
-                <span /><span>제목</span><span>URL</span><span>노출 기간</span><span>상태</span><span />
+                <span /><span>제목</span><span>URL</span><span>표시 기간</span><span>상태</span><span />
               </div>
               <DndContext
                 sensors={sensors}
@@ -280,15 +280,15 @@ function AdminScheduleLinks() {
             <div className="mt-10 border border-hairline bg-white">
               <div className="flex items-baseline gap-2.5 border-b border-hairline px-4 py-3">
                 <b className="text-[12px] font-extrabold tracking-k15">사이트에서 이렇게 보입니다</b>
-                <span className="text-[11.5px] text-mute">일정 페이지 필터 줄 아래 · 노출 중인 {liveItems.length}건</span>
+                <span className="text-[11.5px] text-mute">일정 페이지 필터 줄 아래 · 표시 중인 {liveItems.length}건</span>
               </div>
               <div className="bg-paper px-4 py-5">
                 {liveItems.length === 0 ? (
-                  <p className="text-[13px] text-faint">노출 중인 항목이 없어 사이트에는 이 줄이 나오지 않습니다.</p>
+                  <p className="text-[13px] text-faint">표시 중인 항목이 없어 사이트에는 이 줄이 나오지 않습니다.</p>
                 ) : (
                   <div className="flex items-center gap-3.5 border border-hairline bg-white px-4 py-3">
-                    <span className="shrink-0 border-r border-hairline pr-3.5 text-[11px] font-extrabold tracking-k2 text-mute">
-                      NOW
+                    <span className="flex shrink-0 items-center border-r border-hairline pr-3.5 text-mute">
+                      <Megaphone size={15} strokeWidth={2.2} aria-hidden />
                     </span>
                     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 overflow-hidden">
                       {liveItems.map((it, i) => (
