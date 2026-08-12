@@ -1,13 +1,13 @@
 /**
  * 관리자 로그인 페이지 — 에디토리얼 리뉴얼 (design-drafts/ADM_login 시안)
  */
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/stores';
-import { useRedirectIfAuthenticated } from '@/hooks/pc/admin';
+import { useRedirectIfAuthenticated, useGoogleSignIn } from '@/hooks/pc/admin';
 import { useDocumentTitle } from '@/hooks/common';
 import { EASE } from '@/components/editorial';
 import * as authApi from '@/api/admin/auth';
@@ -36,6 +36,16 @@ function AdminLogin() {
     e.preventDefault();
     loginMutation.mutate();
   };
+
+  // 구글 로그인 성공 시에도 비밀번호 로그인과 똑같이 처리한다
+  const handleGoogleSuccess = useCallback(
+    (data) => {
+      loginStore(data.token, data.user);
+      navigate('/admin/dashboard');
+    },
+    [loginStore, navigate]
+  );
+  const google = useGoogleSignIn({ onSuccess: handleGoogleSuccess });
 
   // 인증 확인 중 로딩 화면
   if (checkingAuth) {
@@ -124,6 +134,27 @@ function AdminLogin() {
               {loginMutation.isPending ? '로그인 중...' : '로그인'}
             </button>
           </form>
+
+          {/* 구글 로그인 — 설정돼 있을 때만 나온다. 비밀번호 로그인은 비상용으로 남겨둔다. */}
+          {google.enabled && (
+            <div className="mt-7">
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-hairline" />
+                <span className="text-[12px] font-extrabold tracking-k2 text-faint">또는</span>
+                <span className="h-px flex-1 bg-hairline" />
+              </div>
+              <div className="mt-5 flex justify-center" ref={google.buttonRef} />
+              {google.pending && (
+                <p className="mt-3 text-[13px] text-mute">구글 계정 확인 중...</p>
+              )}
+              {google.error && (
+                <p className="mt-3 flex items-center justify-center gap-1.5 text-[13px] text-[#C0392B]">
+                  <AlertCircle size={14} className="shrink-0" />
+                  {google.error}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 하단 링크 */}

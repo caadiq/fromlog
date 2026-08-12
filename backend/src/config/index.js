@@ -56,6 +56,12 @@ export default {
   },
   google: {
     apiKey: process.env.GOOGLE_API_KEY,
+    // 관리자 구글 로그인 — OAuth 클라이언트 ID(공개값)와 허용 이메일 목록(쉼표 구분)
+    oauthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+    adminEmails: (process.env.ADMIN_GOOGLE_EMAILS || '')
+      .split(',')
+      .map(e => e.trim().toLowerCase())
+      .filter(Boolean),
   },
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
