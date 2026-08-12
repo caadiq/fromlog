@@ -137,6 +137,10 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
 
   /// 날짜 선택 핸들러
   void _onDateSelected(DateTime date) {
+    // 펼쳐둔 고정 링크 패널은 닫는다 — 시선이 날짜/목록으로 옮겨갔다 (웹과 동일)
+    if (_showLinks) {
+      setState(() => _showLinks = false);
+    }
     // 일정 목록 맨 위로 즉시 이동
     if (_contentScrollController.hasClients) {
       _contentScrollController.jumpTo(0);
