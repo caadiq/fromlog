@@ -19,6 +19,7 @@ extension _ScheduleSearchPart on _ScheduleViewState {
     _refresh(() {
       _isSearchMode = true;
       _showSuggestions = true;
+      _showLinks = false;
     });
     // 검색 입력창 포커스
     WidgetsBinding.instance.addPostFrameCallback((_) {

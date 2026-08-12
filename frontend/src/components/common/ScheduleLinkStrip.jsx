@@ -13,7 +13,7 @@
  */
 import { Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Megaphone } from 'lucide-react';
 import { getScheduleLinks } from '@/api';
 
 /** 마감이 임박했다고 볼 기간 — 헤더 아이콘에 점을 띄우는 기준 */
@@ -65,8 +65,9 @@ function ScheduleLinkStrip() {
 
   return (
     <div className="mt-3.5 flex items-center gap-3.5 border border-hairline bg-white px-4 py-3">
-      <span className="shrink-0 border-r border-hairline pr-3.5 text-[11.5px] font-extrabold tracking-k2 text-mute">
-        NOW
+      {/* 모바일 헤더 버튼과 같은 아이콘 — 두 화면이 같은 것임을 알아보게 한다 */}
+      <span className="flex shrink-0 items-center border-r border-hairline pr-3.5 text-mute">
+        <Megaphone size={15} strokeWidth={2.2} aria-label="지금 참여할 수 있는 링크" />
       </span>
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
         {links.map((l, i) => (
@@ -96,8 +97,8 @@ export function ScheduleLinkPanel() {
 
   return (
     <div className="bg-white pb-2.5 pt-1.5">
-      <div className="flex items-baseline gap-2 px-5 pb-1.5 pt-2">
-        <b className="text-[10.5px] font-extrabold tracking-k2 text-mute">NOW</b>
+      <div className="flex items-center gap-2 px-5 pb-1.5 pt-2">
+        <Megaphone size={13} strokeWidth={2.2} className="text-mute" aria-hidden />
         <span className="text-[11px] text-faint">새 탭으로 열립니다</span>
       </div>
       {links.map((l) => (

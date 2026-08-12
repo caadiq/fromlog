@@ -3,6 +3,7 @@ library;
 
 import 'package:intl/intl.dart';
 import '../models/schedule.dart';
+import '../models/schedule_link.dart';
 import 'api_client.dart';
 
 /// 오늘 날짜 (KST) 반환
@@ -95,4 +96,11 @@ Future<List<String>> getSuggestions(String query, {int limit = 10}) async {
   } catch (e) {
     return [];
   }
+}
+
+/// 일정 페이지 고정 링크 (노출 기간에 걸린 것만 서버가 내려준다)
+Future<List<ScheduleLink>> getScheduleLinks() async {
+  final response = await dio.get('/schedule-links');
+  final List<dynamic> list = response.data ?? [];
+  return list.map((json) => ScheduleLink.fromJson(json)).toList();
 }

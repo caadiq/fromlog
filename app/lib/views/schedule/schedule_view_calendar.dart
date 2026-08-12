@@ -24,6 +24,7 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
       _calendarViewDate = DateTime(initialDate.year, initialDate.month, 1);
       _showCalendar = true;
       _showYearMonthPicker = false;
+      _showLinks = false; // 두 패널이 동시에 열리지 않게
     });
     ref
         .read(scheduleProvider.notifier)

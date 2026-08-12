@@ -14,6 +14,9 @@ import '../../core/constants.dart';
 import '../../models/schedule.dart';
 import '../../controllers/schedule_controller.dart';
 import 'widgets/schedule_editorial.dart';
+import 'widgets/schedule_link_panel.dart';
+import '../../models/schedule_link.dart';
+import '../../services/schedules_service.dart';
 import '../../widgets/editorial.dart';
 import '../../widgets/e_motion.dart';
 import '../../core/format_utils.dart';
@@ -52,6 +55,10 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
   // 마지막 검색어 (뒤로가기 시 복원용)
   String _lastSearchTerm = '';
 
+  // 고정 링크 패널 (달력과 배타적으로 열린다)
+  bool _showLinks = false;
+  List<ScheduleLink> _links = const [];
+
   // 달력 팝업 상태
   bool _showCalendar = false;
   DateTime _calendarViewDate = DateTime.now();
@@ -69,6 +76,28 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
     _calendarPageController = PageController(initialPage: _initialPage);
     // 검색 무한 스크롤 리스너
     _searchScrollController.addListener(_onSearchScroll);
+    _loadScheduleLinks();
+  }
+
+  /// 고정 링크 조회 — 실패해도 화면은 그대로 쓴다(버튼만 안 나옴)
+  Future<void> _loadScheduleLinks() async {
+    try {
+      final links = await getScheduleLinks();
+      if (mounted) setState(() => _links = links);
+    } catch (_) {
+      // 무시
+    }
+  }
+
+  /// 고정 링크 패널 토글 (달력과 하나만 열린다)
+  void _toggleLinks() {
+    setState(() {
+      _showLinks = !_showLinks;
+      if (_showLinks) {
+        _showCalendar = false;
+        _showYearMonthPicker = false;
+      }
+    });
   }
 
   /// part 파일(extension)에서 상태 갱신용 setState 래퍼
@@ -209,6 +238,16 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
                       child: _buildToolbar(scheduleState, controller),
                     ),
             ),
+            // 고정 링크 패널 — 달력과 같은 자리·같은 애니메이션
+            if (!_isSearchMode)
+              ExpandFade(
+                expanded: _showLinks,
+                openDuration: const Duration(milliseconds: 250),
+                closeDuration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                child: ScheduleLinkPanel(links: _links),
+              ),
+
             // 툴바 아래 패널 — 웹 1:1
             //  · 열기/닫기: ExpandFade — height 0↔auto + opacity 동시(닫힐 때 페이드아웃하며
             //    접혀 빈 공간 없음). 열기(600)/닫기(440) 속도 분리.
@@ -384,6 +423,35 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
                 onTap: goNext,
               ),
               const Spacer(),
+              // 고정 링크 토글 — 링크가 있을 때만 나온다
+              if (_links.isNotEmpty) ...[
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _IconBtn(
+                      icon: LucideIcons.megaphone,
+                      iconSize: 18,
+                      color: _showLinks ? appPalette.primary : EColors.ebody,
+                      onTap: _toggleLinks,
+                    ),
+                    // 마감이 일주일 이내인 항목이 있을 때만 점
+                    if (!_showLinks && _links.any((l) => l.isUrgent))
+                      Positioned(
+                        right: -2,
+                        top: -1,
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFC0392B),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+              ],
               // 달력 토글 (lucide grid-3x3, PC와 동일)
               _IconBtn(
                 icon: LucideIcons.grid,
