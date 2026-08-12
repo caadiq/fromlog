@@ -286,8 +286,8 @@ function AdminScheduleLinks() {
                   <p className="text-[13px] text-faint">노출 중인 항목이 없어 사이트에는 이 줄이 나오지 않습니다.</p>
                 ) : (
                   <div className="flex items-center gap-3.5 border border-hairline bg-white px-4 py-3">
-                    <span className="shrink-0 border-r border-hairline pr-3.5 text-[11px] font-extrabold tracking-k13 text-mute">
-                      함께 하기
+                    <span className="shrink-0 border-r border-hairline pr-3.5 text-[11px] font-extrabold tracking-k2 text-mute">
+                      NOW
                     </span>
                     <div className="flex min-w-0 items-center gap-5 overflow-hidden">
                       {liveItems.map((it) => (

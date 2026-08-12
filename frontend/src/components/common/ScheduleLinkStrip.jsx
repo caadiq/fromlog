@@ -62,7 +62,7 @@ function ScheduleLinkStrip({ mobile = false }) {
   if (mobile) {
     return (
       <div className="flex items-center gap-2 overflow-x-auto border-b border-hairline px-5 py-[11px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <span className="shrink-0 text-[10.5px] font-extrabold tracking-k12 text-mute">함께</span>
+        <span className="shrink-0 text-[10.5px] font-extrabold tracking-k2 text-mute">NOW</span>
         {items}
       </div>
     );
@@ -70,8 +70,8 @@ function ScheduleLinkStrip({ mobile = false }) {
 
   return (
     <div className="mt-3.5 flex items-center gap-3.5 border border-hairline bg-white px-4 py-3">
-      <span className="shrink-0 border-r border-hairline pr-3.5 text-[11.5px] font-extrabold tracking-k13 text-mute">
-        함께 하기
+      <span className="shrink-0 border-r border-hairline pr-3.5 text-[11.5px] font-extrabold tracking-k2 text-mute">
+        NOW
       </span>
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2">{items}</div>
     </div>
