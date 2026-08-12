@@ -58,7 +58,7 @@ function Deadline({ endsAt }) {
   );
 }
 
-/** PC — 필터 줄 아래 한 줄. 항목 사이는 가운뎃점으로 나눈다. */
+/** PC — 필터 줄 아래 한 줄. 항목 사이는 세로선으로 나눈다(가운뎃점은 너무 흐렸다). */
 function ScheduleLinkStrip() {
   const { links } = useScheduleLinks();
   if (links.length === 0) return null;
@@ -71,11 +71,7 @@ function ScheduleLinkStrip() {
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
         {links.map((l, i) => (
           <Fragment key={l.id}>
-            {i > 0 && (
-              <span className="select-none text-[13px] text-faint-light" aria-hidden>
-                ·
-              </span>
-            )}
+            {i > 0 && <span className="h-3.5 w-px shrink-0 bg-hairline" aria-hidden />}
             <a
               href={l.url}
               target="_blank"

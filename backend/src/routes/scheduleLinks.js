@@ -19,7 +19,6 @@ export default async function scheduleLinkRoutes(fastify) {
             type: 'object',
             properties: {
               id: { type: 'integer' },
-              kind: { type: 'string' },
               title: { type: 'string' },
               url: { type: 'string' },
               endsAt: { type: ['string', 'null'] },
@@ -30,7 +29,7 @@ export default async function scheduleLinkRoutes(fastify) {
     },
   }, async () => {
     const [rows] = await db.query(
-      `SELECT id, kind, title, url,
+      `SELECT id, title, url,
               DATE_FORMAT(ends_at, '%Y-%m-%dT%H:%i') AS ends_at
          FROM schedule_links
         WHERE (starts_at IS NULL OR starts_at <= NOW())
@@ -39,7 +38,6 @@ export default async function scheduleLinkRoutes(fastify) {
     );
     return rows.map(r => ({
       id: r.id,
-      kind: r.kind,
       title: r.title,
       url: r.url,
       // 마감 배지(~8/16)용. 기간 제한이 없으면 null.

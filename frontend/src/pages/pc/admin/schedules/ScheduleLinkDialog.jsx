@@ -7,14 +7,6 @@ import { X } from 'lucide-react';
 import { EASE } from '@/components/editorial';
 import { useDialogBackClose } from '@/hooks/common';
 
-/** 유형 — 값은 DB enum과 같아야 한다 */
-export const KIND_META = {
-  vote: { emoji: '🗳', label: '투표' },
-  stream: { emoji: '🎧', label: '스밍' },
-  notice: { emoji: '📌', label: '공지' },
-  etc: { emoji: '🔗', label: '기타' },
-};
-
 /** ISO → datetime-local 입력값(YYYY-MM-DDTHH:mm). 로컬 시각 기준. */
 function toLocalInput(iso) {
   if (!iso) return '';
@@ -25,7 +17,6 @@ function toLocalInput(iso) {
 
 function ScheduleLinkDialog({ item, busy, onClose, onSave }) {
   const isEdit = !!item.id;
-  const [kind, setKind] = useState(item.kind || 'vote');
   const [title, setTitle] = useState(item.title || '');
   const [url, setUrl] = useState(item.url || '');
   const [startsAt, setStartsAt] = useState(toLocalInput(item.startsAt));
@@ -42,7 +33,6 @@ function ScheduleLinkDialog({ item, busy, onClose, onSave }) {
     setError('');
     onSave({
       id: item.id,
-      kind,
       title: title.trim(),
       url: url.trim(),
       startsAt: startsAt || null,
@@ -84,24 +74,6 @@ function ScheduleLinkDialog({ item, busy, onClose, onSave }) {
               {error}
             </div>
           )}
-
-          <div className="mb-5">
-            <span className={label}>유형</span>
-            <div className="mt-2 flex gap-1.5">
-              {Object.entries(KIND_META).map(([key, m]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setKind(key)}
-                  className={`border px-3 py-2 text-[12.5px] font-extrabold transition-colors ${
-                    kind === key ? 'border-ink bg-ink text-white' : 'border-hairline bg-white text-esub hover:border-ink'
-                  }`}
-                >
-                  {m.emoji} {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div className="mb-5">
             <label className={label} htmlFor="link-title">제목</label>

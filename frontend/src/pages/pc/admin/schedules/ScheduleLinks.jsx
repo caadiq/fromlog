@@ -27,7 +27,7 @@ import { useAdminAuth } from '@/hooks/pc/admin';
 import { useToast, useDocumentTitle } from '@/hooks/common';
 import { EASE } from '@/components/editorial';
 import { adminScheduleLinkApi } from '@/api/admin';
-import ScheduleLinkDialog, { KIND_META } from './ScheduleLinkDialog';
+import ScheduleLinkDialog from './ScheduleLinkDialog';
 
 /** 노출 기간으로 지금 상태를 판단 */
 function getStatus(item) {
@@ -63,7 +63,6 @@ function SortableRow({ item, onEdit, onDelete }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
   const status = getStatus(item);
-  const meta = KIND_META[item.kind] || KIND_META.etc;
   const period = periodText(item);
   const dim = status !== 'live';
 
@@ -71,7 +70,7 @@ function SortableRow({ item, onEdit, onDelete }) {
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`grid grid-cols-[38px_92px_1fr_230px_150px_100px_130px] items-center gap-3 border-b border-hairline py-[15px] ${
+      className={`grid grid-cols-[38px_1fr_230px_150px_100px_130px] items-center gap-3 border-b border-hairline py-[15px] ${
         isDragging ? 'relative z-10 bg-white shadow-[0_8px_24px_rgba(20,22,19,0.12)]' : ''
       }`}
     >
@@ -84,10 +83,6 @@ function SortableRow({ item, onEdit, onDelete }) {
       >
         <GripVertical size={16} />
       </button>
-
-      <span className={`inline-flex w-fit items-center gap-1.5 border border-hairline bg-white px-2 py-1 text-[11.5px] font-extrabold ${dim ? 'text-faint' : 'text-esub'}`}>
-        {meta.emoji} {meta.label}
-      </span>
 
       <span className={`truncate text-[14.5px] font-bold tracking-[-0.2px] ${dim ? 'text-faint' : 'text-ink'}`}>
         {item.title}
@@ -258,8 +253,8 @@ function AdminScheduleLinks() {
         ) : (
           <>
             <div className="mt-5 border-t-2 border-ink">
-              <div className="grid grid-cols-[38px_92px_1fr_230px_150px_100px_130px] items-center gap-3 border-b border-hairline py-3 text-[12px] font-extrabold tracking-k2 text-mute">
-                <span /><span>유형</span><span>제목</span><span>URL</span><span>노출 기간</span><span>상태</span><span />
+              <div className="grid grid-cols-[38px_1fr_230px_150px_100px_130px] items-center gap-3 border-b border-hairline py-3 text-[12px] font-extrabold tracking-k2 text-mute">
+                <span /><span>제목</span><span>URL</span><span>노출 기간</span><span>상태</span><span />
               </div>
               <DndContext
                 sensors={sensors}
@@ -292,7 +287,7 @@ function AdminScheduleLinks() {
                     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 overflow-hidden">
                       {liveItems.map((it, i) => (
                         <Fragment key={it.id}>
-                          {i > 0 && <span className="select-none text-[12px] text-faint-light">·</span>}
+                          {i > 0 && <span className="h-3 w-px shrink-0 bg-hairline" aria-hidden />}
                           <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-bold text-ebody">
                             {it.endsAt && (
                               <span className="bg-[#FBF6E4] px-1.5 py-0.5 text-[10px] font-extrabold text-[#8A6D1B]">

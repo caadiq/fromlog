@@ -7,12 +7,9 @@
 import { badRequest, notFound } from '../../utils/error.js';
 import { logActivity } from '../../utils/log.js';
 
-const KINDS = ['vote', 'stream', 'notice', 'etc'];
-
 function rowToItem(r) {
   return {
     id: r.id,
-    kind: r.kind,
     title: r.title,
     url: r.url,
     // DATE_FORMAT으로 뽑은 'YYYY-MM-DDTHH:mm' 문자열을 그대로 쓴다(타임존 표기 없음).
@@ -35,13 +32,12 @@ function toDateTime(v) {
 }
 
 /** 입력 검증 — 통과하면 null, 아니면 에러 메시지 */
-function validate({ title, url, kind, startsAt, endsAt }) {
+function validate({ title, url, startsAt, endsAt }) {
   if (!title?.trim()) return '제목을 입력해주세요.';
   if (title.trim().length > 120) return '제목은 120자를 넘을 수 없습니다.';
   if (!url?.trim()) return 'URL을 입력해주세요.';
   if (!/^https?:\/\//i.test(url.trim())) return 'URL은 http:// 또는 https:// 로 시작해야 합니다.';
   if (url.trim().length > 500) return 'URL이 너무 깁니다.';
-  if (kind && !KINDS.includes(kind)) return '알 수 없는 유형입니다.';
   const s = toDateTime(startsAt);
   const e = toDateTime(endsAt);
   if (s && e && s > e) return '종료일이 시작일보다 빠릅니다.';
@@ -54,7 +50,7 @@ export default async function adminScheduleLinkRoutes(fastify) {
   /** GET / — 전체 목록 (만료·예정 포함, 관리자는 다 봐야 함) */
   fastify.get('/', { preHandler: [fastify.authenticate] }, async () => {
     const [rows] = await db.query(
-      `SELECT id, kind, title, url, sort_order,
+      `SELECT id, title, url, sort_order,
               DATE_FORMAT(starts_at, '%Y-%m-%dT%H:%i') AS starts_at,
               DATE_FORMAT(ends_at,   '%Y-%m-%dT%H:%i') AS ends_at
          FROM schedule_links ORDER BY sort_order, id`
@@ -72,10 +68,9 @@ export default async function adminScheduleLinkRoutes(fastify) {
       'SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM schedule_links'
     );
     const [res] = await db.query(
-      `INSERT INTO schedule_links (kind, title, url, starts_at, ends_at, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO schedule_links (title, url, starts_at, ends_at, sort_order)
+       VALUES (?, ?, ?, ?, ?)`,
       [
-        KINDS.includes(body.kind) ? body.kind : 'etc',
         body.title.trim(),
         body.url.trim(),
         toDateTime(body.startsAt),
@@ -103,10 +98,9 @@ export default async function adminScheduleLinkRoutes(fastify) {
 
     await db.query(
       `UPDATE schedule_links
-          SET kind = ?, title = ?, url = ?, starts_at = ?, ends_at = ?
+          SET title = ?, url = ?, starts_at = ?, ends_at = ?
         WHERE id = ?`,
       [
-        KINDS.includes(body.kind) ? body.kind : 'etc',
         body.title.trim(),
         body.url.trim(),
         toDateTime(body.startsAt),
