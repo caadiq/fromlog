@@ -16,3 +16,4 @@ export * as adminAuthApi from './auth';
 
 // 개별 함수 export
 export * from './auth';
+export * as adminScheduleLinkApi from './scheduleLinks';

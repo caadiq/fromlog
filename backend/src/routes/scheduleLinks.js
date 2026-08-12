@@ -30,7 +30,8 @@ export default async function scheduleLinkRoutes(fastify) {
     },
   }, async () => {
     const [rows] = await db.query(
-      `SELECT id, kind, title, url, ends_at
+      `SELECT id, kind, title, url,
+              DATE_FORMAT(ends_at, '%Y-%m-%dT%H:%i') AS ends_at
          FROM schedule_links
         WHERE (starts_at IS NULL OR starts_at <= NOW())
           AND (ends_at   IS NULL OR ends_at   >= NOW())
@@ -42,7 +43,8 @@ export default async function scheduleLinkRoutes(fastify) {
       title: r.title,
       url: r.url,
       // 마감 배지(~8/16)용. 기간 제한이 없으면 null.
-      endsAt: r.ends_at ? new Date(r.ends_at).toISOString() : null,
+      // 타임존 없는 '벽시계' 문자열로 내려보낸다 — UTC로 표기하면 브라우저가 +9시간 밀어 읽는다.
+      endsAt: r.ends_at || null,
     }));
   });
 }

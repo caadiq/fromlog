@@ -399,6 +399,12 @@ function Schedules() {
             right={
               <>
                 <button
+                  onClick={() => navigate('/admin/schedule/links')}
+                  className="border border-hairline bg-white px-[18px] py-[11px] text-[13px] font-extrabold tracking-k15 text-esub transition-colors hover:border-ink hover:text-ink"
+                >
+                  고정 링크
+                </button>
+                <button
                   onClick={() => navigate('/admin/schedule/dict')}
                   className="border border-hairline bg-white px-[18px] py-[11px] text-[13px] font-extrabold tracking-k15 text-esub transition-colors hover:border-ink hover:text-ink"
                 >

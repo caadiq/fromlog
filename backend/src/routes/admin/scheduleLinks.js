@@ -10,24 +10,28 @@ import { logActivity } from '../../utils/log.js';
 const KINDS = ['vote', 'stream', 'notice', 'etc'];
 
 function rowToItem(r) {
-  const iso = (v) => (v ? new Date(v).toISOString() : null);
   return {
     id: r.id,
     kind: r.kind,
     title: r.title,
     url: r.url,
-    startsAt: iso(r.starts_at),
-    endsAt: iso(r.ends_at),
+    // DATE_FORMAT으로 뽑은 'YYYY-MM-DDTHH:mm' 문자열을 그대로 쓴다(타임존 표기 없음).
+    startsAt: r.starts_at || null,
+    endsAt: r.ends_at || null,
     sortOrder: r.sort_order,
   };
 }
 
-/** 'YYYY-MM-DDTHH:mm' 또는 ISO 문자열 → MySQL DATETIME. 빈값이면 null. */
+/**
+ * 'YYYY-MM-DDTHH:mm' → MySQL DATETIME 문자열.
+ *
+ * Date 객체를 거치지 않는다 — 거치면 서버 타임존에 따라 시각이 밀린다.
+ * 관리자가 입력한 벽시계 시각을 그대로 저장하고, 비교도 같은 기준(NOW())으로 한다.
+ */
 function toDateTime(v) {
   if (!v) return null;
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 19).replace('T', ' ');
+  const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(String(v).trim());
+  return m ? `${m[1]} ${m[2]}:00` : null;
 }
 
 /** 입력 검증 — 통과하면 null, 아니면 에러 메시지 */
@@ -50,7 +54,10 @@ export default async function adminScheduleLinkRoutes(fastify) {
   /** GET / — 전체 목록 (만료·예정 포함, 관리자는 다 봐야 함) */
   fastify.get('/', { preHandler: [fastify.authenticate] }, async () => {
     const [rows] = await db.query(
-      'SELECT * FROM schedule_links ORDER BY sort_order, id'
+      `SELECT id, kind, title, url, sort_order,
+              DATE_FORMAT(starts_at, '%Y-%m-%dT%H:%i') AS starts_at,
+              DATE_FORMAT(ends_at,   '%Y-%m-%dT%H:%i') AS ends_at
+         FROM schedule_links ORDER BY sort_order, id`
     );
     return rows.map(rowToItem);
   });

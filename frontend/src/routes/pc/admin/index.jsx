@@ -41,6 +41,7 @@ import AdminTicketingForm from '@/pages/pc/admin/schedules/form/TicketingForm';
 import AdminScheduleDict from '@/pages/pc/admin/schedules/ScheduleDict';
 import AdminScheduleBots from '@/pages/pc/admin/schedules/ScheduleBots';
 import AdminScheduleQueue from '@/pages/pc/admin/schedules/ScheduleQueue';
+import AdminScheduleLinks from '@/pages/pc/admin/schedules/ScheduleLinks';
 import AdminLogs from '@/pages/pc/admin/logs/Logs';
 import AdminVideos from '@/pages/pc/admin/videos/Videos';
 import AdminTheme from '@/pages/pc/admin/theme/Theme';
@@ -73,6 +74,7 @@ export default function AdminRoutes() {
       <Route path="/admin/schedule/dict" element={<RequireAuth><AdminScheduleDict /></RequireAuth>} />
       <Route path="/admin/schedule/bots" element={<RequireAuth><AdminScheduleBots /></RequireAuth>} />
       <Route path="/admin/schedule/queue" element={<RequireAuth><AdminScheduleQueue /></RequireAuth>} />
+      <Route path="/admin/schedule/links" element={<RequireAuth><AdminScheduleLinks /></RequireAuth>} />
       <Route path="/admin/videos" element={<RequireAuth><AdminVideos /></RequireAuth>} />
       <Route path="/admin/logs" element={<RequireAuth><AdminLogs /></RequireAuth>} />
       <Route path="/admin/theme" element={<RequireAuth><AdminTheme /></RequireAuth>} />
