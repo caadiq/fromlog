@@ -4,3 +4,4 @@
 export * from './schedules';
 export * from './albums';
 export * from './members';
+export * from './scheduleLinks';

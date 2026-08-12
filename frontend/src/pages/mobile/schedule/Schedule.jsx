@@ -34,7 +34,7 @@ import {
   BirthdayCard as MobileBirthdayCard,
   DebutCard as MobileDebutCard,
 } from '@/components/mobile';
-import { DebutCelebrationDialog, BirthdayCelebrationDialog } from '@/components/common';
+import { DebutCelebrationDialog, BirthdayCelebrationDialog, ScheduleLinkStrip } from '@/components/common';
 import { EASE } from '@/components/editorial';
 import { useDocumentTitle, useDialogBackClose, useRecentSearches, useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
 
@@ -1012,6 +1012,9 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                     })}
                   </div>
                 )}
+
+                {/* 고정 링크 — 필터 칩과 같은 가로 스크롤. 없으면 안 그린다. */}
+                <ScheduleLinkStrip mobile />
               </>
             )}
           </motion.div>

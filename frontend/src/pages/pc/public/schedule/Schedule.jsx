@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { EditorialCalendar, BirthdayCard, DebutCard } from '@/components/pc/public';
-import { DebutCelebrationDialog, BirthdayCelebrationDialog, Tooltip } from '@/components/common';
+import { DebutCelebrationDialog, BirthdayCelebrationDialog, Tooltip, ScheduleLinkStrip } from '@/components/common';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 import { OutlineTitle, EASE } from '@/components/editorial';
@@ -965,6 +965,9 @@ function PCSchedule() {
             );
           })}
         </motion.div>
+
+        {/* 고정 링크 — 투표·스밍 안내. 등록된 게 없으면 아무것도 그리지 않는다. */}
+        <ScheduleLinkStrip />
 
         {/* 스프레드: 달력 | 일정 리스트
             높이를 고정하지 않고 각 열에 화면 높이 상한만 둔다 — 화면이 넉넉하면 내용만큼만
