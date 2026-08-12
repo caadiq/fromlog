@@ -16,6 +16,8 @@ import concertAdminRoutes from './admin/concert.js';
 import eventsAdminRoutes from './admin/events.js';
 import etcAdminRoutes from './admin/etc.js';
 import pendingAdminRoutes from './admin/pending.js';
+import scheduleLinkRoutes from './scheduleLinks.js';
+import scheduleLinkAdminRoutes from './admin/scheduleLinks.js';
 import varietyAdminRoutes from './admin/variety.js';
 import schedulesAdminRoutes from './admin/schedules.js';
 import fansignAdminRoutes from './admin/fansign.js';
@@ -83,6 +85,10 @@ export default async function routes(fastify) {
 
   // 관리자 - 수집 큐(검토 대기) 라우트
   fastify.register(pendingAdminRoutes, { prefix: '/admin/pending' });
+
+  // 일정 페이지 고정 링크 (공개 조회 + 관리자 CRUD)
+  fastify.register(scheduleLinkRoutes, { prefix: '/schedule-links' });
+  fastify.register(scheduleLinkAdminRoutes, { prefix: '/admin/schedule-links' });
 
   // 관리자 - 예능 라우트
   fastify.register(varietyAdminRoutes, { prefix: '/admin/variety' });
