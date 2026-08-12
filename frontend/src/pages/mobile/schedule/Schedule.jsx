@@ -13,6 +13,7 @@ import {
   CalendarPlus,
   Bot,
   Clock,
+  Megaphone,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -34,7 +35,7 @@ import {
   BirthdayCard as MobileBirthdayCard,
   DebutCard as MobileDebutCard,
 } from '@/components/mobile';
-import { DebutCelebrationDialog, BirthdayCelebrationDialog, ScheduleLinkStrip } from '@/components/common';
+import { DebutCelebrationDialog, BirthdayCelebrationDialog, ScheduleLinkPanel, useScheduleLinks } from '@/components/common';
 import { EASE } from '@/components/editorial';
 import { useDocumentTitle, useDialogBackClose, useRecentSearches, useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
 
@@ -343,6 +344,8 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showPanel, setShowPanel] = useState(false); // 인라인 달력 패널
+  const [showLinks, setShowLinks] = useState(false); // 고정 링크 패널 (달력과 배타)
+  const { links: scheduleLinks, hasUrgent } = useScheduleLinks();
   const [ymMode, setYmMode] = useState(false); // 패널 내 년월 픽커 모드
   const [calendarViewDate, setCalendarViewDate] = useState(() => new Date(selectedDate));
   const contentRef = useRef(null);
@@ -673,7 +676,19 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
       setCalendarViewDate(new Date(selectedDate));
       setShowPanel(true);
       setYmMode(false);
+      setShowLinks(false); // 두 패널이 동시에 열리지 않게
     }
+  };
+
+  // 고정 링크 패널 토글 (달력과 같은 자리라 하나만 열린다)
+  const toggleLinks = () => {
+    setShowLinks((v) => {
+      if (!v) {
+        setShowPanel(false);
+        setYmMode(false);
+      }
+      return !v;
+    });
   };
 
   // 타이틀 탭: 패널 닫힘 → 달력 열기 / 패널 열림 → 년월 픽커 토글
@@ -864,6 +879,20 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                 </button>
               </div>
               <div className="flex items-center gap-5">
+                {scheduleLinks.length > 0 && (
+                  <button
+                    type="button"
+                    aria-label="지금 참여할 수 있는 링크"
+                    onClick={toggleLinks}
+                    className={`relative ${showLinks ? 'text-primary' : 'text-ebody'}`}
+                  >
+                    <Megaphone size={18} strokeWidth={2.2} />
+                    {/* 마감이 일주일 이내인 항목이 있을 때만 점을 띄운다 */}
+                    {hasUrgent && !showLinks && (
+                      <span className="absolute -right-[3px] -top-[2px] h-[6px] w-[6px] rounded-full bg-[#C0392B]" />
+                    )}
+                  </button>
+                )}
                 <button
                   type="button"
                   aria-label="달력"
@@ -879,6 +908,22 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                 )}
               </div>
             </div>
+
+            {/* 고정 링크 패널 — 달력과 같은 자리·같은 애니메이션 */}
+            <AnimatePresence initial={false}>
+              {showLinks && (
+                <motion.div
+                  key="links-panel"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: EASE }}
+                  className="overflow-hidden border-b border-hairline"
+                >
+                  <ScheduleLinkPanel />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* 인라인 달력 / 년월 픽커 패널 */}
             <AnimatePresence initial={false}>
@@ -1012,9 +1057,6 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                     })}
                   </div>
                 )}
-
-                {/* 고정 링크 — 필터 칩과 같은 가로 스크롤. 없으면 안 그린다. */}
-                <ScheduleLinkStrip mobile />
               </>
             )}
           </motion.div>

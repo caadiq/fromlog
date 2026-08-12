@@ -11,4 +11,4 @@ export { default as Fromis9Logo } from './Fromis9Logo';
 export { default as DebutCelebrationDialog } from './DebutCelebrationDialog';
 export { default as BirthdayCelebrationDialog } from './BirthdayCelebrationDialog';
 export { default as VideoDuration } from './VideoDuration';
-export { default as ScheduleLinkStrip } from './ScheduleLinkStrip';
+export { default as ScheduleLinkStrip, ScheduleLinkPanel, useScheduleLinks } from './ScheduleLinkStrip';
