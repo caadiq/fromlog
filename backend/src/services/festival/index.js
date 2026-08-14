@@ -259,7 +259,7 @@ async function festivalBotPlugin(fastify) {
       try {
         await sendOpsAlert(db, {
           title: '새 일정 수집 대기',
-          body: `수집 대기 ${added}건이 큐에 등록됐어요. 관리자에서 검토·등록하세요.`,
+          body: `수집 대기 ${added}건이 큐에 등록됐어요. 관리자 페이지에서 검토·등록하세요.`,
           data: { type: 'schedule_queue' },
         });
       } catch (err) {
