@@ -40,6 +40,7 @@ export {
   wideThumb,
   shortsThumb,
   onWideThumbError,
+  onWideThumbLoad,
   onShortsThumbLoad,
   onShortsThumbError,
 } from './youtube';

@@ -10,7 +10,7 @@ import { videoApi } from '@/api';
 import { OutlineTitle, fadeUp, stagger, Reveal } from '@/components/editorial';
 import { CATEGORY_META } from '@/pages/pc/public/video/Video';
 import { VideoDuration } from '@/components/common';
-import { wideThumb, shortsThumb, onWideThumbError, onShortsThumbLoad, onShortsThumbError } from '@/utils';
+import { wideThumb, shortsThumb, onWideThumbError, onWideThumbLoad, onShortsThumbLoad, onShortsThumbError } from '@/utils';
 
 /** 영상 링크 (쇼츠는 쇼츠 URL) */
 export function videoUrl(v) {
@@ -44,6 +44,7 @@ export function MobileVideoCard({ video, showChannel = true }) {
           loading="lazy"
           className="h-full w-full object-cover"
           onError={(e) => onWideThumbError(e, video.videoId)}
+          onLoad={(e) => onWideThumbLoad(e, video.videoId)}
         />
         <VideoDuration seconds={video.duration} videoType={video.videoType} bgClass="bg-ink/65" className="text-[12px]" />
       </div>
@@ -127,6 +128,7 @@ function MobileVideo() {
                 alt={featured.title}
                 className="h-full w-full object-cover"
                 onError={(e) => onWideThumbError(e, featured.videoId)}
+                onLoad={(e) => onWideThumbLoad(e, featured.videoId)}
               />
               <VideoDuration seconds={featured.duration} videoType={featured.videoType} bgClass="bg-ink/65" className="text-[12px]" />
             </div>

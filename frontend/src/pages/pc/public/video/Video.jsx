@@ -8,7 +8,7 @@ import { useDocumentTitle } from '@/hooks';
 import { videoApi } from '@/api';
 import { OutlineTitle, fadeUp, stagger, Reveal } from '@/components/editorial';
 import { VideoDuration } from '@/components/common';
-import { wideThumb, shortsThumb, onWideThumbError, onShortsThumbLoad, onShortsThumbError } from '@/utils';
+import { wideThumb, shortsThumb, onWideThumbError, onWideThumbLoad, onShortsThumbLoad, onShortsThumbError } from '@/utils';
 import VideoTitle from './VideoTitle';
 
 /**
@@ -57,6 +57,7 @@ export function VideoCard({ video, showChannel = true }) {
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           onError={(e) => onWideThumbError(e, video.videoId)}
+          onLoad={(e) => onWideThumbLoad(e, video.videoId)}
         />
         <VideoDuration seconds={video.duration} videoType={video.videoType} />
       </div>
@@ -115,6 +116,7 @@ function Video() {
                   alt={featured.title}
                   className="h-full w-full object-cover"
                   onError={(e) => onWideThumbError(e, featured.videoId)}
+                  onLoad={(e) => onWideThumbLoad(e, featured.videoId)}
                 />
                 <VideoDuration seconds={featured.duration} videoType={featured.videoType} />
               </div>

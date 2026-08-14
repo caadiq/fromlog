@@ -42,13 +42,28 @@ export const wideThumb = (id) => THUMB(id, 'maxresdefault');
 /** 세로(9:16) 쇼츠 카드용 — 원본 비율 그대로인 규격 */
 export const shortsThumb = (id) => THUMB(id, 'oardefault');
 
+/** 없는 썸네일 자리에 오는 회색 플레이스홀더 크기 */
+const PLACEHOLDER_W = 120;
+
 /**
  * 가로 썸네일 폴백 — maxresdefault가 없는 영상은 mqdefault로.
  * 둘 다 16:9라 어느 쪽으로 떨어져도 검은 여백이 없다.
+ *
+ * ⚠️ **onError만으로는 안 잡힌다.** 없는 규격을 요청하면 유튜브는 404를 주는데
+ * 본문에 120x90 회색 이미지가 들어 있어서, 브라우저는 이걸 "로드 성공"으로 처리한다
+ * (onerror가 아니라 onload가 뜬다). 그래서 로드된 크기로도 판별해야 한다.
  */
 export function onWideThumbError(e, id) {
   const el = e.currentTarget;
   if (!el.src.includes('mqdefault')) el.src = THUMB(id, 'mqdefault');
+}
+
+/** 위 주석 참고 — 회색 플레이스홀더가 200/404로 들어온 경우를 크기로 걸러낸다 */
+export function onWideThumbLoad(e, id) {
+  const el = e.currentTarget;
+  if (el.naturalWidth <= PLACEHOLDER_W && !el.src.includes('mqdefault')) {
+    el.src = THUMB(id, 'mqdefault');
+  }
 }
 
 /**
@@ -61,7 +76,7 @@ export function onWideThumbError(e, id) {
  */
 export function onShortsThumbLoad(e, id) {
   const el = e.currentTarget;
-  if (el.naturalWidth <= 120 && !el.src.includes('hqdefault')) {
+  if (el.naturalWidth <= PLACEHOLDER_W && !el.src.includes('hqdefault')) {
     el.src = THUMB(id, 'hqdefault');
     el.classList.add('scale-[1.02]');
   }
