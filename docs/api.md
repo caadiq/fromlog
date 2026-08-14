@@ -490,6 +490,12 @@ DC 갤러리 "앞으로 일정" 최신 글을 긁어 Gemini로 구조화·카테
 - 최신 글 1개만 파싱(향후 일정이 누적됨). 이미 처리한 글은 `festival_crawl_log`로 건너뜀(멱등)
 - Gemini가 카테고리(유튜브/예능/콘서트/행사/팬사인회/티켓팅/기타) 분류 + 기존 일정 대비 중복판단
 - 큐 dedup: `dedup_key`(date+정규화 title) 유니크로 재적재/무시항목 재등장 방지
+- 유튜브 항목은 **담당 봇이 있는 시리즈만** 큐에서 뺀다. 담당 = `bot_youtube`에서
+  `enabled=1 AND add_to_schedule=1`인 봇의 `auto_schedule_config`(`episodeMatch`·`titleTemplate`)와 채널명.
+  아카이브 전용 봇(`add_to_schedule=0`)은 일정을 안 만드니 담당으로 치지 않는다.
+  카테고리를 통째로 빼면 '인기가요 끝나면 매점가요'·'K판 입덕투어2'처럼 **비정기·1회성이라
+  봇에 등록돼 있지 않은 콘텐츠**가 어디에도 안 잡힌다(실제로 놓친 사례).
+  `title_filters`는 키로 쓰지 않는다 — 대부분 `["프로미스나인"]`이라 거의 모든 항목에 걸린다
 - 봇 실행/스케줄은 기존 축제 봇 인프라 재사용(`bot_festival`, `festivalBot.syncNewFestivals`).
   `bot_festival.search_url`에 DC 검색 목록 URL을 저장
 - 스케줄러 반환 `{ addedCount, total }` — addedCount=큐 신규 적재 건수
