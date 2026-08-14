@@ -16,8 +16,12 @@ import { sendOpsAlert } from '../push.js';
 const LOOKBACK_DAYS = 21;
 const LOOKAHEAD_DAYS = 90;
 
-// DC봇이 큐에 담지 않을 카테고리 — 유튜브는 유튜브 봇들이 전담(스프·이단장·워크돌·입덕투어 등 채널 추적 중)
-const SKIP_CATEGORIES = new Set(['유튜브']);
+// 유튜브 항목은 "일정까지 만드는 유튜브 봇"이 담당하는 시리즈만 큐에서 뺀다.
+// 카테고리 통째로 빼면(구 SKIP_CATEGORIES) 사각지대가 생긴다 — 실제로 '인기가요 끝나면 매점가요',
+// 'K판 입덕투어2'는 비정기·1회성이라 봇에 없는데도 큐에 안 담겨 놓쳤다.
+const YOUTUBE_CATEGORY = '유튜브';
+// 채널명을 시리즈 키로 쪼갤 구분자 ('스프 : 스튜디오 프로미스나인' → 스프 / 스튜디오 프로미스나인)
+const CHANNEL_NAME_SPLIT = /[:|\-–—/]/;
 
 // 제목 포함관계로 '확실한 중복'이라 단정할 최소 조건.
 // X 일정에는 'ME', 'MEEEEE' 같은 짧은 제목이 있어 길이 제한이 없으면 아무 데나 걸린다.
@@ -78,6 +82,41 @@ function findExistingMatch(item, existing) {
   return { kind: 'suspect', match: candidates[0] };
 }
 
+/**
+ * 유튜브 봇 한 대가 담당하는 시리즈 키를 뽑는다.
+ *
+ * 예고 일정을 만드는 봇은 auto_schedule_config에 시리즈명이 들어 있다.
+ *   {"titleTemplate":"이단장 시즌2 EP.{episode}","episodeMatch":"이단장 시즌2"} → '이단장 시즌2'
+ *   {"titleTemplate":"워크돌"}                                              → '워크돌'
+ *   {"titleTemplate":"{channelName}"}                                      → (채널명으로 대체)
+ * 설정이 없는 봇(업로드 후 사후 등록형)은 채널명만 키가 된다.
+ *
+ * title_filters는 키로 쓰지 않는다 — 대부분 ["프로미스나인"]이라 거의 모든 항목에 걸린다.
+ */
+function seriesKeysOf(bot) {
+  const keys = [];
+
+  let cfg = null;
+  try {
+    cfg = typeof bot.auto_schedule_config === 'string'
+      ? JSON.parse(bot.auto_schedule_config)
+      : bot.auto_schedule_config;
+  } catch {
+    cfg = null;
+  }
+
+  if (cfg?.episodeMatch) keys.push(cfg.episodeMatch);
+  if (cfg?.titleTemplate) {
+    // '{episode}' 같은 자리표시자와 그 앞의 'EP.' 꼬리를 걷어낸다
+    keys.push(String(cfg.titleTemplate).replace(/\{[^}]*\}/g, '').replace(/\s*(ep\.?|화)\s*$/i, ''));
+  }
+  // 채널명은 통째로도, 구분자로 쪼갠 조각으로도 쓴다 ('스프 63화'처럼 앞부분만 적기도 한다)
+  keys.push(bot.channel_name, ...String(bot.channel_name || '').split(CHANNEL_NAME_SPLIT));
+
+  // 한 글자짜리 키는 아무 데나 걸리므로 버린다
+  return [...new Set(keys.map(comparableTitle).filter(k => k.length >= 2))];
+}
+
 async function festivalBotPlugin(fastify) {
   const { db } = fastify;
 
@@ -101,6 +140,19 @@ async function festivalBotPlugin(fastify) {
       category: r.category,
       channel: r.source || '',
     }));
+  }
+
+  /**
+   * 일정까지 만드는 유튜브 봇들의 담당 시리즈 키 목록.
+   * 아카이브 전용 봇(add_to_schedule=0)은 일정을 안 만드니 담당으로 치지 않는다.
+   */
+  async function fetchCoveredYoutubeSeries() {
+    const [rows] = await db.query(
+      `SELECT channel_name, auto_schedule_config
+         FROM bot_youtube
+        WHERE enabled = 1 AND add_to_schedule = 1`
+    );
+    return [...new Set(rows.flatMap(seriesKeysOf))];
   }
 
   /** 이 글을 이미 처리했는지 (festival_crawl_log 재사용) */
@@ -243,8 +295,15 @@ async function festivalBotPlugin(fastify) {
       throw err;
     }
 
-    // 5) 신규(중복 아님)만 큐에 적재 (날짜 미정 포함, 유튜브 제외 — 유튜브 봇 전담)
-    const fresh = items.filter(it => it && it.title && !it.is_duplicate && !SKIP_CATEGORIES.has(it.category));
+    // 5) 신규(중복 아님)만 큐에 적재 (날짜 미정 포함)
+    //    유튜브는 담당 봇이 있는 시리즈만 뺀다 — 비정기·1회성 출연은 봇이 예측 못 하므로 사람이 봐야 한다
+    const coveredSeries = await fetchCoveredYoutubeSeries();
+    const coveredByBot = (it) => {
+      if (it.category !== YOUTUBE_CATEGORY) return false;
+      const t = comparableTitle(it.title);
+      return coveredSeries.some(k => t.includes(k));
+    };
+    const fresh = items.filter(it => it && it.title && !it.is_duplicate && !coveredByBot(it));
     const { added, updated, skipped } = await enqueueItems(fresh, String(post.postNo), existing);
 
     // 6) 글 처리 완료 기록
