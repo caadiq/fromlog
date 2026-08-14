@@ -2,9 +2,12 @@ import { parseJsonColumn } from '../../utils/json.js';
 import { logActivity } from '../../utils/log.js';
 import { createEtcSchedule, createEventSchedule, geocodeVenue } from '../../services/event.js';
 import { uploadEtcPoster, uploadEventPoster } from '../../services/image.js';
+import { createTempYoutubeSchedule } from '../../utils/tempSchedule.js';
 
 // 큐에서 서버 등록을 지원하는 카테고리 (그 외는 관리자 폼에서 직접 추가)
-const REGISTERABLE = ['기타', '행사'];
+// 유튜브는 영상이 아직 없으므로 '예정 일정'(is_temp=1, video_id 없음)으로 만든다.
+// 나중에 영상이 올라오면 봇이 제목으로 찾아 실제 영상으로 승격한다 → utils/tempSchedule.js
+const REGISTERABLE = ['기타', '행사', '유튜브'];
 
 /** multipart에서 payload(JSON) + poster 파일들 추출 */
 async function parseMultipartForm(request) {
@@ -110,7 +113,9 @@ export default async function pendingRoutes(fastify) {
     const venue = b.venue || (b.venueName ? await geocodeVenue(b.venueName) : null);
 
     let scheduleId;
-    if (category === '기타') {
+    if (category === '유튜브') {
+      scheduleId = await createTempYoutubeSchedule(db, meilisearch, { title, date, time });
+    } else if (category === '기타') {
       scheduleId = await createEtcSchedule(db, meilisearch, { title, date, time, description, venue, postUrls });
     } else {
       // 행사 (일반)

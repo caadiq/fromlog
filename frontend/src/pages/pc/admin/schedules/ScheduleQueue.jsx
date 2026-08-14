@@ -17,7 +17,8 @@ import { uid } from '@/utils';
 import { getPending, registerPending, dismissPending } from '@/api/admin/pending';
 
 // 큐에서 바로 등록 가능한 카테고리
-const REGISTERABLE = ['기타', '행사'];
+// 유튜브는 영상이 아직 없으므로 '예정 일정'으로 들어가고, 영상이 올라오면 봇이 채운다
+const REGISTERABLE = ['기타', '행사', '유튜브'];
 const CATEGORY_OPTIONS = ['유튜브', '예능', '콘서트', '행사', '팬사인회', '티켓팅', '기타'].map((c) => ({ value: c, label: c }));
 
 function ScheduleQueue() {
@@ -133,6 +134,8 @@ function ScheduleQueue() {
   };
 
   const isRegisterable = editing && REGISTERABLE.includes(editing.category);
+  // 유튜브는 영상만 있는 예정 일정이라 장소·포스터·링크를 쓰지 않는다 (서버도 무시한다)
+  const hasDetailFields = isRegisterable && editing.category !== '유튜브';
 
   return (
     <AdminLayout user={user}>
@@ -166,7 +169,7 @@ function ScheduleQueue() {
         >
         <p className="mt-6 text-[14px] leading-[1.7] text-mute">
           DC 갤러리 "앞으로 일정"에서 자동 수집한 신규 일정 후보입니다. 검토 후 <b className="text-ink">등록</b>하거나{' '}
-          <b className="text-ink">무시</b>하세요. (기타·행사는 바로 등록, 그 외 카테고리는 일정 추가 폼에서 직접 등록)
+          <b className="text-ink">무시</b>하세요. (기타·행사·유튜브는 바로 등록, 그 외 카테고리는 일정 추가 폼에서 직접 등록)
         </p>
 
         {isLoading ? (
@@ -285,6 +288,11 @@ function ScheduleQueue() {
                       '{editing.category}'는 큐에서 바로 등록할 수 없어요. 기타·행사로 바꾸거나, 일정 추가 폼에서 직접 등록 후 무시하세요.
                     </p>
                   )}
+                  {editing.category === '유튜브' && (
+                    <p className="mt-2 text-[12.5px] font-semibold text-mute">
+                      영상이 아직 없으므로 <b className="text-ink">예정 일정</b>으로 등록돼요. 영상이 올라오면 봇이 제목으로 찾아 실제 영상으로 바꿔줍니다.
+                    </p>
+                  )}
                 </div>
 
                 {/* 제목 */}
@@ -332,7 +340,7 @@ function ScheduleQueue() {
                 )}
 
                 {/* 장소 (기타·행사) — 검색으로 좌표까지 */}
-                {isRegisterable && (
+                {hasDetailFields && (
                   <div>
                     <label className={F.label}>장소 (선택)</label>
                     {editing.venue ? (
@@ -374,7 +382,7 @@ function ScheduleQueue() {
                 )}
 
                 {/* 포스터 */}
-                {isRegisterable && (
+                {hasDetailFields && (
                   <div>
                     <label className={F.label}>포스터 (선택 · 여러 장 가능)</label>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -404,7 +412,7 @@ function ScheduleQueue() {
                 )}
 
                 {/* 링크 */}
-                {isRegisterable && (
+                {hasDetailFields && (
                   <div>
                     <label className={F.label}>링크 (선택 · 여러 개 가능)</label>
                     <div className="mt-2 flex items-end gap-2">

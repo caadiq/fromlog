@@ -10,6 +10,7 @@ import { syncScheduleById } from '../meilisearch/index.js';
 import { logActivity } from '../../utils/log.js';
 import { CATEGORY_IDS } from '../../config/index.js';
 import { getManagedChannelIds } from '../../utils/bots.js';
+import { promoteTempSchedule } from '../../utils/tempSchedule.js';
 
 const PROFILE_CACHE_PREFIX = 'x_profile:';
 const PROFILE_TTL = 604800; // 7일
@@ -156,6 +157,22 @@ async function xBotPlugin(fastify, opts) {
     );
     if (existing.length > 0) {
       return null;
+    }
+
+    // 큐에서 등록한 예정 일정이 이 영상을 기다리고 있으면 새로 만들지 않고 채운다.
+    // (예정 일정은 video_id가 비어 있어 위의 중복 체크로는 안 걸린다 — 그냥 두면 같은 회차가 두 개 생긴다)
+    const promoted = await promoteTempSchedule(fastify.db, {
+      videoId: video.videoId,
+      videoType: video.videoType,
+      channelId: video.channelId,
+      channelName: video.channelTitle,
+      title: video.title,
+      date: video.date,
+      time: video.time,
+    });
+    if (promoted) {
+      fastify.log.info(`[x] 예정 일정 승격: ${video.title}`);
+      return promoted;
     }
 
     // 트랜잭션으로 INSERT 작업 수행

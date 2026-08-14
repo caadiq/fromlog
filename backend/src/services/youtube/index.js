@@ -7,6 +7,7 @@ import { logActivity } from '../../utils/log.js';
 import { archiveVideo } from '../videos.js';
 import { refineCategory } from '../videoCategory.js';
 import { toKST, formatDateTime, todayKST, weekdayOf, nextWeekday } from '../../utils/date.js';
+import { promoteTempSchedule } from '../../utils/tempSchedule.js';
 
 const YOUTUBE_CATEGORY_ID = CATEGORY_IDS.YOUTUBE;
 
@@ -248,6 +249,23 @@ async function youtubeBotPlugin(fastify) {
       }
     }
 
+    // 이 봇 소관이 아닌 예정 일정(큐에서 등록한 비정기 콘텐츠)이 이 영상을 기다릴 수 있다.
+    // 위의 findScheduledEntry는 `채널 id + 날짜`로만 찾으므로 그건 못 잡는다.
+    const promotedId = await promoteTempSchedule(fastify.db, {
+      videoId: video.videoId,
+      videoType: video.videoType,
+      channelId: bot.channelId,
+      channelName: bot.channelName,
+      title: video.title,
+      date: video.date,
+      time: video.time,
+    });
+    if (promotedId) {
+      await syncScheduleById(fastify.meilisearch, fastify.db, promotedId, fastify.redis);
+      fastify.log.info(`[${bot.id}] 예정 일정 승격(제목 매칭): ${video.title}`);
+      return promotedId;
+    }
+
     // 트랜잭션으로 INSERT 작업 수행
     let scheduleId;
     try {
@@ -396,8 +414,26 @@ async function youtubeBotPlugin(fastify) {
       });
     }
 
-    // 아카이브 전용 봇 — 일정 생성 없이 종료 (videos 적재가 seen 처리를 대신함)
+    // 아카이브 전용 봇 — 일정을 새로 만들지는 않지만, 큐에서 등록한 예정 일정이
+    // 이 영상을 기다리고 있으면 채워준다. (음방 채널의 자체 예능이 여기 해당한다 —
+    // 이 봇은 일정을 안 만들고 X봇은 '관리 중인 채널'이라 건너뛰어, 안 채우면 아무도 안 채운다)
     if (bot.addToSchedule === false) {
+      for (const cand of candidates) {
+        const publishedAt = formatDateTime(cand.publishedAt);
+        const promotedId = await promoteTempSchedule(fastify.db, {
+          videoId: cand.videoId,
+          videoType: durationMap[cand.videoId]?.isShorts ? 'shorts' : 'video',
+          channelId: bot.channelId,
+          channelName: bot.channelName,
+          title: cand.title,
+          date: publishedAt.slice(0, 10),
+          time: publishedAt.slice(11),
+        });
+        if (promotedId) {
+          await syncScheduleById(fastify.meilisearch, fastify.db, promotedId, fastify.redis);
+          fastify.log.info(`[${bot.id}] 예정 일정 승격(아카이브 전용 봇): ${cand.title}`);
+        }
+      }
       return { addedCount: candidates.length, total, foundTarget };
     }
 
