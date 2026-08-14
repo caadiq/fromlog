@@ -8,6 +8,7 @@ import { useDocumentTitle } from '@/hooks';
 import { videoApi } from '@/api';
 import { OutlineTitle, fadeUp, stagger, Reveal } from '@/components/editorial';
 import { VideoDuration } from '@/components/common';
+import { wideThumb, shortsThumb, onWideThumbError, onShortsThumbLoad, onShortsThumbError } from '@/utils';
 import VideoTitle from './VideoTitle';
 
 /**
@@ -51,10 +52,11 @@ export function VideoCard({ video, showChannel = true }) {
     >
       <div className="relative aspect-video overflow-hidden bg-canvas-deep">
         <img
-          src={`https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`}
+          src={wideThumb(video.videoId)}
           alt={video.title}
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          onError={(e) => onWideThumbError(e, video.videoId)}
         />
         <VideoDuration seconds={video.duration} videoType={video.videoType} />
       </div>
@@ -109,18 +111,10 @@ function Video() {
             >
               <div className="relative aspect-video overflow-hidden bg-canvas-deep">
                 <img
-                  src={`https://img.youtube.com/vi/${featured.videoId}/maxresdefault.jpg`}
+                  src={wideThumb(featured.videoId)}
                   alt={featured.title}
                   className="h-full w-full object-cover"
-                  onError={(e) => {
-                    // maxres가 없는 영상은 sd → hq 순으로 폴백
-                    const el = e.currentTarget;
-                    if (el.src.includes('maxresdefault')) {
-                      el.src = `https://img.youtube.com/vi/${featured.videoId}/sddefault.jpg`;
-                    } else if (el.src.includes('sddefault')) {
-                      el.src = `https://img.youtube.com/vi/${featured.videoId}/hqdefault.jpg`;
-                    }
-                  }}
+                  onError={(e) => onWideThumbError(e, featured.videoId)}
                 />
                 <VideoDuration seconds={featured.duration} videoType={featured.videoType} />
               </div>
@@ -192,17 +186,12 @@ function Video() {
                 >
                   <div className="relative overflow-hidden bg-canvas-deep" style={{ aspectRatio: '9/16' }}>
                     <img
-                      src={`https://img.youtube.com/vi/${v.videoId}/oardefault.jpg`}
+                      src={shortsThumb(v.videoId)}
                       alt={v.title}
                       loading="lazy"
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                      onError={(e) => { e.currentTarget.src = `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`; }}
-                    onLoad={(e) => {
-                      const el = e.currentTarget;
-                      if (el.naturalWidth <= 120 && !el.src.includes('hqdefault')) {
-                        el.src = `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`;
-                      }
-                    }}
+                      onError={(e) => onShortsThumbError(e, v.videoId)}
+                      onLoad={(e) => onShortsThumbLoad(e, v.videoId)}
                     />
                   </div>
                   <VideoTitle

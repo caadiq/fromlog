@@ -10,6 +10,7 @@ import { videoApi } from '@/api';
 import { OutlineTitle, fadeUp, stagger, Reveal } from '@/components/editorial';
 import { CATEGORY_META } from '@/pages/pc/public/video/Video';
 import { VideoDuration } from '@/components/common';
+import { wideThumb, shortsThumb, onWideThumbError, onShortsThumbLoad, onShortsThumbError } from '@/utils';
 
 /** 영상 링크 (쇼츠는 쇼츠 URL) */
 export function videoUrl(v) {
@@ -38,10 +39,11 @@ export function MobileVideoCard({ video, showChannel = true }) {
     >
       <div className="relative aspect-video overflow-hidden bg-canvas-deep">
         <img
-          src={`https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`}
+          src={wideThumb(video.videoId)}
           alt={video.title}
           loading="lazy"
           className="h-full w-full object-cover"
+          onError={(e) => onWideThumbError(e, video.videoId)}
         />
         <VideoDuration seconds={video.duration} videoType={video.videoType} bgClass="bg-ink/65" className="text-[12px]" />
       </div>
@@ -67,19 +69,12 @@ export function MobileShortsCard({ video, className = '' }) {
     >
       <div className="relative overflow-hidden bg-canvas-deep" style={{ aspectRatio: '9/16' }}>
         <img
-          src={`https://img.youtube.com/vi/${video.videoId}/oardefault.jpg`}
+          src={shortsThumb(video.videoId)}
           alt={video.title}
           loading="lazy"
           className="h-full w-full object-cover"
-          onError={(e) => { e.currentTarget.src = `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`; }}
-          onLoad={(e) => {
-            // oardefault가 없으면 404와 함께 120x90 회색 플레이스홀더가 오므로
-            // onError가 아닌 로드 크기로 판별해 교체한다
-            const el = e.currentTarget;
-            if (el.naturalWidth <= 120 && !el.src.includes('hqdefault')) {
-              el.src = `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`;
-            }
-          }}
+          onError={(e) => onShortsThumbError(e, video.videoId)}
+          onLoad={(e) => onShortsThumbLoad(e, video.videoId)}
         />
       </div>
       <b className="mt-1.5 line-clamp-2 text-[12px] font-extrabold leading-[1.35] tracking-[-0.2px] text-ink">
@@ -128,17 +123,10 @@ function MobileVideo() {
           >
             <div className="relative aspect-video overflow-hidden bg-canvas-deep">
               <img
-                src={`https://img.youtube.com/vi/${featured.videoId}/maxresdefault.jpg`}
+                src={wideThumb(featured.videoId)}
                 alt={featured.title}
                 className="h-full w-full object-cover"
-                onError={(e) => {
-                  const el = e.currentTarget;
-                  if (el.src.includes('maxresdefault')) {
-                    el.src = `https://img.youtube.com/vi/${featured.videoId}/sddefault.jpg`;
-                  } else if (el.src.includes('sddefault')) {
-                    el.src = `https://img.youtube.com/vi/${featured.videoId}/hqdefault.jpg`;
-                  }
-                }}
+                onError={(e) => onWideThumbError(e, featured.videoId)}
               />
               <VideoDuration seconds={featured.duration} videoType={featured.videoType} bgClass="bg-ink/65" className="text-[12px]" />
             </div>

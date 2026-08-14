@@ -37,6 +37,11 @@ export {
 // YouTube 관련
 export {
   getYoutubeVideoId,
+  wideThumb,
+  shortsThumb,
+  onWideThumbError,
+  onShortsThumbLoad,
+  onShortsThumbError,
 } from './youtube';
 
 // 스케줄 관련
