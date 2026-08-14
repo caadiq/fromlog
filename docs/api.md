@@ -798,11 +798,21 @@ DC봇이 적재한 신규 일정 후보(`bot_pending_schedules`)를 검토·등�
 ### POST /admin/pending/:id/register
 검토 후 등록 (수정된 값으로). **본문:** `{ category, title, date, time?, venueName?, description?, postUrls? }`
 - `기타` → `schedule_etc`, `행사` → `schedule_event`(general)로 생성. `venueName`은 카카오로 지오코딩
+- `유튜브` → **예정 일정**(`schedules.is_temp=1` + `schedule_youtube.video_id=NULL`)으로 생성.
+  영상이 아직 없으므로 장소·포스터·링크는 무시한다. 나중에 영상이 올라오면 봇이 제목으로 찾아 승격한다(아래)
 - 그 외 카테고리는 400(`UNSUPPORTED_CATEGORY`) — 관리자 폼에서 직접 추가 후 무시
 - 성공 시 큐 항목 `status='registered'`, `created_schedule_id` 연결. **응답:** `{ id }`(생성된 일정 id)
 
 ### POST /admin/pending/:id/dismiss
 무시 처리 (`status='dismissed'`). **응답:** `{ success: true }`
+- 행을 지우지 않고 남긴다. `dedup_key` 유니크 + `INSERT IGNORE`라 **같은 키는 다시 안 담긴다**
+- 단 `dedup_key`가 `날짜|정규화제목`이라 **날짜나 제목이 바뀌면 다시 담긴다**(일정이 실제로 옮겨졌을 수 있으므로 의도된 동작)
+
+### 예정 유튜브 일정 승격 (`utils/tempSchedule.js`)
+`is_temp=1`이고 `video_id`가 비어 있는 유튜브 일정을, 나중에 올라온 영상으로 채운다.
+- 매칭: **예정 제목이 영상 제목에 포함**(공백·구두점·이모지 제거 후 비교) + 날짜 ±7일. 6자 미만 제목은 제외
+- 호출 지점 셋 — 유튜브 봇(`add_to_schedule=1`은 채널+날짜 매칭 실패 시, `=0`은 아카이브 직후), X봇(`saveYoutubeFromTweet`)
+- X봇은 `video_id`로만 중복을 봐서 예정 일정을 못 찾고 같은 회차를 하나 더 만들던 자리다
 
 ---
 
