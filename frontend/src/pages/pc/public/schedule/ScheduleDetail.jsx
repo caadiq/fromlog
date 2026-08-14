@@ -27,12 +27,13 @@ function PCScheduleDetail() {
   useDocumentTitle(decodeHtmlEntities(schedule?.title));
 
   if (isLoading) {
-    return <div className="min-h-[calc(100dvh-64px)] bg-paper" />;
+    // 높이는 부모(main.flex-1)에서 받는다 — 헤더 높이를 숫자로 박으면 실제 높이(74px)와 어긋나 스크롤이 생긴다
+    return <div className="min-h-0 flex-1 bg-paper" />;
   }
 
   if (error || !schedule) {
     return (
-      <div className="flex min-h-[calc(100dvh-64px)] items-center justify-center bg-paper text-ink">
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-paper text-ink">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
