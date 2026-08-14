@@ -177,8 +177,12 @@ function ConcertForm() {
 
       await createConcertSchedule(formData);
 
-      setToast({ type: "success", message: "콘서트 일정이 저장되었습니다." });
-      setTimeout(() => navigate("/admin/schedule"), 1000);
+      // 목록 페이지는 scheduleToast가 있을 때만 캐시를 비운다 — 다른 폼과 같은 방식으로 넘긴다
+      sessionStorage.setItem(
+        "scheduleToast",
+        JSON.stringify({ type: "success", message: "콘서트 일정이 저장되었습니다." })
+      );
+      navigate("/admin/schedule");
     } catch (err) {
       console.error("콘서트 저장 실패:", err);
       setToast({ type: "error", message: err.message || "저장에 실패했습니다." });

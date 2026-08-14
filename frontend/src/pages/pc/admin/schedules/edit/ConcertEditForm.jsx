@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 
 import AdminLayout from "@/components/pc/admin/layout/Layout";
@@ -26,6 +26,7 @@ function ConcertEditForm() {
   const navigate = useNavigate();
   const { toast, setToast } = useToast();
   const { isAuthenticated } = useAdminAuth();
+  const queryClient = useQueryClient();
   useDocumentTitle('일정 수정');
 
   // 멤버/앨범 데이터
@@ -194,8 +195,16 @@ function ConcertEditForm() {
 
       await updateConcertSchedule(seriesId, formData);
 
-      setToast({ type: "success", message: "콘서트 일정이 수정되었습니다." });
-      setTimeout(() => navigate("/admin/schedule"), 1000);
+      // 콘서트 수정은 회차 schedules를 지우고 다시 만들어 id가 바뀐다.
+      // 목록 캐시를 안 비우면 옛 id가 남아 그 행을 누를 때 상세가 404가 된다(실제로 겪음).
+      // 목록 페이지는 scheduleToast가 있을 때만 캐시를 비우므로 다른 폼과 같은 방식으로 넘긴다.
+      // 남겨두면 다음에 수정 화면을 열 때 저장 전 값이 채워진다
+      queryClient.removeQueries({ queryKey: ["concert", seriesId] });
+      sessionStorage.setItem(
+        "scheduleToast",
+        JSON.stringify({ type: "success", message: "콘서트 일정이 수정되었습니다." })
+      );
+      navigate("/admin/schedule");
     } catch (err) {
       console.error("콘서트 수정 실패:", err);
       setToast({ type: "error", message: err.message || "수정에 실패했습니다." });
