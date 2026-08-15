@@ -80,28 +80,39 @@ export function mergeTimings(nextLines, prevLines) {
 /**
  * 시간을 찍어야 하는 지점을 순서대로 편다.
  *
- * 줄 하나가 통째로 응원법이면(예: "I LIKE YOU BETTER" 전체가 sing) 줄과 구간의 시작이
- * 같으므로 하나로 합친다 — 같은 지점을 두 번 누르게 하지 않기 위한 것.
+ * **줄의 첫 부분이 응원법이면 줄 큐와 합친다.** 줄이 시작되는 순간이 곧 그 구간이
+ * 시작되는 순간이라 따로 두면 같은 지점을 두 번 눌러야 한다(영상을 멈춰놓고
+ * 시각을 맞춰야 했다). 합쳐도 저장할 때 줄 시각까지 같이 채우므로
+ * 현재 줄 표시(세로 바)는 그대로 동작한다 → applyCueTimes의 mergedLine 처리.
+ *
+ *   "Our love is true cause this is too great"  (앞부분이 sing)
+ *     → [같이] Our love is true   ← 줄 시작 겸 구간
+ *        [같이] too great
+ *
+ *   "말해봐 뭐든 say (say)"  (앞부분이 일반 가사)
+ *     → [줄]  말해봐 뭐든 say (say)
+ *        [따로] (say)
  */
 export function buildCues(lines) {
   const cues = [];
   lines.forEach((line, li) => {
     if (line.gap) return;
     const parts = line.parts || [];
-    const wholeLineIsCue = parts.length === 1 && !!parts[0].type;
+    const firstIsCue = parts.length > 0 && !!parts[0].type;
 
     cues.push({
       key: `l${li}`,
-      kind: wholeLineIsCue ? parts[0].type : 'line',
+      kind: firstIsCue ? parts[0].type : 'line',
       lineIndex: li,
-      partIndex: wholeLineIsCue ? 0 : null,
-      text: parts.map((p) => p.text).join(''),
-      mergedLine: wholeLineIsCue,
+      partIndex: firstIsCue ? 0 : null,
+      // 합쳐진 줄은 그 구간 텍스트만 보여준다 (줄 전체를 보여주면 뭘 찍는지 헷갈린다)
+      text: firstIsCue ? parts[0].text : parts.map((p) => p.text).join(''),
+      mergedLine: firstIsCue,
     });
 
-    if (wholeLineIsCue) return;
     parts.forEach((p, pi) => {
       if (!p.type) return;
+      if (firstIsCue && pi === 0) return;   // 줄 큐로 이미 잡았다
       cues.push({ key: `l${li}p${pi}`, kind: p.type, lineIndex: li, partIndex: pi, text: p.text, mergedLine: false });
     });
   });
