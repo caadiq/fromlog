@@ -7,7 +7,7 @@
  *   [ { t, parts: [ { text, type?, t? } ] }, { gap: true }, … ]
  *   - 줄의 t  : 그 줄이 시작되는 시각(초). 세로 바·지나간 줄 흐리기에 쓴다
  *   - part의 t: 응원법 구간이 시작되는 시각. 그 순간에만 배경이 들어온다
- *   - type    : 'call'(이어서 외치기) | 'sing'(같이 부르기). 없으면 일반 가사
+ *   - type    : 'call'(팬만 따로 외치는 부분) | 'sing'(멤버와 같이 부르는 부분). 없으면 일반 가사
  */
 import { extractFanchantColors, darkerVariant } from './theme.js';
 import { createLogger } from '../utils/logger.js';

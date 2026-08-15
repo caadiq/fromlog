@@ -8,7 +8,9 @@
 --     { "gap": true },
 --     { "t": 15.00, "parts": [ { "text": "붉게 타는 태양의 끝에" } ] }
 --   ]
--- type 없는 part는 일반 가사. type은 'call'(이어서 외치기) | 'sing'(같이 부르기).
+-- type 없는 part는 일반 가사.
+--   call: 팬만 따로 외치는 부분 (시작 전 멤버 연호, 가사 사이 콜 등)
+--   sing: 멤버와 같이 부르는 부분
 -- t는 초 단위 소수 2자리. 아직 안 찍은 지점은 null.
 --
 -- 색은 앨범 커버에서 자동 추출하되, 단색 커버처럼 두 색이 안 나오는 경우를 위해
@@ -16,8 +18,8 @@
 CREATE TABLE IF NOT EXISTS track_fanchant (
   track_id    INT          NOT NULL COMMENT '곡 ID (FK: album_tracks.id)',
   video_id    VARCHAR(20)  NOT NULL COMMENT '공식 응원법 영상 YouTube ID',
-  color_call  VARCHAR(7)   NULL     COMMENT '이어서 외치기 색 (#RRGGBB, NULL이면 자동)',
-  color_sing  VARCHAR(7)   NULL     COMMENT '같이 부르기 색 (#RRGGBB, NULL이면 자동)',
+  color_call  VARCHAR(7)   NULL     COMMENT '따로 외치는 부분 색 (#RRGGBB, NULL이면 자동)',
+  color_sing  VARCHAR(7)   NULL     COMMENT '같이 부르는 부분 색 (#RRGGBB, NULL이면 자동)',
   -- 'lines'는 MariaDB 예약어(LOAD DATA ... LINES)라 컬럼명으로 쓰지 않는다
   lines_json  LONGTEXT     NOT NULL COMMENT '줄·구간 JSON',
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -2,7 +2,7 @@
  * 응원법 편집 — 구간 지정 + 싱크
  *
  * 두 단계로 나눈다.
- *   ① 구간 지정 : 가사를 텍스트로 두고 드래그+버튼으로 {call:…} {sing:…} 마커를 넣는다
+ *   ① 구간 지정 : 가사를 텍스트로 두고 드래그+버튼으로 {call:…}(따로) {sing:…}(같이) 마커를 넣는다
  *   ② 싱크      : 영상을 틀고 스페이스바로 줄·구간 시작 시각을 순서대로 찍는다
  *
  * 마커를 고쳐도 이미 찍은 시각은 텍스트가 같으면 그대로 살아남는다(mergeTimings).
@@ -90,7 +90,13 @@ function FanchantEditor() {
     sing: colorSing || data?.colors?.sing || '#3E6348',
   };
 
-  const player = useYouTubePlayer(step === 'sync' ? videoId : '');
+  // 입력 중 매 글자마다 플레이어를 다시 만들지 않도록 잠시 기다린다
+  const [readyVideoId, setReadyVideoId] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setReadyVideoId(videoId.trim()), 500);
+    return () => clearTimeout(id);
+  }, [videoId]);
+  const player = useYouTubePlayer(readyVideoId);
 
   /** 선택 영역을 마커로 감싼다 */
   const wrap = useCallback((type) => {
@@ -237,12 +243,12 @@ function FanchantEditor() {
             ))}
           </div>
 
-          {step === 'mark' ? (
+          <div className={step === 'mark' ? '' : 'hidden'}>
             <div className="mt-6 grid grid-cols-[1fr_420px] gap-8">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={() => wrap('call')} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold hover:border-ink" style={{ color: colors.call }}>이어서 외치기</button>
-                  <button onClick={() => wrap('sing')} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold hover:border-ink" style={{ color: colors.sing }}>같이 부르기</button>
+                  <button onClick={() => wrap('call')} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold hover:border-ink" style={{ color: colors.call }}>따로</button>
+                  <button onClick={() => wrap('sing')} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold hover:border-ink" style={{ color: colors.sing }}>같이</button>
                   <button onClick={unwrap} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold text-mute hover:border-ink">지정 해제</button>
                   <span className="ml-1 text-[12px] text-faint">가사에서 범위를 선택한 뒤 누르세요</span>
                 </div>
@@ -263,7 +269,7 @@ function FanchantEditor() {
                 <div className={F.label}>영상 · 색</div>
                 <input value={videoId} onChange={(e) => setVideoId(e.target.value)} placeholder="응원법 영상 YouTube ID" className={`${F.underline} mt-2`} />
                 <div className="mt-4 flex gap-3">
-                  {[['이어서 외치기', colorCall, setColorCall, colors.call], ['같이 부르기', colorSing, setColorSing, colors.sing]].map(([label, val, set, shown]) => (
+                  {[['따로 외치기', colorCall, setColorCall, colors.call], ['같이 부르기', colorSing, setColorSing, colors.sing]].map(([label, val, set, shown]) => (
                     <label key={label} className="flex-1">
                       <span className="block text-[12px] font-bold text-mute">{label}</span>
                       <div className="mt-1.5 flex items-center gap-2">
@@ -289,14 +295,21 @@ function FanchantEditor() {
                 </button>
               </div>
             </div>
-          ) : (
+          </div>
+
+          <div className={step === 'sync' ? '' : 'hidden'}>
             <div className="mt-6 grid grid-cols-[520px_1fr] gap-8">
               <div>
-                {videoId ? (
-                  <div className="aspect-video w-full border border-hairline bg-black"><div ref={player.containerRef} className="h-full w-full" /></div>
-                ) : (
-                  <div className="flex aspect-video w-full items-center justify-center border border-dashed border-hairline text-[13px] text-mute">① 단계에서 영상 ID를 먼저 입력하세요</div>
-                )}
+                {/* 컨테이너는 항상 둔다 — 조건부로 없앴다 만들면 플레이어가 붙었던 노드가
+                    사라져 React가 지우려다 터진다 */}
+                <div className="relative aspect-video w-full border border-hairline bg-black">
+                  <div ref={player.containerRef} className="h-full w-full" />
+                  {!readyVideoId && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-canvas text-[13px] text-mute">
+                      ① 단계에서 영상 ID를 먼저 입력하세요
+                    </div>
+                  )}
+                </div>
                 {player.error && <p className="mt-2 text-[12.5px] font-bold text-[#C0392B]">{player.error}</p>}
 
                 <div className="mt-4 flex items-center gap-2">
@@ -337,7 +350,7 @@ function FanchantEditor() {
                       >
                         <span className={`w-[62px] shrink-0 text-[12px] font-extrabold tabular-nums ${t != null ? 'text-ink' : 'text-faint'}`}>{fmtTime(t)}</span>
                         <span className="w-[38px] shrink-0 text-[11px] font-extrabold" style={{ color: cue.kind === 'line' ? '#a8a8a8' : colors[cue.kind] }}>
-                          {cue.kind === 'line' ? '줄' : cue.kind === 'call' ? '외침' : '부름'}
+                          {cue.kind === 'line' ? '줄' : cue.kind === 'call' ? '따로' : '같이'}
                         </span>
                         <span className={`min-w-0 flex-1 truncate text-[13.5px] ${active ? 'font-extrabold text-ink' : 'text-esub'}`}>{cue.text || '(빈 줄)'}</span>
                         {active && <span className="shrink-0 text-[11px] font-extrabold text-primary">지금</span>}
@@ -347,7 +360,7 @@ function FanchantEditor() {
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </motion.div>
       </div>
     </AdminLayout>

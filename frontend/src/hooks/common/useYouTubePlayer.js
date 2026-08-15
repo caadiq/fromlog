@@ -61,10 +61,19 @@ export default function useYouTubePlayer(videoId) {
     setError(null);
     setTime(0);
 
+    // YT.Player는 넘겨준 노드를 iframe으로 **교체**한다.
+    // React가 관리하는 노드를 넘기면 언마운트 때 React가 이미 없는 노드를 지우려다
+    // "removeChild ... not a child of this node"로 터진다.
+    // 그래서 컨테이너 안에 우리가 만든 노드를 하나 넣고 그걸 넘긴다 — React는 컨테이너만 안다.
+    const mount = document.createElement('div');
+    mount.style.width = '100%';
+    mount.style.height = '100%';
+    containerRef.current.appendChild(mount);
+
     loadApi()
       .then((YT) => {
-        if (disposed || !containerRef.current) return;
-        playerRef.current = new YT.Player(containerRef.current, {
+        if (disposed || !mount.isConnected) return;
+        playerRef.current = new YT.Player(mount, {
           videoId,
           playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
           events: {
@@ -85,6 +94,7 @@ export default function useYouTubePlayer(videoId) {
       })
       .catch((err) => !disposed && setError(err.message));
 
+    const host = containerRef.current;
     return () => {
       disposed = true;
       cancelAnimationFrame(rafRef.current);
@@ -94,6 +104,8 @@ export default function useYouTubePlayer(videoId) {
         /* 이미 정리된 경우 무시 */
       }
       playerRef.current = null;
+      // destroy가 남긴 잔여 노드를 우리가 치운다 (React가 모르는 자식이라 안전)
+      if (host) host.replaceChildren();
     };
     // duration은 의도적으로 제외 — 넣으면 플레이어가 매번 다시 만들어진다
     // eslint-disable-next-line react-hooks/exhaustive-deps
