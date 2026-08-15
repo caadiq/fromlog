@@ -5,6 +5,7 @@
  *   - 응원법 구간은 늘 색 글씨. 따로(call) / 같이(sing)에 따라 앨범에서 뽑은 두 색을 쓴다
  *   - **지금 그 구간**일 때만 배경이 들어온다. 화면에 배경은 하나뿐이라 어디를 볼지 분명하다
  *   - 현재 줄은 왼쪽 세로 바 + 진한 글씨, 지나간 줄은 흐리게
+ *   - 아무 데나 누르면 그 지점부터 다시 듣는다(onSeek)
  *
  * 구간의 끝은 따로 찍지 않는다 — 다음 구간이 시작될 때까지, 없으면 [TAIL_SEC] 동안 유지한다.
  * 끝까지 찍게 하면 싱크 작업이 두 배가 되는데 그만한 값이 없다.
@@ -52,16 +53,37 @@ function useProgress(lines, time) {
   return { active, currentLine };
 }
 
-function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true }) {
+function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true, onSeek }) {
   const { active, currentLine } = useProgress(lines, time);
   const boxRef = useRef(null);
   const curRef = useRef(null);
 
-  // 현재 줄을 화면 가운데로 (사용자가 직접 스크롤 중이면 방해하지 않게 부드럽게)
+  /**
+   * 현재 줄을 화면 가운데로.
+   * scrollIntoView는 스크롤 조상을 전부 움직여 페이지까지 튀므로,
+   * 스크롤이 걸린 조상을 찾아 그 컨테이너만 직접 굴린다.
+   */
   useEffect(() => {
     if (!autoScroll || currentLine < 0) return;
-    curRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const row = curRef.current;
+    if (!row) return;
+
+    let box = row.parentElement;
+    while (box && box.scrollHeight <= box.clientHeight) box = box.parentElement;
+    if (!box) return;
+
+    const boxRect = box.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const target = box.scrollTop + (rowRect.top - boxRect.top) - box.clientHeight / 2 + rowRect.height / 2;
+    box.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
   }, [currentLine, autoScroll]);
+
+  /** 그 지점부터 다시 듣기 — 조각에 시각이 없으면 줄 시각을 쓴다 */
+  const seekTo = (line, part) => {
+    if (!onSeek) return;
+    const t = part?.t ?? line.t;
+    if (t != null) onSeek(t);
+  };
 
   return (
     <div
@@ -73,6 +95,7 @@ function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true
 
         const isCurrent = li === currentLine;
         const passed = currentLine >= 0 && li < currentLine;
+        const seekable = !!onSeek && line.t != null;
 
         return (
           <div
@@ -90,12 +113,24 @@ function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true
               />
             )}
             {line.parts?.map((p, pi) => {
-              if (!p.type) return <span key={pi}>{p.text}</span>;
               const on = active && active.li === li && active.pi === pi;
+              const common = seekable
+                ? { onClick: () => seekTo(line, p), role: 'button', tabIndex: -1, title: '여기부터 다시 듣기' }
+                : {};
+              if (!p.type) {
+                return (
+                  <span key={pi} {...common} className={seekable ? 'cursor-pointer hover:text-ink' : undefined}>
+                    {p.text}
+                  </span>
+                );
+              }
               return (
                 <span
                   key={pi}
-                  className={`font-black transition-all duration-150 ${on ? 'rounded-[3px] px-2 py-0.5' : ''}`}
+                  {...common}
+                  className={`font-black transition-all duration-150 ${on ? 'rounded-[3px] px-2 py-0.5' : ''} ${
+                    seekable ? 'cursor-pointer' : ''
+                  }`}
                   style={{
                     color: colors[p.type],
                     ...(on

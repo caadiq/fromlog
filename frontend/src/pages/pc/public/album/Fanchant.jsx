@@ -1,10 +1,11 @@
 /**
  * PC 응원법 페이지
  *
- * 왼쪽에 가사 전문, 오른쪽에 영상. 영상을 재생하면 재생 시간에 맞춰
+ * 왼쪽에 가사 전문(자체 스크롤), 오른쪽에 영상. 영상을 재생하면 재생 시간에 맞춰
  * 현재 줄과 응원법 구간이 강조된다(FanchantLyrics).
  *
  * 응원법 목록·재생바는 뒀다가 뺐다 — 가사에 이미 다 드러나 볼 일이 없었다.
+ * 영상은 sticky 대신 가사만 스크롤하는 구조로 뒀다 — sticky는 헤더 높이에 기대야 해서 깨지기 쉽다.
  */
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -49,32 +50,42 @@ function PCFanchant() {
   }
 
   return (
-    <div className="min-h-0 flex-1 bg-paper text-ink">
-      <div className="mx-auto w-full max-w-[1280px] px-10 pb-[90px] pt-[44px]">
+    // 페이지는 화면을 넘지 않고 가사만 자체 스크롤한다 — 영상이 확실히 제자리에 남는다
+    // 높이를 화면에 맞춰 고정해야 가사만 내부 스크롤된다.
+    // 부모(main)가 min-h-dvh라 그냥 flex-1로는 콘텐츠만큼 늘어나 페이지가 스크롤된다.
+    // 74px = 헤더 높이 (일정 페이지도 같은 값을 쓴다)
+    <div className="flex flex-col overflow-hidden bg-paper text-ink" style={{ height: 'calc(100dvh - 74px)' }}>
+      <div className="mx-auto flex w-full min-h-0 max-w-[1280px] flex-1 flex-col px-10 pb-8 pt-[38px]">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <div className="text-[11.5px] font-extrabold tracking-k2 text-faint">
             {data.albumTitle} / {data.trackTitle} / 응원법
           </div>
-          <h1 className="mt-2.5 text-[44px] font-black leading-none tracking-[-1.6px]">{data.trackTitle} 응원법</h1>
-          <p className="mt-3 text-[13.5px] font-semibold text-mute">공식 응원법 영상 · fromis_9</p>
+          <h1 className="mt-2.5 text-[40px] font-black leading-none tracking-[-1.5px]">{data.trackTitle} 응원법</h1>
         </motion.div>
 
-        <div className="mt-[34px] grid grid-cols-[1fr_560px] items-start gap-[52px]">
-          {/* 가사 */}
-          <div className="border-t-2 border-ink pt-3.5">
-            <div className="text-[11.5px] font-black tracking-k2">FANCHANT</div>
-            <div className="mt-[22px]">
-              <FanchantLyrics lines={data.lines} colors={data.colors} time={player.time} />
+        <div className="mt-7 grid min-h-0 flex-1 grid-cols-[1fr_620px] gap-[52px]">
+          {/* 가사 — 여기만 스크롤된다 */}
+          <div className="flex min-h-0 flex-col border-t-2 border-ink pt-3.5">
+            <div className="shrink-0 text-[11.5px] font-black tracking-k2">FANCHANT</div>
+            <div className="mt-[18px] min-h-0 flex-1 overflow-y-auto pb-10 pr-3">
+              <FanchantLyrics
+                lines={data.lines}
+                colors={data.colors}
+                time={player.time}
+                onSeek={(t) => { player.seek(t); player.play(); }}
+              />
             </div>
           </div>
 
           {/* 영상 */}
-          {/* 헤더가 sticky top-0으로 74px을 차지한다 — 그만큼 내려야 영상 윗부분이 안 잘린다 */}
-          <div className="sticky top-[98px]">
+          <div className="self-start">
             <div className="aspect-video w-full border border-hairline bg-black">
               <div ref={player.containerRef} className="h-full w-full" />
             </div>
             <div className="mt-[9px] text-[11px] font-black tracking-k18 text-faint">FANCHANT — YOUTUBE</div>
+            <p className="mt-4 text-[12.5px] leading-relaxed text-faint">
+              가사를 누르면 그 지점부터 다시 들을 수 있어요.
+            </p>
           </div>
         </div>
       </div>

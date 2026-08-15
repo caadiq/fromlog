@@ -75,7 +75,13 @@ function MobileFanchant() {
         <div className="mx-5 mt-5 border-t-2 border-ink pb-14 pt-3">
           <div className="text-[10.5px] font-black tracking-k16">FANCHANT</div>
           <div className="mt-4">
-            <FanchantLyrics lines={data.lines} colors={data.colors} time={player.time} mobile />
+            <FanchantLyrics
+              lines={data.lines}
+              colors={data.colors}
+              time={player.time}
+              mobile
+              onSeek={(t) => { player.seek(t); player.play(); }}
+            />
           </div>
         </div>
       </motion.div>
