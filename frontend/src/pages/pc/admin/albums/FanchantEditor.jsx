@@ -58,6 +58,8 @@ function FanchantEditor() {
   const [colorSing, setColorSing] = useState('');
   const [times, setTimes] = useState({});
   const [cursor, setCursor] = useState(0);
+  // 목록을 눌러 고른 상태인가 — 스페이스로 자동 이동한 것과 구분한다
+  const [pickedByUser, setPickedByUser] = useState(false);
   const [saving, setSaving] = useState(false);
   const textRef = useRef(null);
   const loadedRef = useRef(false);
@@ -183,28 +185,29 @@ function FanchantEditor() {
     if (!cue) return;
     setTimes((prev) => ({ ...prev, [cue.key]: Math.round(player.getTime() * 100) / 100 }));
     setCursor((c) => Math.min(c + 1, cues.length));
+    setPickedByUser(false);   // 자동으로 넘어간 자리는 '고른 것'이 아니다
   }, [cues, cursor, player]);
 
   /**
    * 지우기·미세조정이 손볼 항목.
    *
-   * 커서는 두 가지로 쓰인다 — 스페이스로 찍는 중에는 "다음에 찍을 자리"(아직 빈 항목),
-   * 목록을 눌러 고른 뒤에는 "고른 항목"(이미 시각이 있음).
-   * 그래서 커서 항목에 시각이 있으면 그것을, 없으면 직전에 찍은 것을 대상으로 삼는다.
-   * 이 구분이 없으면 목록에서 고르고 방향키를 눌렀을 때 한 칸 앞이 바뀐다.
+   * 커서는 두 가지로 쓰인다 — 스페이스로 찍는 중에는 "다음에 찍을 자리",
+   * 목록을 눌러 고른 뒤에는 "고른 항목".
+   * 시각이 있는지로 구분했더니 아직 안 찍은 항목을 골랐을 때 한 칸 앞이 바뀌었다.
+   * 그래서 '눌러서 골랐는지'를 직접 기억한다.
    */
-  const targetIndex = useCallback(() => {
-    const cur = cues[cursor];
-    if (cur && times[cur.key] != null) return cursor;
-    return Math.max(0, cursor - 1);
-  }, [cues, cursor, times]);
+  const targetIndex = useCallback(
+    () => (pickedByUser ? cursor : Math.max(0, cursor - 1)),
+    [cursor, pickedByUser]
+  );
 
   const stepBack = useCallback(() => {
     const i = targetIndex();
     const cue = cues[i];
     if (!cue) return;
     setTimes((prev) => { const n = { ...prev }; delete n[cue.key]; return n; });
-    setCursor(i);   // 지운 자리에 커서를 둬서 바로 다시 찍을 수 있게 한다
+    setCursor(i);            // 지운 자리에 커서를 둬서 바로 다시 찍을 수 있게 한다
+    setPickedByUser(false);  // 연달아 누르면 계속 거슬러 올라간다
   }, [cues, targetIndex]);
 
   const nudge = useCallback((delta) => {
@@ -219,7 +222,10 @@ function FanchantEditor() {
       // 입력 중에는 단축키를 잡지 않는다
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
       if (e.code === 'Space') { e.preventDefault(); stamp(); }
-      else if (e.code === 'Backspace' || e.code === 'ArrowLeft') { e.preventDefault(); stepBack(); }
+      else if (e.code === 'Backspace') { e.preventDefault(); stepBack(); }
+      // 영상에 포커스가 없으면 유튜브 자체 단축키가 안 먹으므로 여기서 직접 앞뒤로 옮긴다
+      else if (e.code === 'ArrowLeft') { e.preventDefault(); player.seek(player.getTime() - (e.shiftKey ? 1 : 5)); }
+      else if (e.code === 'ArrowRight') { e.preventDefault(); player.seek(player.getTime() + (e.shiftKey ? 1 : 5)); }
       else if (e.code === 'ArrowUp') { e.preventDefault(); nudge(0.1); }
       else if (e.code === 'ArrowDown') { e.preventDefault(); nudge(-0.1); }
       else if (e.code === 'Enter') { e.preventDefault(); player.toggle(); }
@@ -382,13 +388,13 @@ function FanchantEditor() {
                 </div>
 
                 <div className="mt-5 border border-hairline bg-canvas p-4 text-[12.5px] leading-[1.9] text-esub">
-                  <b className="text-ink">스페이스</b> 현재 지점 시각 찍고 다음으로 · <b className="text-ink">←/백스페이스</b> 한 칸 되돌리기<br />
-                  <b className="text-ink">↑ ↓</b> 방금 찍은 시각 ±0.1초 · <b className="text-ink">엔터</b> 재생/일시정지
+                  <b className="text-ink">스페이스</b> 현재 지점 시각 찍고 다음으로 · <b className="text-ink">백스페이스</b> 한 칸 되돌리기<br />
+                  <b className="text-ink">← →</b> 영상 5초 이동 (Shift로 1초) · <b className="text-ink">↑ ↓</b> 시각 ±0.1초 · <b className="text-ink">엔터</b> 재생/일시정지
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                  <button onClick={() => { setCursor(0); }} className="flex items-center gap-1.5 border border-hairline bg-white px-3 py-2 text-[12.5px] font-bold text-mute hover:border-ink"><RotateCcw size={13} /> 처음부터</button>
-                  <button onClick={() => { setTimes({}); setCursor(0); }} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-bold text-[#C0392B] hover:border-[#C0392B]">전체 시각 지우기</button>
+                  <button onClick={() => { setCursor(0); setPickedByUser(false); }} className="flex items-center gap-1.5 border border-hairline bg-white px-3 py-2 text-[12.5px] font-bold text-mute hover:border-ink"><RotateCcw size={13} /> 처음부터</button>
+                  <button onClick={() => { setTimes({}); setCursor(0); setPickedByUser(false); }} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-bold text-[#C0392B] hover:border-[#C0392B]">전체 시각 지우기</button>
                 </div>
               </div>
 
@@ -404,7 +410,7 @@ function FanchantEditor() {
                     return (
                       <button
                         key={cue.key}
-                        onClick={() => { setCursor(i); if (t != null) player.seek(t); }}
+                        onClick={() => { setCursor(i); setPickedByUser(true); if (t != null) player.seek(t); }}
                         className={`flex w-full items-baseline gap-3 border-b border-hairline px-2 py-2 text-left transition-colors ${active ? 'bg-canvas-deep' : 'hover:bg-canvas'}`}
                       >
                         <span className={`w-[62px] shrink-0 text-[12px] font-extrabold tabular-nums ${t != null ? 'text-ink' : 'text-faint'}`}>{fmtTime(t)}</span>
