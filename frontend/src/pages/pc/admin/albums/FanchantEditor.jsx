@@ -62,6 +62,7 @@ function FanchantEditor() {
   const [pickedByUser, setPickedByUser] = useState(false);
   const [saving, setSaving] = useState(false);
   const textRef = useRef(null);
+  const listRef = useRef(null);
   const loadedRef = useRef(false);
 
   const { data, isLoading } = useQuery({
@@ -215,6 +216,23 @@ function FanchantEditor() {
     if (!cue || times[cue.key] == null) return;
     setTimes((prev) => ({ ...prev, [cue.key]: Math.max(0, Math.round((prev[cue.key] + delta) * 100) / 100) }));
   }, [cues, targetIndex, times]);
+
+  // 찍는 중에 현재 지점이 화면 밖으로 나가지 않게 목록만 따라 스크롤한다.
+  // scrollIntoView를 쓰면 스크롤 조상을 전부 움직여 페이지까지 튄다.
+  useEffect(() => {
+    if (step !== 'sync') return;
+    const box = listRef.current;
+    const row = box?.children?.[Math.min(cursor, cues.length - 1)];
+    if (!box || !row) return;
+    const boxRect = box.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const pad = 40;   // 다음에 찍을 것들이 조금 보이도록 여유를 둔다
+    if (rowRect.top < boxRect.top + pad) {
+      box.scrollTop += rowRect.top - boxRect.top - pad;
+    } else if (rowRect.bottom > boxRect.bottom - pad) {
+      box.scrollTop += rowRect.bottom - boxRect.bottom + pad;
+    }
+  }, [cursor, step, cues.length]);
 
   useEffect(() => {
     if (step !== 'sync') return undefined;
@@ -403,7 +421,7 @@ function FanchantEditor() {
                   <div className={F.label}>싱크 지점</div>
                   <span className="text-[12px] font-bold text-mute">{doneCount}/{cues.length}</span>
                 </div>
-                <div className="mt-3 max-h-[620px] overflow-auto">
+                <div ref={listRef} className="mt-3 max-h-[620px] overflow-auto">
                   {cues.map((cue, i) => {
                     const t = times[cue.key];
                     const active = i === cursor;
