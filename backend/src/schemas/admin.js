@@ -48,11 +48,13 @@ export const xScheduleCreate = {
   type: 'object',
   properties: {
     postId: { type: 'string', pattern: '^\\d+$', description: '게시글 ID' },
-    title: { type: 'string', minLength: 1, maxLength: 500, description: '제목' },
+    username: { type: 'string', maxLength: 50, description: '작성 계정 (없으면 기본 계정)' },
+    // 사진만 있고 본문이 없는 게시글이 있어 빈 제목을 허용한다 (봇도 그대로 저장한다)
+    title: { type: 'string', maxLength: 500, description: '제목' },
     content: { type: 'string', maxLength: 5000, description: '게시글 내용' },
     imageUrls: { type: 'array', items: { type: 'string', format: 'uri' }, description: '이미지 URL 목록' },
     date: { type: 'string', format: 'date', description: '날짜 (YYYY-MM-DD)' },
     time: { type: 'string', pattern: '^\\d{2}:\\d{2}(:\\d{2})?$', description: '시간' },
   },
-  required: ['postId', 'title', 'date'],
+  required: ['postId', 'date'],
 };

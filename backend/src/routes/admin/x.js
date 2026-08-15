@@ -71,7 +71,9 @@ export default async function xRoutes(fastify) {
 
       return {
         postId: tweet.id,
-        username,
+        // 조회는 어느 계정 경로로도 되지만(X가 리다이렉트한다) 저장은 실제 작성자로 해야 한다.
+        // 프로필을 못 읽으면 요청받은 계정으로 둔다.
+        username: tweet.profile?.username || username,
         text: tweet.text,
         title: extractTitle(tweet.text),
         imageUrls: tweet.imageUrls,
@@ -111,7 +113,7 @@ export default async function xRoutes(fastify) {
     },
     preHandler: [fastify.authenticate],
   }, async (request, reply) => {
-    const { postId, title, content, imageUrls, date, time } = request.body;
+    const { postId, username, title, content, imageUrls, date, time } = request.body;
 
     try {
       // 중복 체크
@@ -123,17 +125,21 @@ export default async function xRoutes(fastify) {
         return conflict(reply, '이미 등록된 게시글입니다.');
       }
 
+      // 사진만 있는 게시글은 본문이 없어 제목이 빈다 — 목록에서 빈칸이 되지 않게 대체한다
+      const finalTitle = (title || '').trim() || (imageUrls?.length ? '[사진]' : '[게시글]');
+
       // schedules 테이블에 저장
       const [result] = await db.query(
         'INSERT INTO schedules (category_id, title, date, time) VALUES (?, ?, ?, ?)',
-        [X_CATEGORY_ID, title, date, time || null]
+        [X_CATEGORY_ID, finalTitle, date, time || null]
       );
       const scheduleId = result.insertId;
 
       // schedule_x 테이블에 저장
       await db.query(
-        'INSERT INTO schedule_x (schedule_id, post_id, content, image_urls) VALUES (?, ?, ?, ?)',
-        [scheduleId, postId, content || null, imageUrls?.length > 0 ? JSON.stringify(imageUrls) : null]
+        'INSERT INTO schedule_x (schedule_id, post_id, username, content, image_urls) VALUES (?, ?, ?, ?, ?)',
+        [scheduleId, postId, username || DEFAULT_USERNAME, content || null,
+         imageUrls?.length > 0 ? JSON.stringify(imageUrls) : null]
       );
 
       // Meilisearch 동기화
@@ -145,7 +151,7 @@ export default async function xRoutes(fastify) {
 
       await addOrUpdateSchedule(meilisearch, {
         id: scheduleId,
-        title,
+        title: finalTitle,
         date,
         time: time || '',
         category_id: X_CATEGORY_ID,
@@ -154,7 +160,7 @@ export default async function xRoutes(fastify) {
         source_name: '',
       }, fastify.redis);
 
-      logActivity(db, { actor: 'admin', action: 'create', category: 'schedule', targetType: 'x_schedule', targetId: scheduleId, summary: `X 일정 생성: ${title}` });
+      logActivity(db, { actor: 'admin', action: 'create', category: 'schedule', targetType: 'x_schedule', targetId: scheduleId, summary: `X 일정 생성: ${finalTitle}` });
       return { success: true, scheduleId };
     } catch (err) {
       fastify.log.error(`X 일정 저장 오류: ${err.message}`);

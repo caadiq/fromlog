@@ -22,20 +22,24 @@ function XForm() {
   const [postInfo, setPostInfo] = useState(null);
   const [error, setError] = useState(null);
 
-  // 게시글 ID 추출 (URL에서도 추출 가능)
-  const extractPostId = (input) => {
-    // 숫자만 있으면 그대로 반환
-    if (/^\d+$/.test(input.trim())) {
-      return input.trim();
-    }
-    // URL에서 추출
-    const match = input.match(/status\/(\d+)/);
-    return match ? match[1] : null;
+  /**
+   * 게시글 ID + 계정 추출 (URL에서도 추출 가능)
+   *
+   * 계정을 같이 뽑는 이유: 조회는 어느 계정 경로로도 되지만(X가 리다이렉트한다)
+   * 계정을 안 넘기면 서버가 기본 계정으로 처리해 다른 계정 글이 realfromis_9로 등록됐다.
+   */
+  const extractPost = (input) => {
+    const v = input.trim();
+    if (/^\d+$/.test(v)) return { id: v, username: null };
+    const m = v.match(/(?:x\.com|twitter\.com)\/([^/?#]+)\/status\/(\d+)/i);
+    if (m) return { id: m[2], username: m[1] };
+    const only = v.match(/status\/(\d+)/);
+    return { id: only ? only[1] : null, username: null };
   };
 
   // X 게시글 정보 조회
   const fetchPostInfo = async () => {
-    const id = extractPostId(postId);
+    const { id, username } = extractPost(postId);
     if (!id) {
       setError('게시글 ID 또는 URL을 입력해주세요.');
       return;
@@ -47,7 +51,9 @@ function XForm() {
 
     try {
       const token = useAuthStore.getState().token;
-      const response = await fetch(`/api/admin/x/post-info?postId=${id}`, {
+      const qs = new URLSearchParams({ postId: id });
+      if (username) qs.set('username', username);
+      const response = await fetch(`/api/admin/x/post-info?${qs}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -104,6 +110,7 @@ function XForm() {
         },
         body: JSON.stringify({
           postId: postInfo.postId,
+          username: postInfo.username,
           title: postInfo.title,
           content: postInfo.text,
           imageUrls: postInfo.imageUrls,
