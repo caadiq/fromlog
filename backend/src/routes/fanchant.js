@@ -40,12 +40,20 @@ export default async function fanchantRoutes(fastify) {
     if (!row.video_id) return notFound(reply, '이 곡은 아직 응원법이 등록되지 않았습니다.');
 
     const colors = await resolveColors(row, row.cover_medium_url);
+    // 영상 제목·채널은 아카이브에 있으면 같이 준다 (없으면 화면에서 생략)
+    const [[video]] = await db.query(
+      'SELECT title, channel_name, published_at FROM videos WHERE video_id = ? LIMIT 1',
+      [row.video_id]
+    );
     return {
       trackId: row.id,
       trackTitle: row.title,
       albumId: row.album_id,
       albumTitle: row.album_title,
       videoId: row.video_id,
+      video: video
+        ? { title: video.title, channelName: video.channel_name, publishedAt: video.published_at }
+        : null,
       colors: { call: colors.call, sing: colors.sing },
       lines: parseJsonColumn(row.lines_json, []),
     };

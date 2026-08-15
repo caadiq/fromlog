@@ -10,10 +10,16 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 
 import { getFanchant } from '@/api';
 import { useDocumentTitle, useYouTubePlayer } from '@/hooks/common';
 import FanchantLyrics from '@/components/common/FanchantLyrics';
+
+/** 사이트 다른 곳과 같은 오버레이 스크롤바 */
+const OS_OPTIONS = {
+  scrollbars: { theme: 'os-theme-fromis', autoHide: 'leave', autoHideDelay: 600, clickScroll: 'instant' },
+};
 
 function PCFanchant() {
   const { trackId } = useParams();
@@ -67,14 +73,19 @@ function PCFanchant() {
           {/* 가사 — 여기만 스크롤된다 */}
           <div className="flex min-h-0 flex-col border-t-2 border-ink pt-3.5">
             <div className="shrink-0 text-[11.5px] font-black tracking-k2">FANCHANT</div>
-            <div className="mt-[18px] min-h-0 flex-1 overflow-y-auto pb-10 pr-3">
+            <OverlayScrollbarsComponent
+              element="div"
+              className="mt-[18px] min-h-0 flex-1 pb-10 pr-3"
+              options={OS_OPTIONS}
+              defer
+            >
               <FanchantLyrics
                 lines={data.lines}
                 colors={data.colors}
                 time={player.time}
                 onSeek={(t) => { player.seek(t); player.play(); }}
               />
-            </div>
+            </OverlayScrollbarsComponent>
           </div>
 
           {/* 영상 */}
@@ -83,6 +94,22 @@ function PCFanchant() {
               <div ref={player.containerRef} className="h-full w-full" />
             </div>
             <div className="mt-[9px] text-[11px] font-black tracking-k18 text-faint">FANCHANT — YOUTUBE</div>
+            {data.video && (
+              <div className="mt-4 border-t border-hairline pt-4">
+                <a
+                  href={`https://www.youtube.com/watch?v=${data.videoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-[15px] font-extrabold leading-[1.45] tracking-[-0.2px] text-ink transition-colors hover:text-primary"
+                >
+                  {data.video.title}
+                </a>
+                <div className="mt-1.5 text-[12.5px] font-semibold text-mute">
+                  {data.video.channelName}
+                  {data.video.publishedAt ? ` · ${data.video.publishedAt.slice(0, 10).replace(/-/g, '. ')}` : ''}
+                </div>
+              </div>
+            )}
             <p className="mt-4 text-[12.5px] leading-relaxed text-faint">
               가사를 누르면 그 지점부터 다시 들을 수 있어요.
             </p>
