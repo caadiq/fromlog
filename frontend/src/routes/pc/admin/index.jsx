@@ -28,6 +28,7 @@ import AdminMemberEdit from '@/pages/pc/admin/members/MemberEdit';
 import AdminAlbums from '@/pages/pc/admin/albums/Albums';
 import AdminAlbumForm from '@/pages/pc/admin/albums/AlbumForm';
 import AdminAlbumPhotos from '@/pages/pc/admin/albums/AlbumPhotos';
+import AdminFanchantEditor from '@/pages/pc/admin/albums/FanchantEditor';
 import AdminSchedules from '@/pages/pc/admin/schedules/Schedules';
 import AdminScheduleForm from '@/pages/pc/admin/schedules/ScheduleForm';
 import AdminScheduleFormPage from '@/pages/pc/admin/schedules/form';
@@ -61,6 +62,7 @@ export default function AdminRoutes() {
       <Route path="/admin/albums/new" element={<RequireAuth><AdminAlbumForm /></RequireAuth>} />
       <Route path="/admin/albums/:id/edit" element={<RequireAuth><AdminAlbumForm /></RequireAuth>} />
       <Route path="/admin/albums/:albumId/photos" element={<RequireAuth><AdminAlbumPhotos /></RequireAuth>} />
+      <Route path="/admin/track/:trackId/fanchant" element={<RequireAuth><AdminFanchantEditor /></RequireAuth>} />
       <Route path="/admin/schedule" element={<RequireAuth><AdminSchedules /></RequireAuth>} />
       <Route path="/admin/schedule/new" element={<RequireAuth><AdminScheduleFormPage /></RequireAuth>} />
       <Route path="/admin/schedule/:id/edit" element={<RequireAuth><AdminScheduleForm /></RequireAuth>} />

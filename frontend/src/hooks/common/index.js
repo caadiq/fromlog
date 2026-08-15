@@ -29,3 +29,6 @@ export { useRecentSearches } from './useRecentSearches';
 
 // 일정 검색 쿼리 (자동완성 + 무한스크롤)
 export { useSuggestions, useInfiniteScheduleSearch } from './useScheduleSearchQuery';
+
+// YouTube 플레이어 (응원법 싱크·재생)
+export { default as useYouTubePlayer } from './useYouTubePlayer';
