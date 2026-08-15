@@ -224,8 +224,8 @@ function FanchantEditor() {
       if (e.code === 'Space') { e.preventDefault(); stamp(); }
       else if (e.code === 'Backspace') { e.preventDefault(); stepBack(); }
       // 영상에 포커스가 없으면 유튜브 자체 단축키가 안 먹으므로 여기서 직접 앞뒤로 옮긴다
-      else if (e.code === 'ArrowLeft') { e.preventDefault(); player.seek(player.getTime() - (e.shiftKey ? 1 : 5)); }
-      else if (e.code === 'ArrowRight') { e.preventDefault(); player.seek(player.getTime() + (e.shiftKey ? 1 : 5)); }
+      else if (e.code === 'ArrowLeft') { e.preventDefault(); player.seek(player.getTime() - (e.shiftKey ? 5 : 1)); }
+      else if (e.code === 'ArrowRight') { e.preventDefault(); player.seek(player.getTime() + (e.shiftKey ? 5 : 1)); }
       else if (e.code === 'ArrowUp') { e.preventDefault(); nudge(0.1); }
       else if (e.code === 'ArrowDown') { e.preventDefault(); nudge(-0.1); }
       else if (e.code === 'Enter') { e.preventDefault(); player.toggle(); }
@@ -389,7 +389,7 @@ function FanchantEditor() {
 
                 <div className="mt-5 border border-hairline bg-canvas p-4 text-[12.5px] leading-[1.9] text-esub">
                   <b className="text-ink">스페이스</b> 현재 지점 시각 찍고 다음으로 · <b className="text-ink">백스페이스</b> 한 칸 되돌리기<br />
-                  <b className="text-ink">← →</b> 영상 5초 이동 (Shift로 1초) · <b className="text-ink">↑ ↓</b> 시각 ±0.1초 · <b className="text-ink">엔터</b> 재생/일시정지
+                  <b className="text-ink">← →</b> 영상 1초 이동 (Shift로 5초) · <b className="text-ink">↑ ↓</b> 시각 ±0.1초 · <b className="text-ink">엔터</b> 재생/일시정지
                 </div>
 
                 <div className="mt-4 flex gap-2">
