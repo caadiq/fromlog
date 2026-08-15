@@ -98,7 +98,34 @@ function FanchantEditor() {
   }, [videoId]);
   const player = useYouTubePlayer(readyVideoId);
 
-  /** 선택 영역을 마커로 감싼다 */
+  /**
+   * 선택 범위를 새 텍스트로 바꾼다.
+   *
+   * setMarkup으로 value를 갈아끼우면 브라우저의 실행취소 스택이 끊겨 Ctrl+Z가 안 먹는다.
+   * execCommand('insertText')는 사용자가 친 것처럼 처리돼 실행취소가 그대로 살아 있다.
+   * (deprecated지만 textarea 편집 이력을 유지하는 표준 대안이 아직 없다.
+   *  혹시 막히면 setMarkup으로 떨어지되 그때는 실행취소가 안 된다.)
+   */
+  const replaceRange = useCallback((el, from, to, text, selectAfter) => {
+    // value가 바뀌면 textarea 안쪽 스크롤이 맨 위로 돌아간다 — 원래 위치를 되돌린다.
+    // focus()도 기본적으로 요소를 보이게 페이지를 스크롤하므로 preventScroll을 준다.
+    const inner = el.scrollTop;
+    el.focus({ preventScroll: true });
+    el.setSelectionRange(from, to);
+    const ok = document.execCommand('insertText', false, text);
+    if (!ok) setMarkup(el.value.slice(0, from) + text + el.value.slice(to));
+    requestAnimationFrame(() => {
+      if (selectAfter) el.setSelectionRange(selectAfter[0], selectAfter[1]);
+      el.scrollTop = inner;
+    });
+  }, []);
+
+  /**
+   * 선택 영역을 마커로 감싼다.
+   *
+   * 여러 줄을 한 번에 골랐으면 **줄마다 따로** 감싼다. 마커가 줄바꿈을 품으면
+   * 파서가 줄 단위로 쪼개면서 마커가 반토막 나 인식되지 않는다.
+   */
   const wrap = useCallback((type) => {
     const el = textRef.current;
     if (!el) return;
@@ -108,42 +135,47 @@ function FanchantEditor() {
       return;
     }
     const picked = markup.slice(a, b);
-    const next = `${markup.slice(0, a)}{${type}:${picked}}${markup.slice(b)}`;
-    // focus()는 기본적으로 그 요소가 보이도록 페이지를 스크롤한다.
-    // 아래쪽 가사를 지정하면 화면이 위로 튀므로 스크롤을 막고, textarea 안쪽
-    // 스크롤 위치도 직접 되돌린다(setSelectionRange가 커서를 따라 움직인다).
-    // 마커를 넣으면 value가 통째로 바뀌면서 textarea 안쪽 스크롤이 맨 위로 돌아간다.
-    // 아래쪽 가사를 지정할 때 화면이 튀므로 원래 위치를 되돌려 놓는다.
-    // focus()도 기본적으로 요소를 보이게 페이지를 스크롤하므로 preventScroll을 준다.
-    const inner = el.scrollTop;
-    setMarkup(next);
-    requestAnimationFrame(() => {
-      el.focus({ preventScroll: true });
-      el.setSelectionRange(a, a + picked.length + type.length + 3);
-      el.scrollTop = inner;
-    });
-  }, [markup, setToast]);
+    const wrapped = picked
+      .split('\n')
+      .map((seg) => {
+        // 앞뒤 공백은 마커 밖에 두어야 지정 해제했을 때 원문이 그대로 남는다
+        const m = seg.match(/^(\s*)(.*?)(\s*)$/);
+        const [, pre, mid, post] = m;
+        return mid ? `${pre}{${type}:${mid}}${post}` : seg;
+      })
+      .join('\n');
 
-  /** 커서 위치의 마커를 벗긴다 */
+    replaceRange(el, a, b, wrapped, [a, a + wrapped.length]);
+  }, [markup, replaceRange, setToast]);
+
+  /** 커서 위치(또는 선택 범위)의 마커를 벗긴다 */
   const unwrap = useCallback(() => {
     const el = textRef.current;
     if (!el) return;
-    const pos = el.selectionStart;
-    const inner = el.scrollTop;   // wrap과 같은 이유로 안쪽 스크롤을 되돌린다
+    const { selectionStart: a, selectionEnd: b } = el;
     const re = /\{(call|sing):([^}]*)\}/g;
+
+    // 범위를 골랐으면 그 안의 마커를 전부 벗긴다 (여러 줄 지정을 한 번에 되돌리기 위함)
+    if (a !== b) {
+      const picked = markup.slice(a, b);
+      if (!re.test(picked)) {
+        setToast({ type: 'error', message: '선택한 곳에 지정된 구간이 없어요.' });
+        return;
+      }
+      const stripped = picked.replace(/\{(call|sing):([^}]*)\}/g, '$2');
+      replaceRange(el, a, b, stripped, [a, a + stripped.length]);
+      return;
+    }
+
+    // 커서만 있으면 그 자리를 감싼 마커 하나를 벗긴다
     for (const m of markup.matchAll(re)) {
-      if (pos >= m.index && pos <= m.index + m[0].length) {
-        setMarkup(markup.slice(0, m.index) + m[2] + markup.slice(m.index + m[0].length));
-        requestAnimationFrame(() => {
-          el.focus({ preventScroll: true });
-          el.setSelectionRange(m.index, m.index + m[2].length);
-          el.scrollTop = inner;
-        });
+      if (a >= m.index && a <= m.index + m[0].length) {
+        replaceRange(el, m.index, m.index + m[0].length, m[2], [m.index, m.index + m[2].length]);
         return;
       }
     }
-    setToast({ type: 'error', message: '커서를 마커 안에 두고 눌러주세요.' });
-  }, [markup, setToast]);
+    setToast({ type: 'error', message: '커서를 마커 안에 두거나 범위를 선택해주세요.' });
+  }, [markup, replaceRange, setToast]);
 
   // ── 싱크 단계 키 조작 ────────────────────────────────────
   const stamp = useCallback(() => {
