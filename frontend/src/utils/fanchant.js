@@ -4,6 +4,7 @@
  * 관리자는 가사를 텍스트로 편집하면서 응원법 구간을 마커로 표시한다.
  *   {call:(say)}   따로 — 팬만 외치는 부분 (시작 전 멤버 연호, 가사 사이 콜 등)
  *   {sing:Dive}    같이 — 멤버와 함께 부르는 부분
+ *   {call+:…}      '+'는 유지 — 뒤따르는 가사가 흐르는 동안에도 문단 끝까지 강조를 남긴다
  *
  * 마커를 쓰는 이유: 구간이 줄 중간에 걸치는 경우가 많아(예: "말해봐 뭐든 say (say)")
  * 줄 단위 필드로는 표현이 안 되고, 텍스트 한 벌로 두면 붙여넣기·수정이 쉽다.
@@ -11,7 +12,9 @@
  * 시간(t)은 여기서 다루지 않는다 — 싱크 화면에서 따로 찍어 병합한다.
  */
 
-const MARKER = /\{(call|sing):([^}]*)\}/g;
+// '+'가 붙으면 그 문단이 끝날 때까지 강조를 유지한다(hold).
+// 함성처럼 뒤따르는 가사가 흐르는 동안 계속 외치는 부분에만 쓴다.
+const MARKER = /\{(call|sing)(\+?):([^}]*)\}/g;
 
 /** 마크업 텍스트 → lines 구조 (시간 없음) */
 export function parseMarkup(text) {
@@ -22,7 +25,11 @@ export function parseMarkup(text) {
     let last = 0;
     for (const m of raw.matchAll(MARKER)) {
       if (m.index > last) parts.push({ text: raw.slice(last, m.index) });
-      if (m[2] !== '') parts.push({ text: m[2], type: m[1], t: null });
+      if (m[3] !== '') {
+        const part = { text: m[3], type: m[1], t: null };
+        if (m[2] === '+') part.hold = true;
+        parts.push(part);
+      }
       last = m.index + m[0].length;
     }
     if (last < raw.length) parts.push({ text: raw.slice(last) });
@@ -36,7 +43,7 @@ export function toMarkup(lines) {
   return lines
     .map((line) => {
       if (line?.gap) return '';
-      return (line.parts || []).map((p) => (p.type ? `{${p.type}:${p.text}}` : p.text)).join('');
+      return (line.parts || []).map((p) => (p.type ? `{${p.type}${p.hold ? '+' : ''}:${p.text}}` : p.text)).join('');
     })
     .join('\n');
 }
@@ -80,7 +87,10 @@ export function mergeTimings(nextLines, prevLines) {
       t: take(lineTime, key),
       parts: line.parts.map((p) => {
         const t = take(partTime, `${key}#${p.type ?? ''}|${p.text}`);
-        return p.type ? { text: p.text, type: p.type, t } : { text: p.text, t };
+        // hold(유지)는 편집 화면의 마커에서 오는 값이라 그대로 살려야 한다
+        return p.type
+          ? { text: p.text, type: p.type, t, ...(p.hold ? { hold: true } : {}) }
+          : { text: p.text, t };
       }),
     };
   });

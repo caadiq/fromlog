@@ -8,6 +8,7 @@
  *   - 줄의 t  : 그 줄이 시작되는 시각(초). 세로 바·지나간 줄 흐리기에 쓴다
  *   - part의 t: 그 조각이 시작되는 시각. 응원법 조각은 그 순간에만 배경이 들어온다
  *   - type    : 'call'(팬만 따로 외치는 부분) | 'sing'(멤버와 같이 부르는 부분). 없으면 일반 가사
+ *   - hold    : 뒤따르는 가사가 흐르는 동안에도 문단 끝까지 강조를 유지 (함성처럼 길게 외치는 것)
  */
 import { extractFanchantColors, darkerVariant } from './theme.js';
 import { createLogger } from '../utils/logger.js';
@@ -39,7 +40,10 @@ export function normalizeLines(input) {
           // 가사 조각도 시각을 갖는다 — 한 줄에 응원법이 끼면 조각마다 시작이 달라
           // 각각 찍어야 하기 때문(예: from / summer days / to the / last dance)
           const t = num(p?.t);
-          return type ? { text, type, t } : { text, ...(t != null ? { t } : {}) };
+          // hold: 뒤따르는 가사가 흐르는 동안에도 문단 끝까지 강조를 유지한다(함성 등)
+          return type
+            ? { text, type, t, ...(p?.hold ? { hold: true } : {}) }
+            : { text, ...(t != null ? { t } : {}) };
         })
         .filter((p) => p.text !== ''),
     };
