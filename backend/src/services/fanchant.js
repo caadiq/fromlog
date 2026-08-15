@@ -6,7 +6,7 @@
  * lines 구조 (sql/track_fanchant.sql 참고)
  *   [ { t, parts: [ { text, type?, t? } ] }, { gap: true }, … ]
  *   - 줄의 t  : 그 줄이 시작되는 시각(초). 세로 바·지나간 줄 흐리기에 쓴다
- *   - part의 t: 응원법 구간이 시작되는 시각. 그 순간에만 배경이 들어온다
+ *   - part의 t: 그 조각이 시작되는 시각. 응원법 조각은 그 순간에만 배경이 들어온다
  *   - type    : 'call'(팬만 따로 외치는 부분) | 'sing'(멤버와 같이 부르는 부분). 없으면 일반 가사
  */
 import { extractFanchantColors, darkerVariant } from './theme.js';
@@ -36,8 +36,10 @@ export function normalizeLines(input) {
         .map((p) => {
           const text = String(p?.text ?? '');
           const type = PART_TYPES.includes(p?.type) ? p.type : null;
-          // 일반 가사에는 시간이 없다 — 있어도 버린다
-          return type ? { text, type, t: num(p?.t) } : { text };
+          // 가사 조각도 시각을 갖는다 — 한 줄에 응원법이 끼면 조각마다 시작이 달라
+          // 각각 찍어야 하기 때문(예: from / summer days / to the / last dance)
+          const t = num(p?.t);
+          return type ? { text, type, t } : { text, ...(t != null ? { t } : {}) };
         })
         .filter((p) => p.text !== ''),
     };

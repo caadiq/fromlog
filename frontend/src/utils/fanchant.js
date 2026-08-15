@@ -45,21 +45,31 @@ export function toMarkup(lines) {
  * 새로 파싱한 구조에 기존 시간을 옮겨 붙인다.
  * 구간 지정을 고친 뒤에도 이미 찍어둔 시간을 최대한 살리기 위한 것 —
  * 줄 번호가 아니라 **텍스트가 같은지**로 맞춘다(줄을 하나 끼워 넣어도 밀리지 않게).
+ *
+ * 같은 텍스트가 여러 번 나오는 곡(후렴)이 많아 **나온 순서대로** 하나씩 꺼내 쓴다.
+ * 첫 값을 재사용하면 2절 후렴에 1절 시각이 붙는다.
  */
 export function mergeTimings(nextLines, prevLines) {
   if (!Array.isArray(prevLines)) return nextLines;
+
+  const push = (map, k, v) => {
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(v);
+  };
+  const take = (map, k) => {
+    const arr = map.get(k);
+    return arr && arr.length ? arr.shift() : null;
+  };
 
   const lineTime = new Map();
   const partTime = new Map();
   for (const line of prevLines) {
     if (line?.gap) continue;
     const key = (line.parts || []).map((p) => p.text).join('');
-    if (line.t != null && !lineTime.has(key)) lineTime.set(key, line.t);
+    if (line.t != null) push(lineTime, key, line.t);
     for (const p of line.parts || []) {
-      if (p.type && p.t != null) {
-        const pk = `${p.type}|${p.text}`;
-        if (!partTime.has(pk)) partTime.set(pk, p.t);
-      }
+      // 조각 텍스트만으로는 " to the " 같은 짧은 조각이 여러 줄에 겹친다 — 줄 텍스트로 묶는다
+      if (p.t != null) push(partTime, `${key}#${p.type ?? ''}|${p.text}`, p.t);
     }
   }
 
@@ -67,11 +77,10 @@ export function mergeTimings(nextLines, prevLines) {
     if (line.gap) return line;
     const key = (line.parts || []).map((p) => p.text).join('');
     return {
-      t: lineTime.has(key) ? lineTime.get(key) : null,
+      t: take(lineTime, key),
       parts: line.parts.map((p) => {
-        if (!p.type) return { text: p.text };
-        const pk = `${p.type}|${p.text}`;
-        return { text: p.text, type: p.type, t: partTime.has(pk) ? partTime.get(pk) : null };
+        const t = take(partTime, `${key}#${p.type ?? ''}|${p.text}`);
+        return p.type ? { text: p.text, type: p.type, t } : { text: p.text, t };
       }),
     };
   });
@@ -80,40 +89,30 @@ export function mergeTimings(nextLines, prevLines) {
 /**
  * 시간을 찍어야 하는 지점을 순서대로 편다.
  *
- * **줄의 첫 부분이 응원법이면 줄 큐와 합친다.** 줄이 시작되는 순간이 곧 그 구간이
- * 시작되는 순간이라 따로 두면 같은 지점을 두 번 눌러야 한다(영상을 멈춰놓고
- * 시각을 맞춰야 했다). 합쳐도 저장할 때 줄 시각까지 같이 채우므로
- * 현재 줄 표시(세로 바)는 그대로 동작한다 → applyCueTimes의 mergedLine 처리.
+ * **줄 안의 조각(가사·응원법)을 모두 따로 찍는다.** 한 줄에 응원법이 끼어 있으면
+ * "from / summer days / to the / last dance"처럼 조각마다 시작 시각이 다른데,
+ * 응원법 조각만 찍게 두면 사이의 가사("from", "to the")를 지정할 방법이 없다.
  *
- *   "Our love is true cause this is too great"  (앞부분이 sing)
- *     → [같이] Our love is true   ← 줄 시작 겸 구간
- *        [같이] too great
- *
- *   "말해봐 뭐든 say (say)"  (앞부분이 일반 가사)
- *     → [줄]  말해봐 뭐든 say (say)
- *        [따로] (say)
+ * 첫 조각의 시각이 곧 줄의 시작이므로 줄 큐를 따로 두지 않는다(mergedLine).
+ * 공백뿐인 조각은 찍을 것이 없어 건너뛴다 — 다만 partIndex는 원래 자리를 유지한다.
  */
 export function buildCues(lines) {
   const cues = [];
   lines.forEach((line, li) => {
     if (line.gap) return;
     const parts = line.parts || [];
-    const firstIsCue = parts.length > 0 && !!parts[0].type;
-
-    cues.push({
-      key: `l${li}`,
-      kind: firstIsCue ? parts[0].type : 'line',
-      lineIndex: li,
-      partIndex: firstIsCue ? 0 : null,
-      // 합쳐진 줄은 그 구간 텍스트만 보여준다 (줄 전체를 보여주면 뭘 찍는지 헷갈린다)
-      text: firstIsCue ? parts[0].text : parts.map((p) => p.text).join(''),
-      mergedLine: firstIsCue,
-    });
-
+    let firstShown = true;
     parts.forEach((p, pi) => {
-      if (!p.type) return;
-      if (firstIsCue && pi === 0) return;   // 줄 큐로 이미 잡았다
-      cues.push({ key: `l${li}p${pi}`, kind: p.type, lineIndex: li, partIndex: pi, text: p.text, mergedLine: false });
+      if (!p.type && p.text.trim() === '') return;   // 조각 사이 공백
+      cues.push({
+        key: `l${li}p${pi}`,
+        kind: p.type || 'line',
+        lineIndex: li,
+        partIndex: pi,
+        text: p.text,
+        mergedLine: firstShown,   // 줄에서 처음 보이는 조각 = 줄 시작
+      });
+      firstShown = false;
     });
   });
   return cues;
@@ -145,7 +144,9 @@ export function extractCueTimes(lines, cues) {
   cues.forEach((cue) => {
     const line = lines[cue.lineIndex];
     if (!line || line.gap) return;
-    const t = cue.partIndex != null ? line.parts[cue.partIndex]?.t : line.t;
+    // 예전 저장분은 가사 조각에 시각이 없고 줄에만 있다 — 첫 조각은 줄 시각으로 되살린다
+    const partT = cue.partIndex != null ? line.parts[cue.partIndex]?.t : null;
+    const t = partT ?? (cue.mergedLine ? line.t : null);
     if (t != null) times[cue.key] = t;
   });
   return times;
