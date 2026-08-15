@@ -58,8 +58,6 @@ function MobileFanchant() {
     );
   }
 
-  const pct = player.duration ? Math.min(100, (player.time / player.duration) * 100) : 0;
-
   return (
     // Layout의 mobile-content가 스크롤 컨테이너다 — 여기서 또 컨테이너를 만들면 sticky가 깨진다
     <div className="text-ink">
@@ -67,9 +65,6 @@ function MobileFanchant() {
       <div className="sticky top-0 z-[5] border-b border-hairline bg-white">
         <div className="aspect-video w-full bg-black">
           <div ref={player.containerRef} className="h-full w-full" />
-        </div>
-        <div className="h-[3px] bg-canvas">
-          <div className="h-full transition-[width] duration-150" style={{ width: `${pct}%`, background: data.colors.call }} />
         </div>
       </div>
 

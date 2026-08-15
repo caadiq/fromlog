@@ -46,17 +46,37 @@ function useProgress(lines, time) {
     return cur;
   }, [flat, time]);
 
-  return { rank, curIndex, curLine: curIndex >= 0 ? flat[curIndex].li : -1 };
+  /**
+   * 지금 유효한 응원법 줄.
+   * 응원법 하나가 여러 줄(나레이션 등)에 걸쳐 이어지는 경우가 있어서,
+   * 다음 응원법이 나오기 전까지는 그 줄을 화면에 붙잡아 둔다.
+   */
+  const callLine = useMemo(() => {
+    if (curIndex < 0) return -1;
+    for (let i = curIndex; i >= 0; i -= 1) {
+      const { li, pi } = flat[i];
+      if (lines[li]?.parts?.[pi]?.type) return li;
+    }
+    return -1;
+  }, [flat, curIndex, lines]);
+
+  return { rank, curIndex, curLine: curIndex >= 0 ? flat[curIndex].li : -1, callLine };
 }
 
 function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true, onSeek }) {
-  const { rank, curIndex, curLine } = useProgress(lines, time);
+  const { rank, curIndex, curLine, callLine } = useProgress(lines, time);
   const curRef = useRef(null);
+  const callRef = useRef(null);
 
   /**
-   * 지금 줄을 화면 가운데로.
-   * scrollIntoView는 스크롤 조상을 전부 움직여 페이지까지 튀므로,
-   * 스크롤이 걸린 조상을 찾아 그 컨테이너만 직접 굴린다.
+   * 지금 줄을 화면 안으로.
+   *
+   * 그냥 가운데 맞추면, 응원법 하나가 여러 줄에 걸쳐 유효할 때
+   * (예: "프로미스나인 …" 함성이 나레이션 네 줄 동안 이어진다)
+   * 화면이 좁은 모바일에서 정작 외쳐야 할 응원법이 위로 밀려 사라진다.
+   * 그래서 **지금 유효한 응원법 줄부터 현재 줄까지**가 함께 보이게 잡는다.
+   *
+   * scrollIntoView는 스크롤 조상을 전부 움직여 페이지까지 튀므로 컨테이너만 직접 굴린다.
    */
   useEffect(() => {
     if (!autoScroll || curLine < 0) return;
@@ -69,9 +89,23 @@ function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true
 
     const boxRect = box.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
-    const target = box.scrollTop + (rowRect.top - boxRect.top) - box.clientHeight / 2 + rowRect.height / 2;
+    const anchor = callRef.current?.getBoundingClientRect();
+
+    // 응원법 줄부터 현재 줄까지가 한 화면에 들어가면 그 범위를 가운데 둔다
+    const top = anchor && anchor.top < rowRect.top ? anchor.top : rowRect.top;
+    const bottom = rowRect.bottom;
+    const span = bottom - top;
+    const pad = 12;
+
+    let target;
+    if (span <= box.clientHeight - pad * 2) {
+      target = box.scrollTop + (top - boxRect.top) - (box.clientHeight - span) / 2;
+    } else {
+      // 너무 멀면 현재 줄을 아래쪽에 두어 위쪽(응원법)을 최대한 남긴다
+      target = box.scrollTop + (bottom - boxRect.top) - box.clientHeight + pad;
+    }
     box.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
-  }, [curLine, autoScroll]);
+  }, [curLine, callLine, autoScroll]);
 
   /** 그 지점부터 다시 듣기 — 조각에 시각이 없으면 줄 시각을 쓴다 */
   const seekTo = (line, part) => {
@@ -89,7 +123,11 @@ function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true
         const seekable = !!onSeek && line.t != null;
 
         return (
-          <div key={li} ref={isCurrentLine ? curRef : null} className="relative">
+          <div
+            key={li}
+            ref={isCurrentLine ? curRef : li === callLine ? callRef : null}
+            className="relative"
+          >
             {isCurrentLine && (
               <span
                 className="absolute bottom-[.35em] top-[.35em] w-[3px]"
