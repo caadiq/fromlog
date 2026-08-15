@@ -4,6 +4,7 @@ import albumsRoutes from './albums/index.js';
 import schedulesRoutes from './schedules/index.js';
 import statsRoutes from './stats/index.js';
 import videosRoutes from './videos.js';
+import fanchantRoutes from './fanchant.js';
 import pushRoutes from './push.js';
 import botsRoutes from './admin/bots.js';
 import youtubeBotsRoutes from './admin/youtube-bots.js';
@@ -49,6 +50,9 @@ export default async function routes(fastify) {
 
   // 영상 아카이브 라우트
   fastify.register(videosRoutes, { prefix: '/videos' });
+
+  // 응원법 라우트 (공개 조회 + 관리자 편집)
+  fastify.register(fanchantRoutes, { prefix: '/fanchant' });
 
   // 푸시 알림 라우트
   fastify.register(pushRoutes, { prefix: '/push' });

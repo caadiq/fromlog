@@ -118,6 +118,90 @@ export async function extractThemeColor(buffer) {
   }
 }
 
+// ── 응원법용 2색 추출 ────────────────────────────────────────
+
+/** 색상환을 나눌 구간 수 (15°) */
+const HUE_BUCKETS = 24;
+/**
+ * 두 색이 "다른 색"으로 보이려면 이만큼은 떨어져야 한다 (도).
+ * 45°로 잡으면 17곡 중 10곡만 2색이 나오고 나머지는 명암 차이로 떨어져 구분이 약했다.
+ * 30°까지 낮추면 14곡에서 2색이 나온다 — 애매한 곡은 관리자에서 직접 지정한다.
+ */
+const MIN_HUE_GAP = 30;
+/** 두 번째 색이 이 비율보다 적게 잡히면 대표색으로 치지 않는다 */
+const MIN_SECOND_RATIO = 0.03;
+
+/** 흰 배경 위 본문 글자로 읽히도록 채도·명도를 고정 */
+function asTextColor(rgb) {
+  const { h, s } = rgbToHsl(rgb);
+  return hslToHex({ h, s: clamp(s, 0.45, 0.85), l: 0.36 });
+}
+
+/**
+ * 커버에서 서로 구별되는 두 색을 뽑는다 (응원법 '이어서 외치기' / '같이 부르기'용).
+ *
+ * 커버를 64x64로 줄여 색상(hue)별로 픽셀을 모으고, 가장 많은 색과 그 색에서
+ * [MIN_HUE_GAP]도 이상 떨어진 색을 고른다. 무채색·너무 밝거나 어두운 픽셀은 센다고
+ * 대표성이 없어 제외한다.
+ *
+ * 단색 커버(9 Way Ticket 등)는 두 번째 색이 거의 안 잡히므로 그때는 second=null로 두고,
+ * 호출부가 첫 색의 진한 변주로 폴백한다.
+ *
+ * @returns {Promise<{first: string, second: string|null}|null>}
+ */
+export async function extractFanchantColors(buffer) {
+  try {
+    const size = 64;
+    const { data } = await sharp(buffer)
+      .resize(size, size, { fit: 'cover' })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const buckets = new Map();
+    let counted = 0;
+    for (let i = 0; i < data.length; i += 3) {
+      const rgb = { r: data[i], g: data[i + 1], b: data[i + 2] };
+      const { h, s, l } = rgbToHsl(rgb);
+      if (s < 0.18 || l < 0.12 || l > 0.9) continue; // 무채색·흰검 근처는 제외
+      const key = Math.floor(h / (360 / HUE_BUCKETS));
+      const e = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+      e.n += 1; e.r += rgb.r; e.g += rgb.g; e.b += rgb.b;
+      buckets.set(key, e);
+      counted += 1;
+    }
+    if (counted === 0) return null;
+
+    const ranked = [...buckets.entries()]
+      .map(([key, e]) => ({ key, n: e.n, rgb: { r: e.r / e.n, g: e.g / e.n, b: e.b / e.n } }))
+      .sort((a, b) => b.n - a.n);
+
+    const step = 360 / HUE_BUCKETS;
+    const hueGap = (a, b) => {
+      const d = Math.abs(a - b) * step;
+      return Math.min(d, 360 - d);
+    };
+    const first = ranked[0];
+    const second = ranked
+      .slice(1)
+      .find((x) => hueGap(x.key, first.key) >= MIN_HUE_GAP && x.n / counted >= MIN_SECOND_RATIO);
+
+    return {
+      first: asTextColor(first.rgb),
+      second: second ? asTextColor(second.rgb) : null,
+    };
+  } catch (err) {
+    logger.error(`응원법 색 추출 실패: ${err.message}`);
+    return null;
+  }
+}
+
+/** 색 하나뿐일 때 쓸 짝 — 같은 색상의 더 진한 변주 */
+export function darkerVariant(hex) {
+  const { h, s } = rgbToHsl(hexToRgb(hex));
+  return hslToHex({ h, s: clamp(s * 0.95, 0.3, 0.8), l: 0.2 });
+}
+
 // ── 현재 테마 해석 ───────────────────────────────────────────
 
 async function getSetting(db, key, fallback = null) {
