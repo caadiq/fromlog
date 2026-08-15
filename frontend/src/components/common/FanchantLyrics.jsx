@@ -67,28 +67,29 @@ function useProgress(lines, time) {
   /**
    * 지금 외쳐야 할 응원법 조각.
    *
-   * 기본은 "그 조각이 지금인 동안"만이다. 다음 조각으로 넘어가면 꺼진다.
-   * 다만 함성처럼 **뒤따르는 가사가 흐르는 내내 외치는** 부분이 있어서,
-   * 그런 것만 관리자가 '유지'로 표시해 둔다(hold). 유지 표시가 있으면
-   * 다음 응원법이 나오거나 문단이 끝날 때까지 남는다.
-   * 전부 유지로 두면 이미 끝난 'Dive' 같은 것도 계속 켜져 있어 이상하다.
+   * 기본은 "그 조각이 지금인 동안"만이다 — 다음 조각으로 넘어가면 꺼진다.
+   * 'Dive'처럼 지나가면 끝나는 것이 대부분이라 이게 맞다.
+   *
+   * 다만 함성처럼 **뒤따르는 가사가 흐르는 내내** 외치는 부분이 있다.
+   * 어디까지 이어지는지는 곡마다 달라서 관리자가 [유지] 블록으로 범위를 묶어둔다.
+   * 지금 줄이 그 블록 안이면, 블록 안의 응원법을 계속 활성으로 본다.
    */
   const activeCall = useMemo(() => {
     if (curIndex < 0) return null;
     const { li, pi } = flat[curIndex];
     if (lines[li]?.parts?.[pi]?.type) return { li, pi };   // 지금 조각이 응원법
 
-    // 지금 조각이 가사면, 같은 문단 안에서 '유지' 표시된 응원법을 거슬러 찾는다
-    const curPara = para.ofLine.get(li);
+    const hg = lines[li]?.hg;
+    if (hg == null) return null;                            // 유지 블록 밖이면 꺼진 것
+
+    // 같은 블록 안에서 바로 앞 응원법을 찾는다
     for (let i = curIndex - 1; i >= 0; i -= 1) {
       const cand = flat[i];
-      if (para.ofLine.get(cand.li) !== curPara) break;
-      const part = lines[cand.li]?.parts?.[cand.pi];
-      if (!part?.type) continue;
-      return part.hold ? { li: cand.li, pi: cand.pi } : null;   // 유지 표시가 없으면 꺼진 것
+      if (lines[cand.li]?.hg !== hg) break;
+      if (lines[cand.li]?.parts?.[cand.pi]?.type) return { li: cand.li, pi: cand.pi };
     }
     return null;
-  }, [flat, curIndex, lines, para]);
+  }, [flat, curIndex, lines]);
 
   return { rank, curIndex, curLine: curIndex >= 0 ? flat[curIndex].li : -1, activeCall, para };
 }

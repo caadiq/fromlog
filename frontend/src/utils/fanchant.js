@@ -4,7 +4,10 @@
  * 관리자는 가사를 텍스트로 편집하면서 응원법 구간을 마커로 표시한다.
  *   {call:(say)}   따로 — 팬만 외치는 부분 (시작 전 멤버 연호, 가사 사이 콜 등)
  *   {sing:Dive}    같이 — 멤버와 함께 부르는 부분
- *   {call+:…}      '+'는 유지 — 뒤따르는 가사가 흐르는 동안에도 문단 끝까지 강조를 남긴다
+ *
+ * 유지 블록: [유지] … [/유지] 로 감싼 줄들은 한 덩어리로 본다.
+ *   그 안의 응원법은 블록이 끝날 때까지 강조가 남는다 — 함성처럼 뒤따르는 가사가
+ *   흐르는 내내 외치는 경우다. 어디까지 유지할지는 곡마다 달라서 사람이 범위를 정한다.
  *
  * 마커를 쓰는 이유: 구간이 줄 중간에 걸치는 경우가 많아(예: "말해봐 뭐든 say (say)")
  * 줄 단위 필드로는 표현이 안 되고, 텍스트 한 벌로 두면 붙여넣기·수정이 쉽다.
@@ -16,36 +19,61 @@
 // 함성처럼 뒤따르는 가사가 흐르는 동안 계속 외치는 부분에만 쓴다.
 const MARKER = /\{(call|sing)(\+?):([^}]*)\}/g;
 
+/** 유지 범위 표기 (한 줄을 통째로 차지한다) */
+export const HOLD_OPEN = '[유지]';
+export const HOLD_CLOSE = '[/유지]';
+
 /** 마크업 텍스트 → lines 구조 (시간 없음) */
 export function parseMarkup(text) {
-  return String(text ?? '').split('\n').map((raw) => {
-    if (raw.trim() === '') return { gap: true };
+  const out = [];
+  let group = -1;
+  let seq = 0;
+
+  for (const raw of String(text ?? '').split('\n')) {
+    const trimmed = raw.trim();
+    if (trimmed === HOLD_OPEN) { group = seq; seq += 1; continue; }
+    if (trimmed === HOLD_CLOSE) { group = -1; continue; }
+
+    if (trimmed === '') {
+      const gapLine = { gap: true };
+      if (group >= 0) gapLine.hg = group;
+      out.push(gapLine);
+      continue;
+    }
 
     const parts = [];
     let last = 0;
     for (const m of raw.matchAll(MARKER)) {
       if (m.index > last) parts.push({ text: raw.slice(last, m.index) });
-      if (m[3] !== '') {
-        const part = { text: m[3], type: m[1], t: null };
-        if (m[2] === '+') part.hold = true;
-        parts.push(part);
-      }
+      if (m[3] !== '') parts.push({ text: m[3], type: m[1], t: null });
       last = m.index + m[0].length;
     }
     if (last < raw.length) parts.push({ text: raw.slice(last) });
-    return { t: null, parts: parts.length ? parts : [{ text: raw }] };
-  });
+
+    const line = { t: null, parts: parts.length ? parts : [{ text: raw }] };
+    if (group >= 0) line.hg = group;
+    out.push(line);
+  }
+  return out;
 }
 
 /** lines 구조 → 마크업 텍스트 (시간은 버려진다) */
 export function toMarkup(lines) {
   if (!Array.isArray(lines)) return '';
-  return lines
-    .map((line) => {
-      if (line?.gap) return '';
-      return (line.parts || []).map((p) => (p.type ? `{${p.type}${p.hold ? '+' : ''}:${p.text}}` : p.text)).join('');
-    })
-    .join('\n');
+  const out = [];
+  let group = -1;
+
+  lines.forEach((line) => {
+    const hg = line?.hg ?? -1;
+    if (hg !== group) {
+      if (group >= 0) out.push(HOLD_CLOSE);
+      if (hg >= 0) out.push(HOLD_OPEN);
+      group = hg;
+    }
+    out.push(line?.gap ? '' : (line.parts || []).map((p) => (p.type ? `{${p.type}:${p.text}}` : p.text)).join(''));
+  });
+  if (group >= 0) out.push(HOLD_CLOSE);
+  return out.join('\n');
 }
 
 /**
@@ -84,13 +112,12 @@ export function mergeTimings(nextLines, prevLines) {
     if (line.gap) return line;
     const key = (line.parts || []).map((p) => p.text).join('');
     return {
+      ...(line.hg != null ? { hg: line.hg } : {}),
       t: take(lineTime, key),
       parts: line.parts.map((p) => {
         const t = take(partTime, `${key}#${p.type ?? ''}|${p.text}`);
         // hold(유지)는 편집 화면의 마커에서 오는 값이라 그대로 살려야 한다
-        return p.type
-          ? { text: p.text, type: p.type, t, ...(p.hold ? { hold: true } : {}) }
-          : { text: p.text, t };
+        return p.type ? { text: p.text, type: p.type, t } : { text: p.text, t };
       }),
     };
   });
@@ -130,7 +157,9 @@ export function buildCues(lines) {
 
 /** 큐에 찍은 시간을 lines에 반영 */
 export function applyCueTimes(lines, cues, times) {
-  const next = lines.map((l) => (l.gap ? { gap: true } : { t: l.t ?? null, parts: l.parts.map((p) => ({ ...p })) }));
+  const next = lines.map((l) =>
+    l.gap ? { gap: true } : { ...(l.hg != null ? { hg: l.hg } : {}), t: l.t ?? null, parts: l.parts.map((p) => ({ ...p })) }
+  );
   cues.forEach((cue) => {
     const t = times[cue.key];
     if (t == null) return;

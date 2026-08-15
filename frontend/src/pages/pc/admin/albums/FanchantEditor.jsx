@@ -21,6 +21,7 @@ import { EASE } from '@/components/editorial';
 import { getFanchantAdmin, saveFanchant, deleteFanchant } from '@/api';
 import {
   parseMarkup, toMarkup, mergeTimings, buildCues, applyCueTimes, extractCueTimes, fmtTime,
+  HOLD_OPEN, HOLD_CLOSE,
 } from '@/utils/fanchant';
 
 const STEPS = [
@@ -35,9 +36,7 @@ function PreviewLine({ line, colors }) {
     <div className="leading-[2]">
       {line.parts.map((p, i) =>
         p.type ? (
-          <span key={i} style={{ color: colors[p.type], fontWeight: 900 }} title={p.hold ? '유지' : undefined}>
-            {p.text}{p.hold ? <sup className="ml-0.5 text-[10px]">유지</sup> : null}
-          </span>
+          <span key={i} style={{ color: colors[p.type], fontWeight: 900 }}>{p.text}</span>
         ) : (
           <span key={i} className="text-mute">{p.text}</span>
         )
@@ -154,22 +153,40 @@ function FanchantEditor() {
   }, [markup, replaceRange, setToast]);
 
   /**
-   * 커서가 놓인 마커에 '유지'(+)를 켜고 끈다.
-   * 함성처럼 뒤따르는 가사가 흐르는 내내 외치는 부분에만 쓴다 —
-   * 전부 유지로 두면 이미 끝난 구간도 계속 강조돼 어색하다.
+   * 드래그한 범위를 [유지] 블록으로 묶거나 푼다.
+   *
+   * 함성처럼 뒤따르는 가사가 흐르는 내내 외치는 구간이 있는데,
+   * 어디까지 이어지는지는 곡마다 달라 자동으로 정할 수 없다.
+   * 그래서 응원법 줄부터 유지할 마지막 줄까지 직접 골라 묶는다.
    */
-  const toggleHold = useCallback(() => {
+  const toggleHoldBlock = useCallback(() => {
     const el = textRef.current;
     if (!el) return;
-    const pos = el.selectionStart;
-    for (const m of markup.matchAll(/\{(call|sing)(\+?):([^}]*)\}/g)) {
-      if (pos >= m.index && pos <= m.index + m[0].length) {
-        const next = `{${m[1]}${m[2] === '+' ? '' : '+'}:${m[3]}}`;
-        replaceRange(el, m.index, m.index + m[0].length, next, [m.index, m.index + next.length]);
-        return;
-      }
+    const { selectionStart: a, selectionEnd: b } = el;
+
+    // 줄 경계로 넓힌다 (블록 표기가 한 줄을 통째로 차지한다)
+    const from = markup.lastIndexOf('\n', a - 1) + 1;
+    const lineEnd = markup.indexOf('\n', b);
+    const to = lineEnd === -1 ? markup.length : lineEnd;
+    const picked = markup.slice(from, to);
+
+    if (a === b) {
+      setToast({ type: 'error', message: '유지할 범위를 드래그한 뒤 눌러주세요.' });
+      return;
     }
-    setToast({ type: 'error', message: '유지할 구간 안에 커서를 두고 눌러주세요.' });
+
+    // 이미 묶여 있으면 푼다
+    if (picked.includes(HOLD_OPEN) || picked.includes(HOLD_CLOSE)) {
+      const stripped = picked
+        .split('\n')
+        .filter((l) => l.trim() !== HOLD_OPEN && l.trim() !== HOLD_CLOSE)
+        .join('\n');
+      replaceRange(el, from, to, stripped, [from, from + stripped.length]);
+      return;
+    }
+
+    const wrapped = `${HOLD_OPEN}\n${picked}\n${HOLD_CLOSE}`;
+    replaceRange(el, from, to, wrapped, [from, from + wrapped.length]);
   }, [markup, replaceRange, setToast]);
 
   /** 커서 위치(또는 선택 범위)의 마커를 벗긴다 */
@@ -353,7 +370,7 @@ function FanchantEditor() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button onClick={() => wrap('call')} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold hover:border-ink" style={{ color: colors.call }}>따로</button>
                   <button onClick={() => wrap('sing')} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold hover:border-ink" style={{ color: colors.sing }}>같이</button>
-                  <button onClick={toggleHold} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold text-esub hover:border-ink">유지 켜기/끄기</button>
+                  <button onClick={toggleHoldBlock} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold text-esub hover:border-ink">유지 묶기/풀기</button>
                   <button onClick={unwrap} className="border border-hairline bg-white px-3 py-2 text-[12.5px] font-extrabold text-mute hover:border-ink">지정 해제</button>
                   <span className="ml-1 text-[12px] text-faint">가사에서 범위를 선택한 뒤 누르세요</span>
                 </div>
@@ -366,7 +383,7 @@ function FanchantEditor() {
                   placeholder="가사를 넣고 응원법 구간을 지정하세요"
                 />
                 <p className="mt-2 text-[12px] leading-relaxed text-faint">
-                  팬이 외치는 부분이 가사에 없으면 직접 써넣으세요 (예: <code>말해봐 뭐든 say {'{call:(say)}'}</code>). 빈 줄은 단락 구분입니다.<br />함성처럼 뒤 가사가 흐르는 내내 외치는 구간은 <b>유지</b>를 켜두세요 — <code>{'{call+:…}'}</code>가 되어 그 단락이 끝날 때까지 강조가 남습니다.
+                  팬이 외치는 부분이 가사에 없으면 직접 써넣으세요 (예: <code>말해봐 뭐든 say {'{call:(say)}'}</code>). 빈 줄은 단락 구분입니다.<br />함성처럼 뒤 가사가 흐르는 내내 외치는 경우, <b>응원법 줄부터 유지할 마지막 줄까지 드래그해서 <code>유지 묶기</code></b>를 누르세요. 그 범위 동안 강조가 남습니다.
                 </p>
               </div>
 
@@ -391,7 +408,11 @@ function FanchantEditor() {
                 <div className="mt-7 border-t-2 border-ink pt-3">
                   <div className={F.label}>미리보기</div>
                   <div className="mt-3 max-h-[420px] overflow-auto border border-hairline bg-white p-4 text-[14.5px]">
-                    {lines.map((l, i) => <PreviewLine key={i} line={l} colors={colors} />)}
+                    {lines.map((l, i) => (
+                      <div key={i} className={l.hg != null ? 'border-l-2 border-primary/40 pl-2.5' : ''}>
+                        <PreviewLine line={l} colors={colors} />
+                      </div>
+                    ))}
                   </div>
                 </div>
 

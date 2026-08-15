@@ -8,7 +8,8 @@
  *   - 줄의 t  : 그 줄이 시작되는 시각(초). 세로 바·지나간 줄 흐리기에 쓴다
  *   - part의 t: 그 조각이 시작되는 시각. 응원법 조각은 그 순간에만 배경이 들어온다
  *   - type    : 'call'(팬만 따로 외치는 부분) | 'sing'(멤버와 같이 부르는 부분). 없으면 일반 가사
- *   - hold    : 뒤따르는 가사가 흐르는 동안에도 문단 끝까지 강조를 유지 (함성처럼 길게 외치는 것)
+ *   - 줄의 hg : 유지 블록 번호. 같은 번호인 줄들 동안 그 안의 응원법 강조가 남는다
+ *               (함성처럼 뒤따르는 가사가 흐르는 내내 외치는 경우 — 범위는 관리자가 정한다)
  */
 import { extractFanchantColors, darkerVariant } from './theme.js';
 import { createLogger } from '../utils/logger.js';
@@ -29,9 +30,11 @@ export function normalizeLines(input) {
   const num = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v * 100) / 100 : null);
 
   return input.map((line) => {
-    if (line?.gap) return { gap: true };
+    if (line?.gap) return { gap: true, ...(Number.isInteger(line?.hg) ? { hg: line.hg } : {}) };
     const parts = Array.isArray(line?.parts) ? line.parts : [];
     return {
+      // hg: 유지 블록 번호 — 같은 번호끼리 한 덩어리로 보고 그동안 응원법 강조를 남긴다
+      ...(Number.isInteger(line?.hg) ? { hg: line.hg } : {}),
       t: num(line?.t),
       parts: parts
         .map((p) => {
@@ -40,10 +43,7 @@ export function normalizeLines(input) {
           // 가사 조각도 시각을 갖는다 — 한 줄에 응원법이 끼면 조각마다 시작이 달라
           // 각각 찍어야 하기 때문(예: from / summer days / to the / last dance)
           const t = num(p?.t);
-          // hold: 뒤따르는 가사가 흐르는 동안에도 문단 끝까지 강조를 유지한다(함성 등)
-          return type
-            ? { text, type, t, ...(p?.hold ? { hold: true } : {}) }
-            : { text, ...(t != null ? { t } : {}) };
+          return type ? { text, type, t } : { text, ...(t != null ? { t } : {}) };
         })
         .filter((p) => p.text !== ''),
     };
