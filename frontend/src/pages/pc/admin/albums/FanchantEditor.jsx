@@ -185,20 +185,33 @@ function FanchantEditor() {
     setCursor((c) => Math.min(c + 1, cues.length));
   }, [cues, cursor, player]);
 
+  /**
+   * 지우기·미세조정이 손볼 항목.
+   *
+   * 커서는 두 가지로 쓰인다 — 스페이스로 찍는 중에는 "다음에 찍을 자리"(아직 빈 항목),
+   * 목록을 눌러 고른 뒤에는 "고른 항목"(이미 시각이 있음).
+   * 그래서 커서 항목에 시각이 있으면 그것을, 없으면 직전에 찍은 것을 대상으로 삼는다.
+   * 이 구분이 없으면 목록에서 고르고 방향키를 눌렀을 때 한 칸 앞이 바뀐다.
+   */
+  const targetIndex = useCallback(() => {
+    const cur = cues[cursor];
+    if (cur && times[cur.key] != null) return cursor;
+    return Math.max(0, cursor - 1);
+  }, [cues, cursor, times]);
+
   const stepBack = useCallback(() => {
-    setCursor((c) => {
-      const back = Math.max(0, c - 1);
-      const cue = cues[back];
-      if (cue) setTimes((prev) => { const n = { ...prev }; delete n[cue.key]; return n; });
-      return back;
-    });
-  }, [cues]);
+    const i = targetIndex();
+    const cue = cues[i];
+    if (!cue) return;
+    setTimes((prev) => { const n = { ...prev }; delete n[cue.key]; return n; });
+    setCursor(i);   // 지운 자리에 커서를 둬서 바로 다시 찍을 수 있게 한다
+  }, [cues, targetIndex]);
 
   const nudge = useCallback((delta) => {
-    const cue = cues[Math.max(0, cursor - 1)];
+    const cue = cues[targetIndex()];
     if (!cue || times[cue.key] == null) return;
     setTimes((prev) => ({ ...prev, [cue.key]: Math.max(0, Math.round((prev[cue.key] + delta) * 100) / 100) }));
-  }, [cues, cursor, times]);
+  }, [cues, targetIndex, times]);
 
   useEffect(() => {
     if (step !== 'sync') return undefined;
