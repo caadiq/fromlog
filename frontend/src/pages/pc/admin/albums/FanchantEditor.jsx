@@ -109,10 +109,18 @@ function FanchantEditor() {
     }
     const picked = markup.slice(a, b);
     const next = `${markup.slice(0, a)}{${type}:${picked}}${markup.slice(b)}`;
+    // focus()는 기본적으로 그 요소가 보이도록 페이지를 스크롤한다.
+    // 아래쪽 가사를 지정하면 화면이 위로 튀므로 스크롤을 막고, textarea 안쪽
+    // 스크롤 위치도 직접 되돌린다(setSelectionRange가 커서를 따라 움직인다).
+    // 마커를 넣으면 value가 통째로 바뀌면서 textarea 안쪽 스크롤이 맨 위로 돌아간다.
+    // 아래쪽 가사를 지정할 때 화면이 튀므로 원래 위치를 되돌려 놓는다.
+    // focus()도 기본적으로 요소를 보이게 페이지를 스크롤하므로 preventScroll을 준다.
+    const inner = el.scrollTop;
     setMarkup(next);
     requestAnimationFrame(() => {
-      el.focus();
+      el.focus({ preventScroll: true });
       el.setSelectionRange(a, a + picked.length + type.length + 3);
+      el.scrollTop = inner;
     });
   }, [markup, setToast]);
 
@@ -121,10 +129,16 @@ function FanchantEditor() {
     const el = textRef.current;
     if (!el) return;
     const pos = el.selectionStart;
+    const inner = el.scrollTop;   // wrap과 같은 이유로 안쪽 스크롤을 되돌린다
     const re = /\{(call|sing):([^}]*)\}/g;
     for (const m of markup.matchAll(re)) {
       if (pos >= m.index && pos <= m.index + m[0].length) {
         setMarkup(markup.slice(0, m.index) + m[2] + markup.slice(m.index + m[0].length));
+        requestAnimationFrame(() => {
+          el.focus({ preventScroll: true });
+          el.setSelectionRange(m.index, m.index + m[2].length);
+          el.scrollTop = inner;
+        });
         return;
       }
     }
