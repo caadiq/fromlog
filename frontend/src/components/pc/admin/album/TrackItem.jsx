@@ -2,6 +2,8 @@
  * 앨범 트랙 입력 컴포넌트 — 에디토리얼 리뉴얼 (design-drafts/ADM_album_form 시안)
  */
 import { memo } from 'react';
+import { Link } from 'react-router-dom';
+import { Megaphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { CustomSelect } from '../common';
@@ -42,10 +44,21 @@ const TrackItem = memo(function TrackItem({ track, index, onUpdate, onRemove }) 
         >
           TITLE
         </button>
+        {/* 응원법은 타이틀곡에만 있다. 아직 저장 안 된 트랙은 id가 없어 들어갈 수 없다. */}
+        {track.is_title_track && track.id ? (
+          <Link
+            to={`/admin/track/${track.id}/fanchant`}
+            className="ml-auto inline-flex items-center gap-1.5 border border-hairline px-2.5 py-[3px] text-[12px] font-extrabold tracking-k1 text-esub transition-colors hover:border-ink hover:text-ink"
+          >
+            <Megaphone size={12} /> 응원법
+          </Link>
+        ) : null}
         <button
           type="button"
           onClick={onRemove}
-          className="ml-auto text-[13px] font-bold text-[#C97070] transition-colors hover:text-[#C0392B]"
+          className={`text-[13px] font-bold text-[#C97070] transition-colors hover:text-[#C0392B] ${
+            track.is_title_track && track.id ? 'ml-2.5' : 'ml-auto'
+          }`}
         >
           삭제
         </button>
