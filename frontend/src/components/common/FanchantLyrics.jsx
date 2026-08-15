@@ -120,13 +120,19 @@ function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true
     const rect = el.getBoundingClientRect();
     const pad = 14;
 
+    // 모바일은 영상이 스크롤 영역 위에 sticky로 얹혀 있다.
+    // 그 높이를 빼지 않으면 문단 윗머리가 영상 뒤로 숨는다(첫 문단에서 함성이 가려졌다).
+    const inset = box.querySelector('[data-sticky-top]')?.getBoundingClientRect().height ?? 0;
+    const viewTop = boxRect.top + inset;
+    const viewH = box.clientHeight - inset;
+
     let target;
-    if (rect.height <= box.clientHeight - pad * 2) {
+    if (rect.height <= viewH - pad * 2) {
       // 문단이 화면에 들어가면 가운데
-      target = box.scrollTop + (rect.top - boxRect.top) - (box.clientHeight - rect.height) / 2;
+      target = box.scrollTop + (rect.top - viewTop) - (viewH - rect.height) / 2;
     } else {
       // 문단이 화면보다 길면 윗머리를 맞춘다(응원법이 대개 앞에 있다)
-      target = box.scrollTop + (rect.top - boxRect.top) - pad;
+      target = box.scrollTop + (rect.top - viewTop) - pad;
     }
     box.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
   }, [para.ofLine.get(curLine), autoScroll]);   // eslint-disable-line react-hooks/exhaustive-deps

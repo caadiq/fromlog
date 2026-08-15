@@ -62,7 +62,7 @@ function MobileFanchant() {
     // Layout의 mobile-content가 스크롤 컨테이너다 — 여기서 또 컨테이너를 만들면 sticky가 깨진다
     <div className="text-ink">
       {/* 영상 고정 — mobile-content 기준 sticky */}
-      <div className="sticky top-0 z-[5] border-b border-hairline bg-white">
+      <div data-sticky-top className="sticky top-0 z-[5] border-b border-hairline bg-white">
         <div className="aspect-video w-full bg-black">
           <div ref={player.containerRef} className="h-full w-full" />
         </div>
