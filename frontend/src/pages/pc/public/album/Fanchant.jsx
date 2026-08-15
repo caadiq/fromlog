@@ -1,10 +1,11 @@
 /**
  * PC 응원법 페이지
  *
- * 왼쪽에 가사 전문, 오른쪽에 영상과 응원법 목록. 영상을 재생하면 재생 시간에 맞춰
+ * 왼쪽에 가사 전문, 오른쪽에 영상. 영상을 재생하면 재생 시간에 맞춰
  * 현재 줄과 응원법 구간이 강조된다(FanchantLyrics).
+ *
+ * 응원법 목록·재생바는 뒀다가 뺐다 — 가사에 이미 다 드러나 볼 일이 없었다.
  */
-import { useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -12,21 +13,6 @@ import { motion } from 'framer-motion';
 import { getFanchant } from '@/api';
 import { useDocumentTitle, useYouTubePlayer } from '@/hooks/common';
 import FanchantLyrics from '@/components/common/FanchantLyrics';
-import { fmtTime } from '@/utils/fanchant';
-
-/** 목록에 세울 응원법 구간만 추린다 */
-function useCueList(lines) {
-  return useMemo(() => {
-    const out = [];
-    lines?.forEach((line) => {
-      if (line.gap) return;
-      line.parts?.forEach((p) => {
-        if (p.type && p.t != null) out.push({ t: p.t, text: p.text, type: p.type });
-      });
-    });
-    return out.sort((a, b) => a.t - b.t);
-  }, [lines]);
-}
 
 function PCFanchant() {
   const { trackId } = useParams();
@@ -41,13 +27,6 @@ function PCFanchant() {
 
   useDocumentTitle(data ? `${data.trackTitle} 응원법` : '응원법');
   const player = useYouTubePlayer(data?.videoId || '');
-  const cues = useCueList(data?.lines);
-
-  const current = useMemo(() => {
-    let idx = -1;
-    cues.forEach((c, i) => { if (player.time >= c.t) idx = i; });
-    return idx;
-  }, [cues, player.time]);
 
   if (isLoading) return <div className="min-h-0 flex-1 bg-paper" />;
 
@@ -69,11 +48,9 @@ function PCFanchant() {
     );
   }
 
-  const pct = player.duration ? Math.min(100, (player.time / player.duration) * 100) : 0;
-
   return (
     <div className="min-h-0 flex-1 bg-paper text-ink">
-      <div className="mx-auto w-full max-w-[1160px] px-10 pb-[90px] pt-[44px]">
+      <div className="mx-auto w-full max-w-[1280px] px-10 pb-[90px] pt-[44px]">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <div className="text-[11.5px] font-extrabold tracking-k2 text-faint">
             {data.albumTitle} / {data.trackTitle} / 응원법
@@ -82,7 +59,7 @@ function PCFanchant() {
           <p className="mt-3 text-[13.5px] font-semibold text-mute">공식 응원법 영상 · fromis_9</p>
         </motion.div>
 
-        <div className="mt-[34px] grid grid-cols-[1fr_400px] items-start gap-[52px]">
+        <div className="mt-[34px] grid grid-cols-[1fr_560px] items-start gap-[52px]">
           {/* 가사 */}
           <div className="border-t-2 border-ink pt-3.5">
             <div className="text-[11.5px] font-black tracking-k2">FANCHANT</div>
@@ -91,45 +68,13 @@ function PCFanchant() {
             </div>
           </div>
 
-          {/* 영상 + 목록 */}
-          <div className="sticky top-6">
+          {/* 영상 */}
+          {/* 헤더가 sticky top-0으로 74px을 차지한다 — 그만큼 내려야 영상 윗부분이 안 잘린다 */}
+          <div className="sticky top-[98px]">
             <div className="aspect-video w-full border border-hairline bg-black">
               <div ref={player.containerRef} className="h-full w-full" />
             </div>
-            <div className="h-[3px] bg-canvas">
-              <div className="h-full transition-[width] duration-150" style={{ width: `${pct}%`, background: data.colors.call }} />
-            </div>
-            <div className="mt-[7px] flex justify-between text-[11.5px] font-extrabold tabular-nums text-faint">
-              <span>{fmtTime(player.time)}</span>
-              <span>{fmtTime(player.duration)}</span>
-            </div>
-
-            {cues.length > 0 && (
-              <div className="mt-5 border-t border-hairline">
-                <div className="pt-3.5 text-[10.5px] font-black tracking-k18 text-faint">응원법 목록</div>
-                <div className="mt-3 max-h-[520px] overflow-auto">
-                  {cues.map((c, i) => (
-                    <button
-                      key={`${c.t}-${i}`}
-                      onClick={() => { player.seek(c.t); player.play(); }}
-                      className={`flex w-full items-baseline gap-3 border-b border-hairline py-2 text-left transition-opacity ${
-                        i < current ? 'opacity-35' : ''
-                      } ${i === current ? '-mx-2.5 bg-black/[0.04] px-2.5 py-3' : ''}`}
-                    >
-                      <span className="w-[42px] shrink-0 text-[11.5px] font-bold tabular-nums text-faint">
-                        {fmtTime(c.t).replace(/\.\d$/, '')}
-                      </span>
-                      <span
-                        className={`min-w-0 flex-1 truncate font-extrabold ${i === current ? 'text-[20px]' : 'text-[14.5px]'}`}
-                        style={{ color: data.colors[c.type] }}
-                      >
-                        {c.text}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="mt-[9px] text-[11px] font-black tracking-k18 text-faint">FANCHANT — YOUTUBE</div>
           </div>
         </div>
       </div>
