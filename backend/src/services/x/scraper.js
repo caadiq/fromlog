@@ -296,7 +296,12 @@ export async function fetchSingleTweet(nitterUrl, username, postId) {
     throw new Error('트윗 내용을 파싱할 수 없습니다');
   }
 
-  const container = mainTweetMatch[1];
+  // 같은 계정이 이어서 올린 글(스레드)이 있으면 Nitter가 main-tweet 안에
+  // timeline-item을 여러 개 넣는다. 첫 번째만 우리가 요청한 그 글이다.
+  // 이걸 안 자르면 뒤따르는 글의 사진까지 섞여 들어온다(실제로 3장짜리 글에 5장이 붙었다).
+  const raw = mainTweetMatch[1];
+  const itemStarts = [...raw.matchAll(/<div class="timeline-item/g)].map((m) => m.index);
+  const container = itemStarts.length > 1 ? raw.slice(itemStarts[0], itemStarts[1]) : raw;
 
   // 시간
   const timeMatch = container.match(/<span class="tweet-date"[^>]*><a[^>]*title="([^"]+)"/);
