@@ -8,17 +8,27 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 
-import { getFanchant } from '@/api';
+import { getFanchant, getTrack } from '@/api';
 import { useDocumentTitle, useYouTubePlayer } from '@/hooks/common';
 import FanchantLyrics from '@/components/common/FanchantLyrics';
 
 function MobileFanchant() {
-  const { trackId } = useParams();
+  // 주소는 곡 상세와 같은 결로 둔다: /album/:name/track/:trackTitle/fanchant
+  // 예전 /fanchant/:trackId 도 그대로 받는다(관리자 미리보기 등)
+  const { trackId: trackIdParam, name: albumName, trackTitle } = useParams();
+  const { data: track } = useQuery({
+    queryKey: ['track', albumName, trackTitle],
+    queryFn: () => getTrack(albumName, trackTitle),
+    enabled: !!albumName && !!trackTitle,
+    retry: false,
+  });
+  const trackId = trackIdParam ?? track?.id;
   const navigate = useNavigate();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['fanchant', trackId],
     queryFn: () => getFanchant(trackId),
+    enabled: !!trackId,
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -26,12 +36,11 @@ function MobileFanchant() {
   useDocumentTitle(data ? `${data.trackTitle} 응원법` : '응원법');
   const player = useYouTubePlayer(data?.videoId || '');
 
-  if (isLoading) return <div className="mobile-layout-container bg-paper" />;
+  if (isLoading) return <div className="h-full bg-paper" />;
 
   if (error || !data) {
     return (
-      <div className="mobile-layout-container bg-paper text-ink">
-        <div className="mobile-content flex items-center justify-center px-6">
+      <div className="flex h-full items-center justify-center px-6 text-ink">
           <div className="w-full text-center">
             <div className="text-[64px] font-black leading-none tracking-[-3px] text-faint-light">404</div>
             <h2 className="mt-5 text-[19px] font-extrabold tracking-[-0.4px]">응원법이 없습니다</h2>
@@ -45,7 +54,6 @@ function MobileFanchant() {
               <Link to="/album" className="bg-ink px-5 py-2.5 text-[13px] font-extrabold text-white">앨범 목록</Link>
             </div>
           </div>
-        </div>
       </div>
     );
   }
@@ -53,8 +61,9 @@ function MobileFanchant() {
   const pct = player.duration ? Math.min(100, (player.time / player.duration) * 100) : 0;
 
   return (
-    <div className="mobile-layout-container bg-paper text-ink">
-      {/* 영상 고정 */}
+    // Layout의 mobile-content가 스크롤 컨테이너다 — 여기서 또 컨테이너를 만들면 sticky가 깨진다
+    <div className="text-ink">
+      {/* 영상 고정 — mobile-content 기준 sticky */}
       <div className="sticky top-0 z-[5] border-b border-hairline bg-white">
         <div className="aspect-video w-full bg-black">
           <div ref={player.containerRef} className="h-full w-full" />

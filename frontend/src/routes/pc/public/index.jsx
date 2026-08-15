@@ -41,6 +41,7 @@ export default function PublicRoutes() {
               <Route path="/video/:category" element={<VideoList />} />
               <Route path="/album/:name" element={<AlbumDetail />} />
               <Route path="/album/:name/track/:trackTitle" element={<TrackDetail />} />
+              <Route path="/album/:name/track/:trackTitle/fanchant" element={<Fanchant />} />
               <Route path="/fanchant/:trackId" element={<Fanchant />} />
               <Route path="/album/:name/gallery" element={<AlbumGallery />} />
               <Route path="*" element={<NotFound />} />

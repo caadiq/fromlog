@@ -129,7 +129,7 @@ function PCTrackDetail() {
               </div>
               {hasFanchant && (
                 <Link
-                  to={`/fanchant/${track.id}`}
+                  to={`/album/${encodeURIComponent(albumName)}/track/${encodeURIComponent(trackTitle)}/fanchant`}
                   className="mt-4 inline-flex items-center gap-2 self-start border border-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k15 text-ink transition-colors hover:bg-ink hover:text-white"
                 >
                   <Megaphone size={14} /> 응원법 보기

@@ -116,7 +116,7 @@ function MobileTrackDetail() {
             <span className="text-[12px] font-extrabold tracking-k2 text-mute">{videoLabel} — YOUTUBE</span>
             {hasFanchant && (
               <Link
-                to={`/fanchant/${track.id}`}
+                to={`/album/${encodeURIComponent(albumName)}/track/${encodeURIComponent(trackTitle)}/fanchant`}
                 className="inline-flex items-center gap-1.5 border border-ink px-3 py-1.5 text-[12px] font-extrabold text-ink"
               >
                 <Megaphone size={12} /> 응원법

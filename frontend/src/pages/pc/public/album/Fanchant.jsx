@@ -7,12 +7,13 @@
  * 응원법 목록·재생바는 뒀다가 뺐다 — 가사에 이미 다 드러나 볼 일이 없었다.
  * 영상은 sticky 대신 가사만 스크롤하는 구조로 뒀다 — sticky는 헤더 높이에 기대야 해서 깨지기 쉽다.
  */
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 
-import { getFanchant } from '@/api';
+import { getFanchant, getTrack } from '@/api';
 import { useDocumentTitle, useYouTubePlayer } from '@/hooks/common';
 import FanchantLyrics from '@/components/common/FanchantLyrics';
 
@@ -22,18 +23,43 @@ const OS_OPTIONS = {
 };
 
 function PCFanchant() {
-  const { trackId } = useParams();
+  // 주소는 곡 상세와 같은 결로 둔다: /album/:name/track/:trackTitle/fanchant
+  // 예전 /fanchant/:trackId 도 그대로 받는다(관리자 미리보기 등)
+  const { trackId: trackIdParam, name: albumName, trackTitle } = useParams();
+  const { data: track } = useQuery({
+    queryKey: ['track', albumName, trackTitle],
+    queryFn: () => getTrack(albumName, trackTitle),
+    enabled: !!albumName && !!trackTitle,
+    retry: false,
+  });
+  const trackId = trackIdParam ?? track?.id;
   const navigate = useNavigate();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['fanchant', trackId],
     queryFn: () => getFanchant(trackId),
+    enabled: !!trackId,
     placeholderData: keepPreviousData,
     retry: false,
   });
 
   useDocumentTitle(data ? `${data.trackTitle} 응원법` : '응원법');
   const player = useYouTubePlayer(data?.videoId || '');
+
+  /**
+   * 헤더 높이를 실측한다.
+   * 74px로 박아뒀더니 태블릿에서 아래가 잘렸다 — 화면마다 헤더 높이가 다르다.
+   */
+  const [headerH, setHeaderH] = useState(74);
+  useEffect(() => {
+    const el = document.querySelector('header');
+    if (!el) return undefined;
+    const sync = () => setHeaderH(el.offsetHeight || 74);
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   if (isLoading) return <div className="min-h-0 flex-1 bg-paper" />;
 
@@ -59,8 +85,12 @@ function PCFanchant() {
     // 페이지는 화면을 넘지 않고 가사만 자체 스크롤한다 — 영상이 확실히 제자리에 남는다
     // 높이를 화면에 맞춰 고정해야 가사만 내부 스크롤된다.
     // 부모(main)가 min-h-dvh라 그냥 flex-1로는 콘텐츠만큼 늘어나 페이지가 스크롤된다.
-    // 74px = 헤더 높이 (일정 페이지도 같은 값을 쓴다)
-    <div className="flex flex-col overflow-hidden bg-paper text-ink" style={{ height: 'calc(100dvh - 74px)' }}>
+    // svh를 쓰는 이유: dvh는 브라우저 주소창이 숨은 상태의 큰 값이라
+    // 태블릿에서 주소창이 나오면 그만큼 아래가 잘렸다.
+    <div
+      className="flex flex-col overflow-hidden bg-paper text-ink"
+      style={{ height: `calc(100svh - ${headerH}px)` }}
+    >
       <div className="mx-auto flex w-full min-h-0 max-w-[1280px] flex-1 flex-col px-10 pb-8 pt-[38px]">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <div className="text-[11.5px] font-extrabold tracking-k2 text-faint">
@@ -88,8 +118,9 @@ function PCFanchant() {
             </OverlayScrollbarsComponent>
           </div>
 
-          {/* 영상 */}
-          <div className="self-start">
+          {/* 영상 — 화면이 짧으면 이 칼럼도 스크롤된다(아래 정보를 못 보던 문제) */}
+          <OverlayScrollbarsComponent element="div" className="-mr-3 min-h-0 pr-3" options={OS_OPTIONS} defer>
+            <div className="pb-2">
             <div className="aspect-video w-full border border-hairline bg-black">
               <div ref={player.containerRef} className="h-full w-full" />
             </div>
@@ -113,7 +144,8 @@ function PCFanchant() {
             <p className="mt-4 text-[12.5px] leading-relaxed text-faint">
               가사를 누르면 그 지점부터 다시 들을 수 있어요.
             </p>
-          </div>
+            </div>
+          </OverlayScrollbarsComponent>
         </div>
       </div>
     </div>

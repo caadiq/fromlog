@@ -107,9 +107,17 @@ export default function MobileRoutes() {
         }
       />
       <Route
+        path="/album/:name/track/:trackTitle/fanchant"
+        element={
+          <Layout>
+            <Fanchant />
+          </Layout>
+        }
+      />
+      <Route
         path="/fanchant/:trackId"
         element={
-          <Layout hideHeader>
+          <Layout>
             <Fanchant />
           </Layout>
         }
