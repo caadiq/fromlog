@@ -15,6 +15,7 @@ import Video from '@/pages/pc/public/video/Video';
 import VideoList from '@/pages/pc/public/video/VideoList';
 import AlbumDetail from '@/pages/pc/public/album/AlbumDetail';
 import TrackDetail from '@/pages/pc/public/album/TrackDetail';
+import Fanchant from '@/pages/pc/public/album/Fanchant';
 import AlbumGallery from '@/pages/pc/public/album/AlbumGallery';
 import NotFound from '@/pages/pc/public/common/NotFound';
 
@@ -40,6 +41,7 @@ export default function PublicRoutes() {
               <Route path="/video/:category" element={<VideoList />} />
               <Route path="/album/:name" element={<AlbumDetail />} />
               <Route path="/album/:name/track/:trackTitle" element={<TrackDetail />} />
+              <Route path="/fanchant/:trackId" element={<Fanchant />} />
               <Route path="/album/:name/gallery" element={<AlbumGallery />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

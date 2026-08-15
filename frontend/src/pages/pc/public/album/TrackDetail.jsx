@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getTrack } from '@/api';
+import { getTrack, getFanchantTracks } from '@/api';
 import { getYoutubeVideoId, parseCredits } from '@/utils';
 import { useDocumentTitle } from '@/hooks/common';
 import { Loading } from '@/components/common';
 import { SectionHeader, Reveal } from '@/components/editorial';
+import { Megaphone } from 'lucide-react';
 
 /**
  * PC 곡 상세 — 에디토리얼 리뉴얼 (design-drafts/A_final_track_pc 시안)
@@ -22,6 +23,14 @@ function PCTrackDetail() {
   useDocumentTitle(track?.title);
 
   const youtubeVideoId = useMemo(() => getYoutubeVideoId(track?.video_url), [track?.video_url]);
+
+  // 응원법이 등록된 곡에만 링크를 띄운다 (공식 응원법 영상이 있는 곡은 일부뿐)
+  const { data: fanchantList } = useQuery({
+    queryKey: ['fanchant-tracks'],
+    queryFn: getFanchantTracks,
+    staleTime: 10 * 60 * 1000,
+  });
+  const hasFanchant = !!track?.id && !!fanchantList?.items?.some((f) => f.trackId === track.id);
   const videoLabel = track?.video_type === 'special' ? 'SPECIAL VIDEO' : 'OFFICIAL MV';
   const [lyricsOpen, setLyricsOpen] = useState(false);
 
@@ -118,6 +127,14 @@ function PCTrackDetail() {
               <div className="mt-3 text-[13px] font-extrabold tracking-k25 text-mute">
                 {videoLabel} — YOUTUBE
               </div>
+              {hasFanchant && (
+                <Link
+                  to={`/fanchant/${track.id}`}
+                  className="mt-4 inline-flex items-center gap-2 self-start border border-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k15 text-ink transition-colors hover:bg-ink hover:text-white"
+                >
+                  <Megaphone size={14} /> 응원법 보기
+                </Link>
+              )}
             </div>
           )}
         </div>

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Megaphone } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getTrack } from '@/api';
+import { getTrack, getFanchantTracks } from '@/api';
 import { getYoutubeVideoId, parseCredits } from '@/utils';
 import { useDocumentTitle } from '@/hooks/common';
 import { Loading } from '@/components/common';
@@ -24,6 +24,14 @@ function MobileTrackDetail() {
   useDocumentTitle(track?.title);
 
   const youtubeVideoId = useMemo(() => getYoutubeVideoId(track?.video_url), [track?.video_url]);
+
+  // 응원법이 등록된 곡에만 링크를 띄운다
+  const { data: fanchantList } = useQuery({
+    queryKey: ['fanchant-tracks'],
+    queryFn: getFanchantTracks,
+    staleTime: 10 * 60 * 1000,
+  });
+  const hasFanchant = !!track?.id && !!fanchantList?.items?.some((f) => f.trackId === track.id);
   const videoLabel = track?.video_type === 'special' ? 'SPECIAL VIDEO' : 'OFFICIAL MV';
   const [lyricsOpen, setLyricsOpen] = useState(false);
 
@@ -104,8 +112,16 @@ function MobileTrackDetail() {
               allowFullScreen
             />
           </div>
-          <div className="px-[22px] py-2.5 text-[12px] font-extrabold tracking-k2 text-mute">
-            {videoLabel} — YOUTUBE
+          <div className="flex items-center justify-between px-[22px] py-2.5">
+            <span className="text-[12px] font-extrabold tracking-k2 text-mute">{videoLabel} — YOUTUBE</span>
+            {hasFanchant && (
+              <Link
+                to={`/fanchant/${track.id}`}
+                className="inline-flex items-center gap-1.5 border border-ink px-3 py-1.5 text-[12px] font-extrabold text-ink"
+              >
+                <Megaphone size={12} /> 응원법
+              </Link>
+            )}
           </div>
         </div>
       )}

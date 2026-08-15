@@ -15,6 +15,7 @@ import Video from '@/pages/mobile/video/Video';
 import VideoList from '@/pages/mobile/video/VideoList';
 import AlbumDetail from '@/pages/mobile/album/AlbumDetail';
 import TrackDetail from '@/pages/mobile/album/TrackDetail';
+import Fanchant from '@/pages/mobile/album/Fanchant';
 import AlbumGallery from '@/pages/mobile/album/AlbumGallery';
 import NotFound from '@/pages/mobile/common/NotFound';
 
@@ -102,6 +103,14 @@ export default function MobileRoutes() {
         element={
           <Layout hideHeader>
             <TrackDetail />
+          </Layout>
+        }
+      />
+      <Route
+        path="/fanchant/:trackId"
+        element={
+          <Layout hideHeader>
+            <Fanchant />
           </Layout>
         }
       />
