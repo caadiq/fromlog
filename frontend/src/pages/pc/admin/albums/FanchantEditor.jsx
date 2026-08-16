@@ -89,6 +89,22 @@ function FanchantEditor() {
 
   const lines = useMemo(() => parseMarkup(markup), [markup]);
   const cues = useMemo(() => buildCues(lines), [lines]);
+
+  /**
+   * 마크업 줄 번호 → 미리보기 줄 인덱스.
+   * [유지]·[/유지]는 미리보기에 없는 줄이라 -1로 비워둔다.
+   * (비율로 맞추면 태그 줄과 문단 여백 때문에 갈수록 어긋난다)
+   */
+  const lineMap = useMemo(() => {
+    let li = 0;
+    return markup.split('\n').map((raw) => {
+      const t = raw.trim();
+      if (t === HOLD_OPEN || t === HOLD_CLOSE) return -1;
+      const cur = li;
+      li += 1;
+      return cur;
+    });
+  }, [markup]);
   const colors = {
     call: colorCall || data?.colors?.call || '#548360',
     sing: colorSing || data?.colors?.sing || '#3E6348',
@@ -328,6 +344,51 @@ function FanchantEditor() {
     return () => window.removeEventListener('keydown', onKey);
   }, [saving]);
 
+  /**
+   * 가사와 미리보기 스크롤을 함께 움직인다.
+   *
+   * 편집 중인 곳을 미리보기에서 다시 찾느라 스크롤을 또 해야 했다.
+   * 맨 위에 보이는 줄을 서로 맞추는 방식이라, 두 쪽 글자 크기가 달라도 어긋나지 않는다.
+   * 한쪽을 옮기면 다른 쪽에서도 scroll 이벤트가 나므로 한 프레임 동안 서로를 잠근다.
+   */
+  const previewRef = useRef(null);
+  const syncingRef = useRef(false);
+
+  const runSync = (fn) => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    fn();
+    requestAnimationFrame(() => { syncingRef.current = false; });
+  };
+
+  const lineHeightOf = (el) => parseFloat(getComputedStyle(el).lineHeight) || 26;
+
+  /** 가사 → 미리보기 */
+  const syncFromText = () => runSync(() => {
+    const ta = textRef.current;
+    const box = previewRef.current;
+    if (!ta || !box) return;
+    const top = Math.round(ta.scrollTop / lineHeightOf(ta));
+    // 태그 줄에 걸리면 그 아래 첫 실제 줄로 본다
+    const li = lineMap.slice(top).find((v) => v >= 0) ?? -1;
+    const row = box.children[li];
+    if (!row) return;
+    box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top;
+  });
+
+  /** 미리보기 → 가사 */
+  const syncFromPreview = () => runSync(() => {
+    const ta = textRef.current;
+    const box = previewRef.current;
+    if (!ta || !box) return;
+    const boxTop = box.getBoundingClientRect().top;
+    const li = [...box.children].findIndex((c) => c.getBoundingClientRect().bottom > boxTop + 1);
+    if (li < 0) return;
+    const markupLine = lineMap.indexOf(li);
+    if (markupLine < 0) return;
+    ta.scrollTop = markupLine * lineHeightOf(ta);
+  });
+
   const handleDelete = async () => {
     try {
       await deleteFanchant(trackId);
@@ -397,6 +458,7 @@ function FanchantEditor() {
                   ref={textRef}
                   value={markup}
                   onChange={(e) => setMarkup(e.target.value)}
+                  onScroll={syncFromText}
                   spellCheck={false}
                   className="mt-3 h-[560px] w-full resize-none border border-hairline bg-white p-4 font-mono text-[13.5px] leading-[1.9] outline-none focus:border-ink"
                   placeholder="가사를 넣고 응원법 구간을 지정하세요"
@@ -426,7 +488,11 @@ function FanchantEditor() {
 
                 <div className="mt-7 border-t-2 border-ink pt-3">
                   <div className={F.label}>미리보기</div>
-                  <div className="mt-3 max-h-[420px] overflow-auto border border-hairline bg-white p-4 text-[14.5px]">
+                  <div
+                    ref={previewRef}
+                    onScroll={syncFromPreview}
+                    className="mt-3 max-h-[420px] overflow-auto border border-hairline bg-white p-4 text-[14.5px]"
+                  >
                     {lines.map((l, i) => (
                       <div key={i} className={l.hg != null ? 'border-l-2 border-primary/40 pl-2.5' : ''}>
                         <PreviewLine line={l} colors={colors} />
