@@ -309,6 +309,26 @@ function FanchantEditor() {
     }
   };
 
+  /**
+   * Ctrl+S(맥은 ⌘S)로 저장.
+   *
+   * 가사를 치던 손 그대로 저장하는 자리라 **입력 중에도** 받는다(다른 단축키와 다른 점).
+   * 브라우저의 '페이지 저장'이 뜨지 않게 기본 동작은 막는다.
+   * e.code로 보는 이유 — 한글 입력 상태에서는 e.key가 'ㄴ'으로 온다.
+   */
+  const saveRef = useRef(null);
+  saveRef.current = handleSave;
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+      if (e.code !== 'KeyS' && e.key !== 's' && e.key !== 'S') return;
+      e.preventDefault();
+      if (!saving) saveRef.current?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [saving]);
+
   const handleDelete = async () => {
     try {
       await deleteFanchant(trackId);
