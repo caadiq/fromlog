@@ -46,6 +46,47 @@ function useProgress(lines, time) {
     return cur;
   }, [flat, time]);
 
+  const isCall = (f) => !!lines[f.li]?.parts?.[f.pi]?.type;
+  const textOf = (f) => lines[f.li]?.parts?.[f.pi]?.text ?? '';
+
+  /**
+   * 지금 강조할 조각들.
+   *
+   * 대개는 하나지만, 응원법과 가사가 **겹쳐 흐르는** 자리가 있다. 조각을 하나의 순서로만
+   * 보면 뒤에 있는 응원법이 앞 가사를 밀어내 가사가 회색으로 꺼져버린다. 두 경우만 되살린다.
+   *   - 같은 시각에 시작    "겨울에 난" + "(겨.울.에.난)"
+   *   - 유지 블록 안        "그댄 눈물로 흩어져" → "(프로미스나인)" (흩어져를 부르는 동안 외친다)
+   *
+   * 줄 중간 콜("from {summer days} to the")은 종전대로 하나씩 넘어간다 —
+   * 거기까지 같이 켜면 조각이 순서대로 넘어가지 않는다.
+   */
+  const activeIdx = useMemo(() => {
+    const set = new Set();
+    if (curIndex < 0) return set;
+    set.add(curIndex);
+
+    const cur = flat[curIndex];
+    if (!isCall(cur)) return set;              // 지금이 가사면 그대로
+
+    const hg = lines[cur.li]?.hg;
+    for (let i = curIndex - 1; i >= 0; i -= 1) {
+      const f = flat[i];
+      if (isCall(f) || textOf(f).trim() === '') continue;   // 응원법·조각 사이 공백은 건너뛴다
+      const sameTime = f.t != null && f.t === cur.t;
+      const sameBlock = hg != null && lines[f.li]?.hg === hg;
+      if (sameTime || sameBlock) set.add(i);
+      break;                                   // 가장 가까운 가사 하나만
+    }
+    return set;
+  }, [flat, curIndex, lines]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** 강조 중인 조각이 있는 줄 (왼쪽 세로 바) */
+  const activeLines = useMemo(() => {
+    const set = new Set();
+    activeIdx.forEach((i) => set.add(flat[i].li));
+    return set;
+  }, [activeIdx, flat]);
+
   /** 줄 → 문단 번호, 문단 → 줄 범위 (빈 줄로 나뉜다) */
   const para = useMemo(() => {
     const ofLine = new Map();
@@ -91,11 +132,19 @@ function useProgress(lines, time) {
     return null;
   }, [flat, curIndex, lines]);
 
-  return { rank, curIndex, curLine: curIndex >= 0 ? flat[curIndex].li : -1, activeCall, para };
+  return {
+    rank,
+    curIndex,
+    activeIdx,
+    activeLines,
+    curLine: curIndex >= 0 ? flat[curIndex].li : -1,
+    activeCall,
+    para,
+  };
 }
 
 function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true, onSeek }) {
-  const { rank, curIndex, curLine, activeCall, para } = useProgress(lines, time);
+  const { rank, curIndex, activeIdx, activeLines, curLine, activeCall, para } = useProgress(lines, time);
   const curRef = useRef(null);
   const callRef = useRef(null);
 
@@ -155,7 +204,7 @@ function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true
             const li = from + offset;
             if (line.gap) return null;
 
-            const isCurrentLine = li === curLine;
+            const isCurrentLine = activeLines.has(li);
             const seekable = !!onSeek && line.t != null;
 
             return (
@@ -169,8 +218,8 @@ function FanchantLyrics({ lines, colors, time, mobile = false, autoScroll = true
                 )}
                 {line.parts?.map((p, ppi) => {
                   const idx = rank.get(`${li}-${ppi}`) ?? -1;
-                  const isNow = idx === curIndex;
-                  const passed = curIndex >= 0 && idx >= 0 && idx < curIndex;
+                  const isNow = activeIdx.has(idx);
+                  const passed = curIndex >= 0 && idx >= 0 && idx < curIndex && !isNow;
                   const click = seekable ? { onClick: () => seekTo(line, p) } : {};
 
                   if (!p.type) {
