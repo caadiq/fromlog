@@ -213,11 +213,22 @@ function ScheduleQueue() {
                         중복 의심
                       </span>
                     )}
+                    {/* DC 글은 누적본이라, 아직 안 지난 일정이 사라졌다면 날짜가 바뀐 것이다 */}
+                    {it.stale && (
+                      <span className="shrink-0 bg-[#FBEDEB] px-1.5 py-0.5 text-[11px] font-extrabold tracking-k1 text-[#C0392B]">
+                        원문에서 사라짐
+                      </span>
+                    )}
                   </div>
                   {/* 같은 날·같은 카테고리에 비슷한 일정이 이미 있을 때 무엇과 겹치는지 보여준다 */}
                   {it.dupHint && (
                     <div className="mt-1 truncate text-[12.5px] text-[#8A6D1B]">
                       이미 있음: {it.dupHint}
+                    </div>
+                  )}
+                  {it.stale && (
+                    <div className="mt-1 text-[12.5px] text-[#C0392B]">
+                      최신 DC 글에 더 이상 없어요 — 날짜가 바뀌었거나 취소됐을 수 있어요.
                     </div>
                   )}
                   <div className="mt-1 flex flex-wrap gap-x-3 text-[12.5px] text-mute">

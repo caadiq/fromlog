@@ -496,6 +496,13 @@ DC 갤러리 "앞으로 일정" 최신 글을 긁어 Gemini로 구조화·카테
   카테고리를 통째로 빼면 '인기가요 끝나면 매점가요'·'K판 입덕투어2'처럼 **비정기·1회성이라
   봇에 등록돼 있지 않은 콘텐츠**가 어디에도 안 잡힌다(실제로 놓친 사례).
   `title_filters`는 키로 쓰지 않는다 — 대부분 `["프로미스나인"]`이라 거의 모든 항목에 걸린다
+- 날짜 후보가 여럿인 줄("8/21 or 28")은 **한 건**으로 뽑고 날짜는 미정, `description`에 후보를 남긴다.
+  후보 수만큼 쪼개면 확정 뒤에도 못 쓸 행이 큐에 남는다(실제로 8/21·8/28 두 건이 남았다).
+  "1일차/2일차", "EP.7/EP.8"처럼 실제로 여러 번 열리는 일정은 종전대로 각각 별개 항목
+- 최신 글에 더 이상 없는 대기 항목은 `stale_at`으로 표시한다(`markStaleItems`).
+  DC 글은 누적본이라 지난 일정만 지워지므로, **아직 안 지난 일정이 사라졌다면 날짜가 바뀌었거나 취소된 것**이다.
+  지우지 않고 표시만 한다 — 원문이 흔들리거나 파싱이 부실한 날 큐가 통째로 날아가면 안 된다.
+  지난 날짜는 대상에서 빼고(자연히 사라진다), 다시 나타나면 표시를 도로 지운다. 추출이 0건인 날은 건너뛴다
 - 봇 실행/스케줄은 기존 축제 봇 인프라 재사용(`bot_festival`, `festivalBot.syncNewFestivals`).
   `bot_festival.search_url`에 DC 검색 목록 URL을 저장
 - 스케줄러 반환 `{ addedCount, total }` — addedCount=큐 신규 적재 건수
@@ -790,7 +797,9 @@ DC봇이 적재한 신규 일정 후보(`bot_pending_schedules`)를 검토·등�
 ### GET /admin/pending
 대기 목록. `?status=pending|registered|dismissed`(기본 pending).
 
-**응답:** `{ items: [{ id, category, title, date, time, members[], venueName, description, status, ... }] }`
+**응답:** `{ items: [{ id, category, title, date, time, members[], venueName, description, dupHint, stale, status, ... }] }`
+- `dupHint` — 같은 날·같은 카테고리에 비슷한 일정이 이미 있을 때 그 요약 (관리자 화면 '중복 의심' 배지)
+- `stale` — 최신 DC 글에 더 이상 없는 항목. 날짜가 바뀌었거나 취소됐을 수 있다 ('원문에서 사라짐' 배지)
 
 ### GET /admin/pending/count
 대기 건수 (배지용). **응답:** `{ count }`

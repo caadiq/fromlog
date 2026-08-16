@@ -117,6 +117,51 @@ function seriesKeysOf(bot) {
   return [...new Set(keys.map(comparableTitle).filter(k => k.length >= 2))];
 }
 
+/**
+ * 최신 글에 더 이상 없는 대기 항목에 '원문에서 사라짐' 표시를 단다.
+ *
+ * DC 일정글은 누적본이라 지난 일정만 지워지고 나머지는 그대로 다음 글로 옮겨진다.
+ * 그래서 "아직 오지 않은 일정인데 최신 글에 없다"면 날짜가 바뀌었거나 취소된 것이다.
+ * 실제로 "8/21 or 28 아는 형님"이 다음 날 "8/22"로 확정됐는데, 코드에는
+ * 미정→확정 승격만 있어 옛 8/21·8/28 행이 큐에 그대로 남았다.
+ *
+ * 지우지 않고 표시만 한다 — 원문이 잠깐 흔들리거나 파싱이 부실한 날 큐가 통째로 날아가면 안 된다.
+ * 지난 날짜는 원문에서 자연히 사라지므로 대상에서 뺀다(표시해봐야 노이즈다).
+ * 다시 원문에 나타나면 표시를 도로 지운다.
+ *
+ * @param {object} db
+ * @param {Array} items - 최신 글에서 추출한 항목 전체 (큐에 담기지 않은 것도 "원문에 있다"는 사실은 같다)
+ * @returns {{marked:number, cleared:number}}
+ */
+export async function markStaleItems(db, items, log = null) {
+  // 추출이 통째로 빈 날은 판단 근거가 없다
+  if (!items.length) return { marked: 0, cleared: 0 };
+
+  const keys = new Set(
+    items
+      .filter(it => it?.title)
+      .map(it => `${it.date || 'nodate'}|${normalizeTitle(it.title)}`)
+  );
+
+  const [rows] = await db.query(
+    `SELECT id, dedup_key, stale_at FROM bot_pending_schedules
+      WHERE status = 'pending' AND source = 'dc'
+        AND (date IS NULL OR date >= CURDATE())`
+  );
+
+  const gone = rows.filter(r => !keys.has(r.dedup_key) && !r.stale_at).map(r => r.id);
+  const back = rows.filter(r => keys.has(r.dedup_key) && r.stale_at).map(r => r.id);
+
+  if (gone.length) {
+    await db.query('UPDATE bot_pending_schedules SET stale_at = NOW() WHERE id IN (?)', [gone]);
+    log?.info?.(`[dcbot] 원문에서 사라진 대기 항목 ${gone.length}건 표시`);
+  }
+  if (back.length) {
+    await db.query('UPDATE bot_pending_schedules SET stale_at = NULL WHERE id IN (?)', [back]);
+  }
+  return { marked: gone.length, cleared: back.length };
+}
+
 async function festivalBotPlugin(fastify) {
   const { db } = fastify;
 
@@ -306,11 +351,14 @@ async function festivalBotPlugin(fastify) {
     const fresh = items.filter(it => it && it.title && !it.is_duplicate && !coveredByBot(it));
     const { added, updated, skipped } = await enqueueItems(fresh, String(post.postNo), existing);
 
+    // 5-1) 최신 글에서 사라진 대기 항목 표시 (적재 뒤에 해야 방금 날짜가 채워진 행이 안 걸린다)
+    const { marked } = await markStaleItems(db, items, fastify.log);
+
     // 6) 글 처리 완료 기록
     await logPost(post.postUrl, (added + updated) > 0 ? 'processed' : 'no_event', added);
 
     fastify.log.info(
-      `[dcbot] 추출 ${items.length} / 신규 ${fresh.length} / 큐 적재 ${added} / 날짜채움 ${updated} / 기존중복 제외 ${skipped}`
+      `[dcbot] 추출 ${items.length} / 신규 ${fresh.length} / 큐 적재 ${added} / 날짜채움 ${updated} / 기존중복 제외 ${skipped} / 사라짐 표시 ${marked}`
     );
 
     // 7) 새로 적재된 게 있으면 관리자에게 푸시

@@ -47,6 +47,8 @@ function rowToItem(r) {
     description: r.description || '',
     // 같은 날·같은 카테고리에 비슷한 일정이 이미 있을 때 그 요약 (없으면 '')
     dupHint: r.dup_hint || '',
+    // 최신 DC 글에 더 이상 없는 항목 — 날짜가 바뀌었거나 취소됐을 수 있다
+    stale: !!r.stale_at,
     status: r.status,
     createdScheduleId: r.created_schedule_id,
     createdAt: r.created_at,
