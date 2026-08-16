@@ -135,14 +135,21 @@ export function mergeTimings(nextLines, prevLines) {
  */
 export function buildCues(lines) {
   const cues = [];
+  const seen = new Map();   // 같은 조각이 여러 번 나올 때의 순번 (후렴)
   lines.forEach((line, li) => {
     if (line.gap) return;
     const parts = line.parts || [];
     let firstShown = true;
     parts.forEach((p, pi) => {
       if (!p.type && p.text.trim() === '') return;   // 조각 사이 공백
+      // 키는 **내용**으로 만든다. 줄 번호로 만들면 마커를 다른 줄로 옮기는 순간
+      // 뒤쪽 줄 번호가 전부 밀려 이미 찍어둔 시각이 남의 조각에 가서 붙는다.
+      // 앞뒤 공백은 무시한다 — 마커를 떼면 " high " ↔ "high"처럼 공백만 달라진다.
+      const sig = `${p.type || ''}|${p.text.trim()}`;
+      const n = seen.get(sig) ?? 0;
+      seen.set(sig, n + 1);
       cues.push({
-        key: `l${li}p${pi}`,
+        key: `${sig}#${n}`,
         kind: p.type || 'line',
         lineIndex: li,
         partIndex: pi,
@@ -158,7 +165,11 @@ export function buildCues(lines) {
 /** 큐에 찍은 시간을 lines에 반영 */
 export function applyCueTimes(lines, cues, times) {
   const next = lines.map((l) =>
-    l.gap ? { gap: true } : { ...(l.hg != null ? { hg: l.hg } : {}), t: l.t ?? null, parts: l.parts.map((p) => ({ ...p })) }
+    // 빈 줄의 hg도 지켜야 한다. 버리면 저장할 때마다 유지 블록이 빈 줄에서 끊겨
+    // 그 아래 가사가 다른 블록이 되고, 응원법이 거기까지 유지되지 않는다.
+    l.gap
+      ? { gap: true, ...(l.hg != null ? { hg: l.hg } : {}) }
+      : { ...(l.hg != null ? { hg: l.hg } : {}), t: l.t ?? null, parts: l.parts.map((p) => ({ ...p })) }
   );
   cues.forEach((cue) => {
     const t = times[cue.key];
