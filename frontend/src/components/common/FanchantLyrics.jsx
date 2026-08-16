@@ -80,13 +80,6 @@ function useProgress(lines, time) {
     return set;
   }, [flat, curIndex, lines]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** 강조 중인 조각이 있는 줄 (왼쪽 세로 바) */
-  const activeLines = useMemo(() => {
-    const set = new Set();
-    activeIdx.forEach((i) => set.add(flat[i].li));
-    return set;
-  }, [activeIdx, flat]);
-
   /** 줄 → 문단 번호, 문단 → 줄 범위 (빈 줄로 나뉜다) */
   const para = useMemo(() => {
     const ofLine = new Map();
@@ -131,6 +124,20 @@ function useProgress(lines, time) {
     }
     return null;
   }, [flat, curIndex, lines]);
+
+  /**
+   * 왼쪽 세로 바를 그릴 줄.
+   *
+   * 강조 중인 조각이 있는 줄 + 유지로 살아 있는 응원법 줄.
+   * 응원법이 블록 **앞**에 있으면(“{call:(송하영 박지원 이채영}” → “하얀 눈이 내리면”)
+   * activeCall로만 살아나 activeIdx에 없다 — 그것까지 넣어야 두 줄에 나란히 바가 선다.
+   */
+  const activeLines = useMemo(() => {
+    const set = new Set();
+    activeIdx.forEach((i) => set.add(flat[i].li));
+    if (activeCall) set.add(activeCall.li);
+    return set;
+  }, [activeIdx, flat, activeCall]);
 
   return {
     rank,
