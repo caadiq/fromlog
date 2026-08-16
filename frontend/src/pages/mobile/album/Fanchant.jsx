@@ -9,7 +9,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 
 import { getFanchant, getTrack } from '@/api';
-import { useDocumentTitle, useYouTubePlayer } from '@/hooks/common';
+import { useDocumentTitle, useYouTubePlayer, usePlayerKeys } from '@/hooks/common';
 import FanchantLyrics from '@/components/common/FanchantLyrics';
 
 function MobileFanchant() {
@@ -35,6 +35,8 @@ function MobileFanchant() {
 
   useDocumentTitle(data ? `${data.trackTitle} 응원법` : '응원법');
   const player = useYouTubePlayer(data?.videoId || '');
+  // 태블릿에 키보드를 붙여 쓰는 경우가 있어 모바일에도 둔다
+  usePlayerKeys(player);
 
   if (isLoading) return <div className="h-full bg-paper" />;
 

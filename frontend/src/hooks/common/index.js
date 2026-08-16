@@ -32,3 +32,6 @@ export { useSuggestions, useInfiniteScheduleSearch } from './useScheduleSearchQu
 
 // YouTube 플레이어 (응원법 싱크·재생)
 export { default as useYouTubePlayer } from './useYouTubePlayer';
+
+// 영상 조작 단축키 (스페이스·좌우) — 영상 밖에 포커스가 있어도 먹게
+export { default as usePlayerKeys } from './usePlayerKeys';

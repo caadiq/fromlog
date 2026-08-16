@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 
 import { getFanchant, getTrack } from '@/api';
-import { useDocumentTitle, useYouTubePlayer } from '@/hooks/common';
+import { useDocumentTitle, useYouTubePlayer, usePlayerKeys } from '@/hooks/common';
 import FanchantLyrics from '@/components/common/FanchantLyrics';
 
 /** 사이트 다른 곳과 같은 오버레이 스크롤바 */
@@ -45,6 +45,7 @@ function PCFanchant() {
 
   useDocumentTitle(data ? `${data.trackTitle} 응원법` : '응원법');
   const player = useYouTubePlayer(data?.videoId || '');
+  usePlayerKeys(player);
 
   /**
    * 헤더 높이를 실측한다.
