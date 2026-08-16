@@ -9,6 +9,16 @@ import { logActivity } from '../utils/log.js';
 import { notFound, badRequest, serverError } from '../utils/error.js';
 import { normalizeLines, resolveColors, PART_TYPES } from '../services/fanchant.js';
 
+/**
+ * 시각을 하나라도 찍었는가.
+ *
+ * 영상만 걸어두고 가사를 넣어둔 준비 상태에서는 공개하지 않는다 —
+ * 하이라이트가 하나도 안 걸려 그냥 가사만 흐르는 페이지가 된다.
+ * 줄이든 구간이든 `"t":<숫자>`가 하나라도 있으면 작업이 시작된 것으로 본다
+ * (안 찍힌 자리는 `"t":null`이라 걸리지 않는다).
+ */
+const SYNCED = /"t":\s*[0-9]/;
+
 /** 곡 + 앨범 커버 + 응원법 행을 한 번에 */
 async function loadTrack(db, trackId) {
   const [rows] = await db.query(
@@ -37,7 +47,10 @@ export default async function fanchantRoutes(fastify) {
   }, async (request, reply) => {
     const row = await loadTrack(db, request.params.trackId);
     if (!row) return notFound(reply, '곡을 찾을 수 없습니다.');
-    if (!row.video_id) return notFound(reply, '이 곡은 아직 응원법이 등록되지 않았습니다.');
+    // 영상만 걸어둔 준비 상태는 주소를 알아도 들어올 수 없다 (목록에도 안 나온다)
+    if (!row.video_id || !SYNCED.test(row.lines_json || '')) {
+      return notFound(reply, '이 곡은 아직 응원법이 등록되지 않았습니다.');
+    }
 
     const colors = await resolveColors(row, row.cover_medium_url);
     // 영상 제목·채널은 아카이브에 있으면 같이 준다 (없으면 화면에서 생략)
@@ -168,6 +181,7 @@ export default async function fanchantRoutes(fastify) {
          FROM track_fanchant f
          JOIN album_tracks t ON t.id = f.track_id
          JOIN albums a ON a.id = t.album_id
+        WHERE f.lines_json REGEXP '"t":[0-9]'
         ORDER BY a.release_date DESC`
     );
     return { items: rows.map((r) => ({ trackId: r.track_id, title: r.title, albumTitle: r.album_title })) };
