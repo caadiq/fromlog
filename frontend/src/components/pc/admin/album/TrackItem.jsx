@@ -44,8 +44,8 @@ const TrackItem = memo(function TrackItem({ track, index, onUpdate, onRemove }) 
         >
           TITLE
         </button>
-        {/* 응원법은 타이틀곡에만 있다. 아직 저장 안 된 트랙은 id가 없어 들어갈 수 없다. */}
-        {track.is_title_track && track.id ? (
+        {/* 수록곡에도 응원법이 있는 노래가 있다. 아직 저장 안 된 트랙만 id가 없어 못 들어간다. */}
+        {track.id ? (
           <Link
             to={`/admin/track/${track.id}/fanchant`}
             className="ml-auto inline-flex items-center gap-1.5 border border-hairline px-2.5 py-[3px] text-[12px] font-extrabold tracking-k1 text-esub transition-colors hover:border-ink hover:text-ink"
@@ -57,7 +57,7 @@ const TrackItem = memo(function TrackItem({ track, index, onUpdate, onRemove }) 
           type="button"
           onClick={onRemove}
           className={`text-[13px] font-bold text-[#C97070] transition-colors hover:text-[#C0392B] ${
-            track.is_title_track && track.id ? 'ml-2.5' : 'ml-auto'
+            track.id ? 'ml-2.5' : 'ml-auto'
           }`}
         >
           삭제
