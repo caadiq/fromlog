@@ -255,7 +255,9 @@ function FanchantEditor() {
     setTimes((prev) => ({ ...prev, [cue.key]: Math.max(0, Math.round((prev[cue.key] + delta) * 100) / 100) }));
   }, [cues, targetIndex, times]);
 
-  // 찍는 중에 현재 지점이 화면 밖으로 나가지 않게 목록만 따라 스크롤한다.
+  // 찍는 중에 지금 지점을 목록 **가운데**에 둔다.
+  // 가장자리에 닿을 때만 밀어주면 현재 줄이 계속 아래쪽에 머물러
+  // 다음에 부를 가사가 안 보인다 — 찍기 전에 눈으로 미리 따라가야 하는 작업이다.
   // scrollIntoView를 쓰면 스크롤 조상을 전부 움직여 페이지까지 튄다.
   useEffect(() => {
     if (step !== 'sync') return;
@@ -264,12 +266,9 @@ function FanchantEditor() {
     if (!box || !row) return;
     const boxRect = box.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
-    const pad = 40;   // 다음에 찍을 것들이 조금 보이도록 여유를 둔다
-    if (rowRect.top < boxRect.top + pad) {
-      box.scrollTop += rowRect.top - boxRect.top - pad;
-    } else if (rowRect.bottom > boxRect.bottom - pad) {
-      box.scrollTop += rowRect.bottom - boxRect.bottom + pad;
-    }
+    const target = box.scrollTop + (rowRect.top - boxRect.top) - (box.clientHeight - rowRect.height) / 2;
+    // 목록 처음·끝에서는 더 갈 데가 없으니 그만큼만 (연타로 넘어가므로 즉시 이동)
+    box.scrollTop = Math.max(0, Math.min(target, box.scrollHeight - box.clientHeight));
   }, [cursor, step, cues.length]);
 
   useEffect(() => {
