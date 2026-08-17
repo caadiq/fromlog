@@ -165,9 +165,11 @@ class YoutubeController extends ChangeNotifier {
   var player, timer;
   function send(o) { Bridge.postMessage(JSON.stringify(o)); }
   function onYouTubeIframeAPIReady() {
+    // videoId를 생성자에 넣지 않는다 — 임베드 주소에 영상이 박힌 채 열리면
+    // 유튜브의 앱 식별 검증에 막힌다("볼 수 없습니다 152").
+    // 빈 플레이어를 먼저 띄우고 준비된 뒤 cue로 얹으면 통과한다 (검증된 패키지 방식).
     player = new YT.Player('p', {
       host: '$_host',
-      videoId: '$videoId',
       playerVars: {
         enablejsapi: 1,
         rel: 0, playsinline: 1, modestbranding: 1,
@@ -177,8 +179,11 @@ class YoutubeController extends ChangeNotifier {
       events: {
         onReady: function (e) {
           var at = ${startAt.inMilliseconds / 1000};
-          if (at > 0) e.target.seekTo(at, true);
-          if ($autoPlay) e.target.playVideo();
+          if ($autoPlay) {
+            e.target.loadVideoById({ videoId: '$videoId', startSeconds: at });
+          } else {
+            e.target.cueVideoById({ videoId: '$videoId', startSeconds: at });
+          }
           send({ e: 'ready', d: e.target.getDuration() });
           clearInterval(timer);
           // 100ms마다 위치를 보낸다. 그 사이는 앱이 흐른 시간으로 메운다
