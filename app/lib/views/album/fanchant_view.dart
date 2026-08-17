@@ -1,15 +1,20 @@
 /// 응원법 — 영상 재생에 맞춰 가사와 응원법을 따라간다
 /// (웹 pages/mobile/album/Fanchant.jsx + components/common/FanchantLyrics.jsx 대응)
 ///
-/// 웹은 유튜브 IFrame API에서 재생 시각을 받아오지만 앱은 플레이어가 네이티브라
-/// controller.currentPosition을 그대로 읽는다 — 중간에 끼는 것이 없어 더 정확하다.
+/// 플레이어는 웹과 같은 유튜브 IFrame이다. 스트림을 직접 뜯는 방식(omni)은
+/// 영상이 뜨기까지 오래 걸려 가사를 보러 들어온 화면에 어울리지 않았다.
+///
+/// 재생 시각은 100ms마다 오므로 그 사이는 흐른 시간으로 메운다 —
+/// 안 그러면 하이라이트가 한 박자씩 늦게 따라온다.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:omni_video_player/omni_video_player.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../core/constants.dart';
 import '../../core/fanchant_progress.dart';
@@ -36,8 +41,13 @@ class FanchantView extends StatefulWidget {
 class _FanchantViewState extends State<FanchantView>
     with SingleTickerProviderStateMixin {
   late Future<Fanchant> _future;
-  OmniPlaybackController? _player;
+  YoutubePlayerController? _player;
   Ticker? _ticker;
+  StreamSubscription<YoutubeVideoState>? _stateSub;
+
+  /// 마지막으로 받은 재생 위치와 그때 시각 (사이는 흐른 시간으로 메운다)
+  Duration _lastPos = Duration.zero;
+  Stopwatch? _since;
 
   FanchantProgress? _progress;
   final Map<int, GlobalKey> _paraKeys = {};
@@ -63,6 +73,25 @@ class _FanchantViewState extends State<FanchantView>
     return data;
   }
 
+  /// 플레이어를 띄우고 재생 위치를 받기 시작한다
+  void _attachPlayer(String videoId) {
+    final c = YoutubePlayerController.fromVideoId(
+      videoId: videoId,
+      autoPlay: false,
+      params: const YoutubePlayerParams(
+        showFullscreenButton: true,
+        strictRelatedVideos: true,
+      ),
+    );
+    _player = c;
+    _stateSub = c.videoStateStream.listen((s) {
+      _lastPos = s.position;
+      _since = Stopwatch()..start();
+    });
+    _ticker?.dispose();
+    _ticker = createTicker((_) => _sync())..start();
+  }
+
   /// 진행 계산기를 만들고 문단마다 스크롤 기준점을 둔다
   void _prepare(Fanchant data) {
     final progress = FanchantProgress(data.lines);
@@ -71,21 +100,17 @@ class _FanchantViewState extends State<FanchantView>
     for (var i = 0; i < progress.paragraphs.length; i++) {
       _paraKeys[i] = GlobalKey();
     }
-  }
-
-  void _attach(OmniPlaybackController c) {
-    _player = c;
-    _ticker?.dispose();
-    // 매 프레임 위치를 읽되, 강조 대상이 실제로 바뀔 때만 다시 그린다
-    _ticker = createTicker((_) => _sync())..start();
+    _attachPlayer(data.videoId);
   }
 
   void _sync() {
     final progress = _progress;
-    final player = _player;
-    if (progress == null || player == null || !mounted) return;
+    if (progress == null || !mounted) return;
 
-    final time = player.currentPosition.inMilliseconds / 1000.0;
+    // 받은 위치 + 그 뒤로 흐른 시간 (정지 중이면 흐르지 않는다)
+    final playing = _player?.value.playerState == PlayerState.playing;
+    final elapsed = playing ? (_since?.elapsedMilliseconds ?? 0) : 0;
+    final time = (_lastPos.inMilliseconds + elapsed) / 1000.0;
     final cur = progress.indexAt(time);
     if (cur == _cur) return; // 같은 자리면 그릴 것이 없다
 
@@ -116,13 +141,18 @@ class _FanchantViewState extends State<FanchantView>
   }
 
   void _seek(double t) {
-    _player?.seekTo(Duration(milliseconds: (t * 1000).round()));
-    _player?.play();
+    _player?.seekTo(seconds: t, allowSeekAhead: true);
+    _player?.playVideo();
+    // 다음 상태가 올 때까지 옛 위치로 튀지 않게 바로 맞춰둔다
+    _lastPos = Duration(milliseconds: (t * 1000).round());
+    _since = Stopwatch()..start();
   }
 
   @override
   void dispose() {
     _ticker?.dispose();
+    _stateSub?.cancel();
+    _player?.close();
     _scroll.dispose();
     super.dispose();
   }
@@ -239,17 +269,9 @@ class _FanchantViewState extends State<FanchantView>
           aspectRatio: 16 / 9,
           child: Container(
             color: EColors.ink,
-            child: OmniVideoPlayer(
-              configuration: VideoPlayerConfiguration(
-                videoSourceConfiguration: VideoSourceConfiguration.youtube(
-                  videoUrl: Uri.parse(
-                    'https://www.youtube.com/watch?v=${data.videoId}',
-                  ),
-                  preferredQualities: [OmniVideoQuality.high720],
-                ),
-              ),
-              callbacks: VideoPlayerCallbacks(onControllerCreated: _attach),
-            ),
+            child: _player == null
+                ? const SizedBox.shrink()
+                : YoutubePlayer(controller: _player!, aspectRatio: 16 / 9),
           ),
         ),
 

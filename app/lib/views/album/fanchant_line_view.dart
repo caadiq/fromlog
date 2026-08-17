@@ -53,6 +53,13 @@ class FanchantLineView extends StatelessWidget {
   static const double barGap = 15;
   static const double fontSize = 15;
 
+  /// 줄 높이에서 남는 공간을 위아래 **균등하게** 나눈다.
+  ///
+  /// Flutter 기본(proportional)은 폰트 메트릭 비율대로 나눠서, 굵기가 다르면
+  /// 글자가 줄 안에서 위아래로 치우친다 — 응원법(w900)만 위로 붙어 보였다.
+  /// CSS line-height는 원래 균등 분배라 이렇게 두면 웹과 같아진다.
+  static const TextLeadingDistribution leading = TextLeadingDistribution.even;
+
   /// 응원법이 켜졌을 때 붙는 여백 (웹 px-2 py-0.5)
   static const EdgeInsets onPadding = EdgeInsets.symmetric(
     horizontal: 8,
@@ -108,6 +115,7 @@ class FanchantLineView extends StatelessWidget {
           style: TextStyle(
             fontSize: fontSize,
             height: 1.75,
+            leadingDistribution: leading,
             color: switch (state) {
               PieceState.now => EColors.ink,
               PieceState.passed => const Color(0xFFCFCFCF),
@@ -150,6 +158,7 @@ class FanchantLineView extends StatelessWidget {
           style: TextStyle(
             fontSize: fontSize,
             height: 1.75,
+            leadingDistribution: leading,
             fontWeight: FontWeight.w900,
             color: on
                 ? color

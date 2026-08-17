@@ -67,6 +67,7 @@ dependencies:
   ota_update: ^7.1.0
   visibility_detector: ^0.4.0+2
   kakao_map_sdk: ^1.2.6
+  youtube_player_iframe: ^6.0.2
 
 dev_dependencies:
   flutter_test:
