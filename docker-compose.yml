@@ -37,6 +37,8 @@ services:
       - .env
     volumes:
       - ./backend:/app
+      # nitter 세션 파일 (관리자 세션 등록 API가 쓴다)
+      - /docker/nitter:/nitter
     networks:
       - app
       - db

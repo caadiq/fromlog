@@ -841,6 +841,22 @@ X 일정 저장
 
 ---
 
+## 관리자 - Nitter 세션 (전용 키)
+
+X가 자동 로그인을 막아 세션은 브라우저에서 뽑는다. 크롬 확장(`/docker/extension/nitter-session`)이
+x.com 쿠키를 읽어 이 API로 보내면 `sessions.jsonl`이 갱신되고, 호스트 크론이 1분 내 nitter를 재시작한다.
+인증은 관리자 JWT가 아니라 **`X-Session-Key` 헤더**(.env `NITTER_SESSION_KEY`) — 확장에 JWT를 넣으면 만료 때마다 갱신해야 해서다.
+
+### GET /admin/nitter/session
+등록된 세션 목록. **응답:** `{ sessions: [{ username, id }] }` (토큰은 주지 않는다)
+
+### PUT /admin/nitter/session
+세션 등록/갱신. **본문:** `{ id, authToken, ct0, username? }`
+- 같은 계정(id)이 있으면 토큰만 교체하고 username은 유지, 없으면 추가
+- **응답:** `{ success, updated, sessions[], note }`
+
+---
+
 ## 관리자 - 수집 큐 (인증 필요)
 
 DC봇이 적재한 신규 일정 후보(`bot_pending_schedules`)를 검토·등록·무시한다.
