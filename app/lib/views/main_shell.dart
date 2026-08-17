@@ -85,13 +85,17 @@ class _EditorialHeader extends StatelessWidget implements PreferredSizeWidget {
             padding: const EdgeInsets.symmetric(horizontal: 22),
             child: Row(
               children: [
-                const Text(
-                  'fromis_9',
-                  style: TextStyle(
-                    fontSize: 17.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    color: EColors.ink,
+                // 로고를 길게 누르면 유튜브 재생 진단 화면 (임시)
+                GestureDetector(
+                  onLongPress: () => GoRouter.of(context).push('/debug/yt'),
+                  child: const Text(
+                    'fromis_9',
+                    style: TextStyle(
+                      fontSize: 17.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: EColors.ink,
+                    ),
                   ),
                 ),
                 const Spacer(),

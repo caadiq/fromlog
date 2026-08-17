@@ -14,6 +14,7 @@ import '../views/album/album_detail_view.dart';
 import '../views/album/album_gallery_view.dart';
 import '../views/album/track_detail_view.dart';
 import '../views/album/fanchant_view.dart';
+import '../debug/yt_debug_view.dart';
 import '../views/schedule/schedule_view.dart';
 import '../views/video/video_view.dart';
 import '../views/video/video_list_view.dart';
@@ -106,6 +107,12 @@ final GoRouter appRouter = GoRouter(
         final trackTitle = state.pathParameters['trackTitle']!;
         return TrackDetailView(albumName: albumName, trackTitle: trackTitle);
       },
+    ),
+    // 유튜브 재생 진단 (임시 — 로고 길게 누르면)
+    GoRoute(
+      path: '/debug/yt',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const YtDebugView(),
     ),
     // 응원법 (영상 재생에 맞춰 가사·응원법 강조)
     GoRoute(
