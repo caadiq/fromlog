@@ -23,9 +23,12 @@ class YtDebugView extends StatefulWidget {
 }
 
 class _YtDebugViewState extends State<YtDebugView> {
-  late final pkg.YoutubePlayerController _pkg;
-  late final YtProbeController _probe;
+  // 패키지 플레이어는 눌러야 켠다 — 먼저 뜨면 쿠키를 데워
+  // 자체 구현이 그 덕에 통과하는 건지 가릴 수 없다
+  pkg.YoutubePlayerController? _pkg;
+  late YtProbeController _probe;
   Timer? _timer;
+  String _log = '';
 
   String _pkgInfo = '수집 중…';
   String _probeInfo = '수집 중…';
@@ -34,16 +37,36 @@ class _YtDebugViewState extends State<YtDebugView> {
   @override
   void initState() {
     super.initState();
-    _pkg = pkg.YoutubePlayerController.fromVideoId(
-      videoId: _videoId,
-      autoPlay: false,
-      params: const pkg.YoutubePlayerParams(
-        showFullscreenButton: true,
-        strictRelatedVideos: true,
-      ),
-    );
     _probe = YtProbeController(videoId: _videoId);
     _timer = Timer.periodic(const Duration(seconds: 3), (_) => _collect());
+  }
+
+  void _enablePkg() {
+    if (_pkg != null) return;
+    setState(() {
+      _pkg = pkg.YoutubePlayerController.fromVideoId(
+        videoId: _videoId,
+        autoPlay: false,
+        params: const pkg.YoutubePlayerParams(
+          showFullscreenButton: true,
+          strictRelatedVideos: true,
+        ),
+      );
+      _log += '① 켬\n';
+    });
+  }
+
+  void _reloadProbe() {
+    setState(() {
+      _probe.dispose();
+      _probe = YtProbeController(videoId: _videoId);
+      _log += '② 다시 로드\n';
+    });
+  }
+
+  Future<void> _clearCookies() async {
+    final cleared = await WebViewCookieManager().clearCookies();
+    setState(() => _log += '쿠키 삭제 (있었음: $cleared)\n');
   }
 
   /// 각 웹뷰에서 문서 주소와 임베드 iframe 주소를 꺼낸다
@@ -74,7 +97,7 @@ class _YtDebugViewState extends State<YtDebugView> {
   }
 
   Future<void> _collect() async {
-    final a = await _inspect(_pkg.webViewController);
+    final a = _pkg == null ? '(꺼짐)' : await _inspect(_pkg!.webViewController);
     final b = await _inspect(_probe.webview);
     if (!mounted) return;
     setState(() {
@@ -111,7 +134,7 @@ class _YtDebugViewState extends State<YtDebugView> {
   @override
   void dispose() {
     _timer?.cancel();
-    _pkg.close();
+    _pkg?.close();
     _probe.dispose();
     super.dispose();
   }
@@ -135,10 +158,28 @@ class _YtDebugViewState extends State<YtDebugView> {
       appBar: AppBar(title: const Text('YT 진단')),
       body: ListView(
         children: [
-          _block('① 패키지 (재생됨)',
-              AspectRatio(aspectRatio: 16 / 9, child: pkg.YoutubePlayer(controller: _pkg))),
-          _block('② 자체 구현 (152)',
+          _block('실험 순서', const Text(
+            '1) [② 재생]만 눌러본다 — 이게 되면 파라미터 문제였던 것\n'
+            '2) 안 되면 [① 켜기] → ①을 재생 → [② 다시 로드] → [② 재생]\n'
+            '   이제 되면 ①이 쿠키를 데워준 덕(공유 저장소) — 원인 확정',
+            style: TextStyle(fontSize: 12, height: 1.6),
+          )),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            child: Wrap(spacing: 8, runSpacing: 8, children: [
+              FilledButton(onPressed: () { _probe.play(); setState(() => _log += '② 재생\n'); }, child: const Text('② 재생')),
+              OutlinedButton(onPressed: _enablePkg, child: const Text('① 켜기')),
+              OutlinedButton(onPressed: _reloadProbe, child: const Text('② 다시 로드')),
+              OutlinedButton(onPressed: _clearCookies, child: const Text('쿠키 삭제')),
+            ]),
+          ),
+          if (_log.isNotEmpty)
+            _block('실험 기록', Text(_log, style: const TextStyle(fontSize: 11))),
+          _block('② 자체 구현',
               AspectRatio(aspectRatio: 16 / 9, child: WebViewWidget(controller: _probe.webview))),
+          if (_pkg != null)
+            _block('① 패키지',
+                AspectRatio(aspectRatio: 16 / 9, child: pkg.YoutubePlayer(controller: _pkg!))),
           _block('임베드 주소 차이 (← 이것이 원인)',
               SelectableText(_diff, style: const TextStyle(fontSize: 12))),
           _block('① 상세', SelectableText(_pkgInfo, style: const TextStyle(fontSize: 10))),

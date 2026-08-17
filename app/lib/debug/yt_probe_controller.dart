@@ -176,10 +176,13 @@ class YtProbeController extends ChangeNotifier {
     player = new YT.Player('p', {
       host: '$_host',
       playerVars: {
-        enablejsapi: 1,
-        rel: 0, playsinline: 1, modestbranding: 1,
-        fs: 1,            // 유튜브 기본 전체화면 버튼을 그대로 쓴다
-        controls: 1
+        // 패키지가 만드는 임베드 주소와 바이트 단위로 같게 — 이래야 순수 비교다
+        autoplay: 1, mute: 0,
+        cc_lang_pref: 'en', cc_load_policy: 1,
+        color: 'white', controls: 1, disablekb: 1,
+        enablejsapi: 1, fs: 1, hl: 'en',
+        iv_load_policy: 1, loop: 0,
+        playsinline: 1, rel: 0
       },
       events: {
         onReady: function (e) {
