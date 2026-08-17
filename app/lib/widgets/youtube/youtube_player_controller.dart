@@ -39,6 +39,10 @@ class YoutubeController extends ChangeNotifier {
 
   final String videoId;
 
+  /// 임베드 도메인. baseUrl과 플레이어 host를 같은 값으로 맞춰야
+  /// "이 동영상은 볼 수 없습니다 (152)"에 걸리지 않는다
+  static const _host = 'https://www.youtube-nocookie.com';
+
   /// 처음 열 때 여기부터 (전체화면으로 옮겨갈 때 보던 자리를 넘겨받는다)
   final Duration startAt;
   final bool autoPlay;
@@ -69,7 +73,7 @@ class YoutubeController extends ChangeNotifier {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF000000))
       ..addJavaScriptChannel('Bridge', onMessageReceived: _onMessage)
-      ..loadHtmlString(_html, baseUrl: 'https://www.youtube.com');
+      ..loadHtmlString(_html, baseUrl: _host);
   }
 
   void _onMessage(JavaScriptMessage msg) {
@@ -141,6 +145,7 @@ class YoutubeController extends ChangeNotifier {
   function send(o) { Bridge.postMessage(JSON.stringify(o)); }
   function onYouTubeIframeAPIReady() {
     player = new YT.Player('p', {
+      host: '$_host',
       videoId: '$videoId',
       playerVars: {
         rel: 0, playsinline: 1, modestbranding: 1,
