@@ -125,5 +125,16 @@ void main() {
     test('색은 앨범에서 뽑은 두 색을 쓴다', () {
       expect(white.callColor, isNot(white.singColor));
     });
+
+    test('rank는 화면이 쓰는 "줄-조각" 형식으로 모든 조각을 찾아준다', () {
+      // 화면에서 rank['$li-$pi']로 조회한다. 형식이 어긋나면 조각 번호가 -1이 되어
+      // 강조도, 지나간 색 흐려짐도 통째로 죽는다 (실제로 그렇게 나갔던 자리)
+      for (final p in [pWhite, pLyb]) {
+        for (var i = 0; i < p.flat.length; i++) {
+          final f = p.flat[i];
+          expect(p.rank['${f.li}-${f.pi}'], i);
+        }
+      }
+    });
   });
 }

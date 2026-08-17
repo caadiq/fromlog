@@ -5,7 +5,6 @@
 /// controller.currentPosition을 그대로 읽는다 — 중간에 끼는 것이 없어 더 정확하다.
 library;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
@@ -41,8 +40,6 @@ class _FanchantViewState extends State<FanchantView>
 
   FanchantProgress? _progress;
   final Map<int, GlobalKey> _paraKeys = {};
-  // 조각마다 탭 인식기를 새로 만들면 새는다 — 자리별로 한 번만 만들어 재사용한다
-  final Map<String, TapGestureRecognizer> _taps = {};
   final ScrollController _scroll = ScrollController();
 
   int _cur = -1; // 지금 조각
@@ -125,9 +122,6 @@ class _FanchantViewState extends State<FanchantView>
   @override
   void dispose() {
     _ticker?.dispose();
-    for (final r in _taps.values) {
-      r.dispose();
-    }
     _scroll.dispose();
     super.dispose();
   }
@@ -354,24 +348,20 @@ class _FanchantViewState extends State<FanchantView>
           // 지금 진행 중인 줄 표시
           Container(
             width: 3,
-            height: 20,
-            margin: const EdgeInsets.only(top: 2, right: 15),
+            height: 21,
+            margin: const EdgeInsets.only(top: 3, right: 15),
             color: onBar ? data.callColor : Colors.transparent,
           ),
+          // 조각을 위젯으로 늘어놓는다 — 응원법에 여백·테두리를 주려면 글자만으로는 안 된다.
+          // 긴 응원법은 이 안에서 다시 접히므로 배경이 두 줄에 걸쳐 그려진다.
           Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontSize: 15,
-                  height: 1.75,
-                  fontWeight: FontWeight.w600,
-                  color: EColors.mute,
-                ),
-                children: [
-                  for (var pi = 0; pi < line.parts.length; pi++)
-                    _partSpan(data, li, pi),
-                ],
-              ),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: 2,
+              children: [
+                for (var pi = 0; pi < line.parts.length; pi++)
+                  _partWidget(data, li, pi),
+              ],
             ),
           ),
         ],
@@ -379,48 +369,69 @@ class _FanchantViewState extends State<FanchantView>
     );
   }
 
-  InlineSpan _partSpan(Fanchant data, int li, int pi) {
+  Widget _partWidget(Fanchant data, int li, int pi) {
     final part = data.lines[li].parts[pi];
-    final idx = _progress!.rank['\$li-\$pi'] ?? -1;
+    final idx = _progress!.rank['$li-$pi'] ?? -1;
     final isNow = _active.contains(idx);
     final passed = _cur >= 0 && idx >= 0 && idx < _cur && !isNow;
 
     // 조각에 시각이 없으면 줄 시각으로 되돌아간다
     final t = part.t ?? data.lines[li].t;
-    final tap = t == null
-        ? null
-        : _taps.putIfAbsent(
-            '$li-$pi',
-            () => TapGestureRecognizer()..onTap = () => _seek(t),
+
+    Widget wrapTap(Widget child) => t == null
+        ? child
+        : GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _seek(t),
+            child: child,
           );
 
     if (!part.isCall) {
-      return TextSpan(
-        text: part.text,
-        recognizer: tap,
-        style: TextStyle(
-          color: isNow
-              ? EColors.ink
-              : (passed ? const Color(0xFFCFCFCF) : const Color(0xFFB4B4B4)),
-          fontWeight: isNow ? FontWeight.w800 : FontWeight.w600,
+      return wrapTap(
+        AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 150),
+          style: TextStyle(
+            fontSize: 15,
+            height: 1.75,
+            color: isNow
+                ? EColors.ink
+                : (passed ? const Color(0xFFCFCFCF) : const Color(0xFFB4B4B4)),
+            fontWeight: isNow ? FontWeight.w800 : FontWeight.w600,
+          ),
+          child: Text(part.text),
         ),
       );
     }
 
-    // 지금 외칠 응원법이면 배경이 들어온다 — 뒤따르는 가사가 흐르는 동안에도 유지된다
+    // 지금 외칠 응원법이면 배경·테두리가 들어온다 (웹과 같은 모양)
     final on = _activeCall?.li == li && _activeCall?.pi == pi;
     final color = part.type == 'sing' ? data.singColor : data.callColor;
-    return TextSpan(
-      text: part.text,
-      recognizer: tap,
-      style: TextStyle(
-        color: on
-            ? color
-            : color.withValues(alpha: passed ? 0.45 : 1.0),
-        fontWeight: FontWeight.w900,
-        backgroundColor: on ? color.withValues(alpha: 0.13) : null,
+    return wrapTap(
+      AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding: on
+            ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
+            : EdgeInsets.zero,
+        decoration: on
+            ? BoxDecoration(
+                color: color.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: color.withValues(alpha: 0.2)),
+              )
+            : null,
+        child: Text(
+          part.text,
+          style: TextStyle(
+            fontSize: 15,
+            height: 1.75,
+            fontWeight: FontWeight.w900,
+            color: on ? color : color.withValues(alpha: passed ? 0.45 : 1.0),
+          ),
+        ),
       ),
     );
   }
+
 }
 
