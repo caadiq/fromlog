@@ -1456,10 +1456,7 @@ class YoutubeSection extends StatelessWidget {
         child: Center(
           child: FractionallySizedBox(
             widthFactor: 0.64,
-            child: AspectRatio(
-              aspectRatio: 9 / 16,
-              child: YoutubeView(videoId: videoId, aspectRatio: 9 / 16),
-            ),
+            child: YoutubeView(videoId: videoId, aspectRatio: 9 / 16),
           ),
         ),
       );
@@ -1469,10 +1466,7 @@ class YoutubeSection extends StatelessWidget {
           color: EColors.ink,
           border: Border(bottom: BorderSide(color: EColors.hairline)),
         ),
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: YoutubeView(videoId: videoId),
-        ),
+        child: YoutubeView(videoId: videoId),
       );
     }
 

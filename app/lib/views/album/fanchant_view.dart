@@ -257,16 +257,7 @@ class _FanchantViewState extends State<FanchantView>
         ),
 
         // 영상 — 위에 고정하고 아래 가사만 흐른다
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: Container(
-            color: EColors.ink,
-            child: YoutubeView(
-              videoId: data.videoId,
-              onController: _attachPlayer,
-            ),
-          ),
-        ),
+        YoutubeView(videoId: data.videoId, onController: _attachPlayer),
 
         Expanded(
           child: SingleChildScrollView(

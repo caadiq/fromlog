@@ -247,13 +247,7 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                AspectRatio(
-                                  aspectRatio: 16 / 9,
-                                  child: Container(
-                                    color: EColors.ink,
-                                    child: YoutubeView(videoId: videoId),
-                                  ),
-                                ),
+                                YoutubeView(videoId: videoId),
                                 Padding(
                                   padding:
                                       const EdgeInsets.symmetric(horizontal: 22, vertical: 10),

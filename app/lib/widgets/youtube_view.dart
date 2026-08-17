@@ -2,9 +2,13 @@
 ///
 /// 컨트롤러를 만들고 치우는 일을 여기서만 한다 — 쓰는 쪽은 영상 id만 주면 된다.
 /// 재생 위치가 필요한 화면(응원법)은 [onController]로 컨트롤러를 받아 간다.
+///
+/// 비율도 여기서 잡는다. 쓰는 쪽에서 AspectRatio로 또 감싸면 안쪽 비율과
+/// 어긋나 영상 아래에 배경이 띠처럼 남는다.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 class YoutubeView extends StatefulWidget {
@@ -27,6 +31,7 @@ class YoutubeView extends StatefulWidget {
 
 class _YoutubeViewState extends State<YoutubeView> {
   late YoutubePlayerController _controller;
+  bool _fullScreen = false;
 
   @override
   void initState() {
@@ -43,8 +48,30 @@ class _YoutubeViewState extends State<YoutubeView> {
         strictRelatedVideos: true,
       ),
     );
+    // 이 패키지는 전체화면을 오버레이로만 처리해서 세로 그대로 남는다.
+    // 영상은 가로가 자연스러우니 방향을 직접 돌린다.
+    c.setFullScreenListener(_onFullScreen);
     widget.onController?.call(c);
     return c;
+  }
+
+  void _onFullScreen(bool isFullScreen) {
+    _fullScreen = isFullScreen;
+    if (isFullScreen) {
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      _restore();
+    }
+  }
+
+  /// 세로로 되돌리고 상태바를 다시 보여준다
+  void _restore() {
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   @override
@@ -59,12 +86,17 @@ class _YoutubeViewState extends State<YoutubeView> {
 
   @override
   void dispose() {
+    // 전체화면인 채로 화면을 벗어나면 가로로 눕은 채 남는다
+    if (_fullScreen) _restore();
     _controller.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return YoutubePlayer(controller: _controller, aspectRatio: widget.aspectRatio);
+    return YoutubePlayer(
+      controller: _controller,
+      aspectRatio: widget.aspectRatio,
+    );
   }
 }
