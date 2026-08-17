@@ -23,6 +23,7 @@ import 'fanchant_line_view.dart';
 import '../../services/albums_service.dart';
 import '../../services/fanchant_service.dart';
 import '../../widgets/e_motion.dart';
+import '../../widgets/youtube_view.dart';
 
 class FanchantView extends StatefulWidget {
   final String albumName;
@@ -73,17 +74,10 @@ class _FanchantViewState extends State<FanchantView>
     return data;
   }
 
-  /// 플레이어를 띄우고 재생 위치를 받기 시작한다
-  void _attachPlayer(String videoId) {
-    final c = YoutubePlayerController.fromVideoId(
-      videoId: videoId,
-      autoPlay: false,
-      params: const YoutubePlayerParams(
-        showFullscreenButton: true,
-        strictRelatedVideos: true,
-      ),
-    );
+  /// 재생 위치를 받기 시작한다 (플레이어 자체는 YoutubeView가 들고 있다)
+  void _attachPlayer(YoutubePlayerController c) {
     _player = c;
+    _stateSub?.cancel();
     _stateSub = c.videoStateStream.listen((s) {
       _lastPos = s.position;
       _since = Stopwatch()..start();
@@ -100,7 +94,6 @@ class _FanchantViewState extends State<FanchantView>
     for (var i = 0; i < progress.paragraphs.length; i++) {
       _paraKeys[i] = GlobalKey();
     }
-    _attachPlayer(data.videoId);
   }
 
   void _sync() {
@@ -152,7 +145,6 @@ class _FanchantViewState extends State<FanchantView>
   void dispose() {
     _ticker?.dispose();
     _stateSub?.cancel();
-    _player?.close();
     _scroll.dispose();
     super.dispose();
   }
@@ -269,9 +261,10 @@ class _FanchantViewState extends State<FanchantView>
           aspectRatio: 16 / 9,
           child: Container(
             color: EColors.ink,
-            child: _player == null
-                ? const SizedBox.shrink()
-                : YoutubePlayer(controller: _player!, aspectRatio: 16 / 9),
+            child: YoutubeView(
+              videoId: data.videoId,
+              onController: _attachPlayer,
+            ),
           ),
         ),
 

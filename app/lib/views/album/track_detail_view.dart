@@ -4,12 +4,12 @@ library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:omni_video_player/omni_video_player.dart';
 import '../../core/constants.dart';
 import '../../models/album.dart';
 import '../../services/albums_service.dart';
 import '../../services/fanchant_service.dart';
 import '../../widgets/e_motion.dart';
+import '../../widgets/youtube_view.dart';
 
 class TrackDetailView extends StatefulWidget {
   final String albumName;
@@ -251,20 +251,7 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                                   aspectRatio: 16 / 9,
                                   child: Container(
                                     color: EColors.ink,
-                                    child: OmniVideoPlayer(
-                                      configuration: VideoPlayerConfiguration(
-                                        videoSourceConfiguration:
-                                            VideoSourceConfiguration.youtube(
-                                          videoUrl: Uri.parse(
-                                            'https://www.youtube.com/watch?v=$videoId',
-                                          ),
-                                          preferredQualities: [
-                                            OmniVideoQuality.high720,
-                                          ],
-                                        ),
-                                      ),
-                                      callbacks: const VideoPlayerCallbacks(),
-                                    ),
+                                    child: YoutubeView(videoId: videoId),
                                   ),
                                 ),
                                 Padding(

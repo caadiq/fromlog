@@ -9,7 +9,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:omni_video_player/omni_video_player.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 
 import '../../../core/format_utils.dart';
@@ -17,6 +16,7 @@ import '../../../core/ticketing_utils.dart';
 import '../../../models/schedule.dart';
 import '../../../widgets/image_lightbox.dart';
 import '../../../core/constants.dart';
+import '../../../widgets/youtube_view.dart';
 
 // ─────────────────────────────────────────────────────────────
 // 공용 에디토리얼 헬퍼
@@ -1458,17 +1458,7 @@ class YoutubeSection extends StatelessWidget {
             widthFactor: 0.64,
             child: AspectRatio(
               aspectRatio: 9 / 16,
-              child: OmniVideoPlayer(
-                configuration: VideoPlayerConfiguration(
-                  videoSourceConfiguration: VideoSourceConfiguration.youtube(
-                    videoUrl: Uri.parse(
-                      'https://www.youtube.com/watch?v=$videoId',
-                    ),
-                    preferredQualities: const [OmniVideoQuality.high720],
-                  ),
-                ),
-                callbacks: const VideoPlayerCallbacks(),
-              ),
+              child: YoutubeView(videoId: videoId, aspectRatio: 9 / 16),
             ),
           ),
         ),
@@ -1481,15 +1471,7 @@ class YoutubeSection extends StatelessWidget {
         ),
         child: AspectRatio(
           aspectRatio: 16 / 9,
-          child: OmniVideoPlayer(
-            configuration: VideoPlayerConfiguration(
-              videoSourceConfiguration: VideoSourceConfiguration.youtube(
-                videoUrl: Uri.parse('https://www.youtube.com/watch?v=$videoId'),
-                preferredQualities: const [OmniVideoQuality.high720],
-              ),
-            ),
-            callbacks: const VideoPlayerCallbacks(),
-          ),
+          child: YoutubeView(videoId: videoId),
         ),
       );
     }
