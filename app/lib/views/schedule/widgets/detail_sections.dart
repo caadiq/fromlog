@@ -1431,10 +1431,14 @@ class YoutubeSection extends StatelessWidget {
   final ScheduleDetail schedule;
   final Future<void> Function(String) launchUrl;
 
+  /// 전체화면으로 드나들 때 알린다 (머리말을 치우려면 상위가 알아야 한다)
+  final void Function(bool)? onFullScreenChanged;
+
   const YoutubeSection({
     super.key,
     required this.schedule,
     required this.launchUrl,
+    this.onFullScreenChanged,
   });
 
   @override
@@ -1454,9 +1458,19 @@ class YoutubeSection extends StatelessWidget {
           border: Border(bottom: BorderSide(color: EColors.hairline)),
         ),
         child: Center(
-          child: FractionallySizedBox(
-            widthFactor: 0.64,
-            child: YoutubeView(videoId: videoId, aspectRatio: 9 / 16),
+          // 세로 영상은 폭에만 맞추면 화면을 넘긴다 — 높이를 화면 절반으로 묶는다
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+            ),
+            child: FractionallySizedBox(
+              widthFactor: 0.64,
+              child: YoutubeView(
+                videoId: videoId,
+                aspectRatio: 9 / 16,
+                onFullScreenChanged: onFullScreenChanged,
+              ),
+            ),
           ),
         ),
       );

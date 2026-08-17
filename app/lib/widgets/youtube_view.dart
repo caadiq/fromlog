@@ -20,11 +20,17 @@ class YoutubeView extends StatefulWidget {
   /// 컨트롤러가 만들어지면 한 번 알려준다 (재생 위치를 읽어야 하는 화면용)
   final void Function(YoutubePlayerController controller)? onController;
 
+  /// 전체화면으로 드나들 때 알려준다.
+  /// 스크롤 영역을 Overlay.wrap으로 감싸면 전체화면도 그 안에 갇히므로,
+  /// 쓰는 쪽에서 머리말을 치워 본문이 화면을 다 쓰게 해야 한다.
+  final void Function(bool isFullScreen)? onFullScreenChanged;
+
   const YoutubeView({
     super.key,
     required this.videoId,
     this.aspectRatio = 16 / 9,
     this.onController,
+    this.onFullScreenChanged,
   });
 
   @override
@@ -83,6 +89,7 @@ class _YoutubeViewState extends State<YoutubeView> {
 
   Future<void> _onFullScreen(bool isFullScreen) async {
     _fullScreen = isFullScreen;
+    widget.onFullScreenChanged?.call(isFullScreen);
     // 돌리기 전에 어디까지 봤는지 적어둔다
     _resumePlaying = _controller.value.playerState == PlayerState.playing;
     _resumeAt = await _controller.currentTime;
