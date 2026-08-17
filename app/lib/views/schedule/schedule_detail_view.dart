@@ -35,9 +35,6 @@ class ScheduleDetailView extends ConsumerStatefulWidget {
 class _ScheduleDetailViewState extends ConsumerState<ScheduleDetailView> {
   late int _currentScheduleId;
 
-  /// 영상이 전체화면인가 — 그동안은 머리말을 치운다
-  bool _videoFullScreen = false;
-
   /// 에디토리얼 리뉴얼 완료 카테고리 (웹 EDITORIAL_SECTIONS)
   static const _editorialCategories = {
     CategoryId.youtube,
@@ -93,11 +90,8 @@ class _ScheduleDetailViewState extends ConsumerState<ScheduleDetailView> {
         return Scaffold(
           backgroundColor: EColors.paper,
           // 전체화면에서는 머리말을 치워 본문이 화면을 다 쓰게 한다
-          appBar: _videoFullScreen ? null : _buildHeader(schedule),
-          // 영상 웹뷰는 가장 가까운 Overlay에 그려진다. 여기서 한 겹 두르지 않으면
-          // 스크롤할 때 머리말 위까지 덮어버린다 (패키지가 스크롤 clip을 따르지 않는다)
-          body: Overlay.wrap(
-            child: SingleChildScrollView(
+          appBar: _buildHeader(schedule),
+          body: SingleChildScrollView(
             padding: EdgeInsets.only(bottom: bottomInset),
             child: EFadeUp(
               fromY: 12,
@@ -105,7 +99,6 @@ class _ScheduleDetailViewState extends ConsumerState<ScheduleDetailView> {
                   ? _buildEditorialSection(schedule)
                   : DefaultSection(schedule: schedule),
             ),
-          ),
           ),
         );
       },
@@ -263,11 +256,7 @@ class _ScheduleDetailViewState extends ConsumerState<ScheduleDetailView> {
   Widget _buildEditorialSection(ScheduleDetail schedule) {
     switch (schedule.categoryId) {
       case CategoryId.youtube:
-        return YoutubeSection(
-          schedule: schedule,
-          launchUrl: _launchUrl,
-          onFullScreenChanged: (v) => setState(() => _videoFullScreen = v),
-        );
+        return YoutubeSection(schedule: schedule, launchUrl: _launchUrl);
       case CategoryId.x:
         return XSection(schedule: schedule, launchUrl: _launchUrl);
       case CategoryId.variety:

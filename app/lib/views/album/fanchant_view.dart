@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../core/constants.dart';
 import '../../core/fanchant_progress.dart';
@@ -23,7 +22,8 @@ import 'fanchant_line_view.dart';
 import '../../services/albums_service.dart';
 import '../../services/fanchant_service.dart';
 import '../../widgets/e_motion.dart';
-import '../../widgets/youtube_view.dart';
+import '../../widgets/youtube/youtube_player_controller.dart';
+import '../../widgets/youtube/youtube_view.dart';
 
 class FanchantView extends StatefulWidget {
   final String albumName;
@@ -42,13 +42,9 @@ class FanchantView extends StatefulWidget {
 class _FanchantViewState extends State<FanchantView>
     with SingleTickerProviderStateMixin {
   late Future<Fanchant> _future;
-  YoutubePlayerController? _player;
+  YoutubeController? _player;
   Ticker? _ticker;
-  StreamSubscription<YoutubeVideoState>? _stateSub;
 
-  /// 마지막으로 받은 재생 위치와 그때 시각 (사이는 흐른 시간으로 메운다)
-  Duration _lastPos = Duration.zero;
-  Stopwatch? _since;
 
   FanchantProgress? _progress;
   final Map<int, GlobalKey> _paraKeys = {};
@@ -74,14 +70,9 @@ class _FanchantViewState extends State<FanchantView>
     return data;
   }
 
-  /// 재생 위치를 받기 시작한다 (플레이어 자체는 YoutubeView가 들고 있다)
-  void _attachPlayer(YoutubePlayerController c) {
+  /// 재생 위치를 받기 시작한다 (플레이어는 YoutubeView가 들고 있다)
+  void _attachPlayer(YoutubeController c) {
     _player = c;
-    _stateSub?.cancel();
-    _stateSub = c.videoStateStream.listen((s) {
-      _lastPos = s.position;
-      _since = Stopwatch()..start();
-    });
     _ticker?.dispose();
     _ticker = createTicker((_) => _sync())..start();
   }
@@ -100,10 +91,7 @@ class _FanchantViewState extends State<FanchantView>
     final progress = _progress;
     if (progress == null || !mounted) return;
 
-    // 받은 위치 + 그 뒤로 흐른 시간 (정지 중이면 흐르지 않는다)
-    final playing = _player?.value.playerState == PlayerState.playing;
-    final elapsed = playing ? (_since?.elapsedMilliseconds ?? 0) : 0;
-    final time = (_lastPos.inMilliseconds + elapsed) / 1000.0;
+    final time = (_player?.position.inMilliseconds ?? 0) / 1000.0;
     final cur = progress.indexAt(time);
     if (cur == _cur) return; // 같은 자리면 그릴 것이 없다
 
@@ -134,17 +122,13 @@ class _FanchantViewState extends State<FanchantView>
   }
 
   void _seek(double t) {
-    _player?.seekTo(seconds: t, allowSeekAhead: true);
-    _player?.playVideo();
-    // 다음 상태가 올 때까지 옛 위치로 튀지 않게 바로 맞춰둔다
-    _lastPos = Duration(milliseconds: (t * 1000).round());
-    _since = Stopwatch()..start();
+    _player?.seekTo(Duration(milliseconds: (t * 1000).round()));
+    _player?.play();
   }
 
   @override
   void dispose() {
     _ticker?.dispose();
-    _stateSub?.cancel();
     _scroll.dispose();
     super.dispose();
   }

@@ -16,7 +16,7 @@ import '../../../core/ticketing_utils.dart';
 import '../../../models/schedule.dart';
 import '../../../widgets/image_lightbox.dart';
 import '../../../core/constants.dart';
-import '../../../widgets/youtube_view.dart';
+import '../../../widgets/youtube/youtube_view.dart';
 
 // ─────────────────────────────────────────────────────────────
 // 공용 에디토리얼 헬퍼
@@ -1431,14 +1431,10 @@ class YoutubeSection extends StatelessWidget {
   final ScheduleDetail schedule;
   final Future<void> Function(String) launchUrl;
 
-  /// 전체화면으로 드나들 때 알린다 (머리말을 치우려면 상위가 알아야 한다)
-  final void Function(bool)? onFullScreenChanged;
-
   const YoutubeSection({
     super.key,
     required this.schedule,
     required this.launchUrl,
-    this.onFullScreenChanged,
   });
 
   @override
@@ -1466,11 +1462,7 @@ class YoutubeSection extends StatelessWidget {
             ),
             child: FractionallySizedBox(
               widthFactor: 0.64,
-              child: YoutubeView(
-                videoId: videoId,
-                aspectRatio: 9 / 16,
-                onFullScreenChanged: onFullScreenChanged,
-              ),
+              child: YoutubeView(videoId: videoId, aspectRatio: 9 / 16),
             ),
           ),
         ),
