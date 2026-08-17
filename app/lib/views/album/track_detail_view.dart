@@ -8,6 +8,7 @@ import 'package:omni_video_player/omni_video_player.dart';
 import '../../core/constants.dart';
 import '../../models/album.dart';
 import '../../services/albums_service.dart';
+import '../../services/fanchant_service.dart';
 import '../../widgets/e_motion.dart';
 
 class TrackDetailView extends StatefulWidget {
@@ -28,10 +29,18 @@ class _TrackDetailViewState extends State<TrackDetailView> {
   late Future<TrackDetail> _trackFuture;
   bool _lyricsOpen = false;
 
+  /// 응원법이 있는 곡 id — 버튼을 띄울지 판단한다 (없으면 조용히 넘어간다)
+  Set<int> _fanchantIds = const {};
+
   @override
   void initState() {
     super.initState();
     _trackFuture = getTrack(widget.albumName, widget.trackTitle);
+    getFanchantTrackIds()
+        .then((ids) {
+          if (mounted) setState(() => _fanchantIds = ids);
+        })
+        .catchError((_) {});
   }
 
   /// YouTube URL에서 비디오 ID 추출
@@ -261,14 +270,51 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                                 Padding(
                                   padding:
                                       const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-                                  child: Text(
-                                    '$videoLabel — YOUTUBE',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 2,
-                                      color: EColors.mute,
-                                    ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '$videoLabel — YOUTUBE',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 2,
+                                            color: EColors.mute,
+                                          ),
+                                        ),
+                                      ),
+                                      // 응원법이 등록된 곡에만 (서버가 시각을 찍은 곡만 목록에 넣는다)
+                                      if (_fanchantIds.contains(track.id))
+                                        InkWell(
+                                          onTap: () => context.push(
+                                            '/album/${Uri.encodeComponent(widget.albumName)}'
+                                            '/track/${Uri.encodeComponent(widget.trackTitle)}/fanchant',
+                                          ),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 11, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(color: EColors.ink),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(LucideIcons.megaphone,
+                                                    size: 12, color: EColors.ink),
+                                                SizedBox(width: 5),
+                                                Text(
+                                                  '응원법',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: EColors.ink,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ],

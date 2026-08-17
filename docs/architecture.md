@@ -314,7 +314,7 @@ fromis_9/
 
 ## 데이터베이스
 
-### 테이블 목록 (28개)
+### 테이블 목록 (42개)
 
 #### 사용자/인증
 - `admin_users` - 관리자 계정
@@ -329,6 +329,7 @@ fromis_9/
 - `album_photos` - 앨범 컨셉 포토
 - `album_photo_members` - 컨셉 포토-멤버 연결
 - `album_teasers` - 앨범 티저 이미지/영상
+- `track_fanchant` - 곡 응원법 (영상 id, 두 색, 줄·구간·시각 `lines_json`). 곡당 한 벌
 
 #### 일정
 - `schedules` - 일정 (제목, 날짜, 시간 등)
@@ -338,6 +339,10 @@ fromis_9/
 - `schedule_x` - X(Twitter) 게시물 연결 정보
 - `schedule_concert` - 콘서트 일정 추가 정보
 - `schedule_ticketing` - 티켓팅 일정 추가 정보 (선예매/일반예매 세트, 예매처, 인증 기간, 콘서트 시리즈 연결)
+- `schedule_variety` - 예능 일정 추가 정보 (방송사 등)
+- `schedule_fansign` - 팬사인회 추가 정보 (대면/영통, 장소)
+- `schedule_etc` - 기타 일정 추가 정보 (설명, 장소, 포스터, 링크)
+- `schedule_links` - 일정 고정 링크 (투표·스밍 안내 등)
 - `schedule_album` - 앨범 발매 일정 연결 (앨범 생성 시 자동)
 
 #### 콘서트
@@ -354,12 +359,24 @@ fromis_9/
 #### 봇
 - `bot_youtube` - YouTube 봇 설정 (채널 정보, 동기화 간격 또는 주간 지정 시간, 필터 등, video_id UNIQUE)
 - `bot_x` - X 봇 설정 (username, 프로필, 동기화 간격, 텍스트 필터, 리트윗 포함, YouTube 추출)
+- `bot_festival` - DC "앞으로 일정" 수집 봇 설정 (검색 URL, 주기)
+- `bot_pending_schedules` - 수집 큐. 봇이 담은 일정 후보를 관리자가 검토·등록·무시한다
+  (`dedup_key` 유니크, `stale_at`=최신 글에서 사라짐)
+- `festival_crawl_log` - 처리한 글 기록 (같은 글 재파싱 방지)
+- `youtube_skipped_videos` - 아카이브에서 건너뛴 영상 (video_id, 이유)
 
 #### 활동 로그
 - `logs` - 관리자/봇 활동 로그 (actor, action, category, summary 등)
 
+#### 영상
+- `videos` - 영상 아카이브 (제목, 채널, 길이, 게시일, 음악 분류)
+
 #### 이미지
 - `images` - 이미지 메타데이터 (3개 해상도 URL)
+
+#### 기타
+- `app_settings` - 사이트 설정 키-값 (테마 모드·수동 색 등)
+- `device_tokens` - FCM 푸시 토큰 (기기별)
 
 #### 추천 검색어
 - `suggestion_queries` - 검색 쿼리 로그

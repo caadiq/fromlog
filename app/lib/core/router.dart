@@ -13,6 +13,7 @@ import '../views/album/album_view.dart';
 import '../views/album/album_detail_view.dart';
 import '../views/album/album_gallery_view.dart';
 import '../views/album/track_detail_view.dart';
+import '../views/album/fanchant_view.dart';
 import '../views/schedule/schedule_view.dart';
 import '../views/video/video_view.dart';
 import '../views/video/video_list_view.dart';
@@ -104,6 +105,16 @@ final GoRouter appRouter = GoRouter(
         final albumName = state.pathParameters['albumName']!;
         final trackTitle = state.pathParameters['trackTitle']!;
         return TrackDetailView(albumName: albumName, trackTitle: trackTitle);
+      },
+    ),
+    // 응원법 (영상 재생에 맞춰 가사·응원법 강조)
+    GoRoute(
+      path: '/album/:albumName/track/:trackTitle/fanchant',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) {
+        final albumName = state.pathParameters['albumName']!;
+        final trackTitle = state.pathParameters['trackTitle']!;
+        return FanchantView(albumName: albumName, trackTitle: trackTitle);
       },
     ),
     // 앨범 갤러리 (컨셉포토 전체보기)

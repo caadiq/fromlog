@@ -89,6 +89,57 @@ X 게시물 일정의 이미지를 원본 화질(name=orig)로 프록시 스트�
 
 ---
 
+## 응원법 (fanchant)
+
+곡마다 공식 응원법 영상(또는 음원 영상)을 걸고, 재생 시각에 맞춰 가사와 응원법을 강조한다.
+데이터는 `track_fanchant`에 곡당 한 벌(`track_id` PK)로 저장한다.
+
+### 데이터 구조 (`lines_json`)
+```jsonc
+[
+  { "gap": true },                                  // 빈 줄 = 문단 구분
+  { "t": 42.31, "hg": 0, "parts": [                 // t: 줄 시작(초), hg: 유지 블록 번호
+      { "text": "프로미스나인 …", "type": "call", "t": 42.31 },  // 따로 외치기
+      { "text": " 우리", "t": 43.0 }                            // 가사(type 없음)
+  ]}
+]
+```
+- `type`: `call`(따로 외치기) · `sing`(같이 부르기). 없으면 가사
+- `t`: 그 조각이 시작하는 시각. **안 찍었으면 `null`** — 화면에서는 앞 조각 시각을 물려받는다
+- `hg`: **유지 블록** 번호. 같은 번호끼리 한 덩어리이고, 그 안의 응원법은 블록이 끝날 때까지 강조가 남는다
+  (함성처럼 뒤따르는 가사가 흐르는 내내 외치는 자리). 빈 줄도 블록 안이면 `hg`를 갖는다 —
+  안 그러면 저장할 때마다 블록이 빈 줄에서 끊긴다
+
+### GET /fanchant
+응원법이 있는 곡 목록 (곡 상세에서 링크를 띄울지 판단용).
+
+**응답:** `{ items: [{ trackId, title, albumTitle }] }`
+- **시각을 하나라도 찍은 곡만** 나온다. 영상만 걸어둔 준비 상태는 빼는데,
+  들어가봐야 하이라이트가 없어 그냥 가사만 흐르기 때문이다
+
+### GET /fanchant/:trackId
+곡 응원법 조회 (공개). 재생 중 매 프레임 계산해야 해서 한 벌을 통째로 내려준다.
+
+**응답:** `{ trackId, trackTitle, albumId, albumTitle, videoId, video, colors, lines }`
+- `video`: 아카이브에 있으면 `{ title, channelName, publishedAt }`, 없으면 `null`
+- `colors`: `{ call, sing }` — 관리자 지정값 > 앨범 커버에서 뽑은 두 색 > 커버가 단색이면 진한 변주 > 기본값
+- 곡이 없거나, 영상이 없거나, **시각을 하나도 안 찍었으면** 404
+
+### GET /fanchant/:trackId/admin (인증)
+편집용. 응원법이 아직 없으면 `lyrics`(곡 가사)를 초기값으로 준다.
+
+**응답:** `{ trackId, trackTitle, albumTitle, coverUrl, lyrics, videoId, colors, colorSource, manualColors, lines }`
+
+### PUT /fanchant/:trackId (인증)
+저장. **본문:** `{ videoId, colorCall?, colorSing?, lines }`
+- 색은 `#RRGGBB` 형식만. 비우면(`null`) 커버에서 자동 추출
+- **응답:** `{ success, lines, synced, total }` (synced/total = 시각을 찍은 줄 수)
+
+### DELETE /fanchant/:trackId (인증)
+삭제. 등록된 응원법이 없으면 404.
+
+---
+
 ## 일정
 
 ### GET /schedules
