@@ -7,6 +7,8 @@
 /// 어긋나 영상 아래에 배경이 띠처럼 남는다.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
@@ -32,6 +34,14 @@ class YoutubeView extends StatefulWidget {
 class _YoutubeViewState extends State<YoutubeView> {
   late YoutubePlayerController _controller;
   bool _fullScreen = false;
+  StreamSubscription<YoutubePlayerValue>? _sub;
+
+  /// 전체화면으로 드나들 때 돌아갈 자리.
+  ///
+  /// 화면을 돌리면 웹뷰가 다시 만들어져 영상이 처음부터 로드된다.
+  /// 그 전에 어디까지 봤는지 적어두고, 다시 준비되면 그 자리로 돌려놓는다.
+  double _resumeAt = 0;
+  bool _resumePlaying = false;
 
   @override
   void initState() {
@@ -51,12 +61,32 @@ class _YoutubeViewState extends State<YoutubeView> {
     // 이 패키지는 전체화면을 오버레이로만 처리해서 세로 그대로 남는다.
     // 영상은 가로가 자연스러우니 방향을 직접 돌린다.
     c.setFullScreenListener(_onFullScreen);
+    // 다시 로드되면(cued) 보던 자리로 돌려놓는다
+    _sub?.cancel();
+    _sub = c.listen(_onValue);
     widget.onController?.call(c);
     return c;
   }
 
-  void _onFullScreen(bool isFullScreen) {
+  void _onValue(YoutubePlayerValue value) {
+    if (_resumeAt <= 1) return;
+    if (value.playerState != PlayerState.cued &&
+        value.playerState != PlayerState.unStarted) {
+      return;
+    }
+    final at = _resumeAt;
+    final play = _resumePlaying;
+    _resumeAt = 0;
+    _controller.seekTo(seconds: at, allowSeekAhead: true);
+    if (play) _controller.playVideo();
+  }
+
+  Future<void> _onFullScreen(bool isFullScreen) async {
     _fullScreen = isFullScreen;
+    // 돌리기 전에 어디까지 봤는지 적어둔다
+    _resumePlaying = _controller.value.playerState == PlayerState.playing;
+    _resumeAt = await _controller.currentTime;
+
     if (isFullScreen) {
       SystemChrome.setPreferredOrientations(const [
         DeviceOrientation.landscapeLeft,
@@ -88,6 +118,7 @@ class _YoutubeViewState extends State<YoutubeView> {
   void dispose() {
     // 전체화면인 채로 화면을 벗어나면 가로로 눕은 채 남는다
     if (_fullScreen) _restore();
+    _sub?.cancel();
     _controller.close();
     super.dispose();
   }
