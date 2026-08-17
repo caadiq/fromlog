@@ -144,7 +144,7 @@ class YoutubeController extends ChangeNotifier {
       videoId: '$videoId',
       playerVars: {
         rel: 0, playsinline: 1, modestbranding: 1,
-        fs: 0,            // 전체화면은 앱에서 만든다
+        fs: 1,            // 유튜브 기본 전체화면 버튼을 그대로 쓴다
         controls: 1
       },
       events: {

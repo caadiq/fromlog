@@ -1,29 +1,26 @@
 /// 전체화면 재생.
 ///
-/// 앱이 직접 만드는 화면이라 방향·상태바를 우리가 잡는다.
+/// 유튜브 기본 전체화면 버튼을 그대로 쓴다. 웹뷰가 그때 넘겨주는 화면(customWidget)을
+/// 여기서 띄우기만 한다 — 같은 웹뷰의 내용이 옮겨오는 것이라 재생이 끊기지 않는다.
+///
+/// 앱 화면이라 방향·상태바는 우리가 잡는다.
 /// 가로 영상은 눕히고 세로 영상(쇼츠)은 세운다.
-/// 나갈 때 보던 자리를 돌려주면 원래 화면이 이어서 튼다.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-
-import 'youtube_player_controller.dart';
 
 class YoutubeFullScreen extends StatefulWidget {
-  final String videoId;
+  /// 웹뷰가 넘겨준 전체화면 내용
+  final Widget content;
+
+  /// 영상 비율 — 눕힐지 세울지 정한다
   final double aspectRatio;
-  final Duration startAt;
-  final bool autoPlay;
 
   const YoutubeFullScreen({
     super.key,
-    required this.videoId,
+    required this.content,
     required this.aspectRatio,
-    this.startAt = Duration.zero,
-    this.autoPlay = false,
   });
 
   @override
@@ -31,18 +28,11 @@ class YoutubeFullScreen extends StatefulWidget {
 }
 
 class _YoutubeFullScreenState extends State<YoutubeFullScreen> {
-  late final YoutubeController _controller;
-
   bool get _isPortraitVideo => widget.aspectRatio < 1;
 
   @override
   void initState() {
     super.initState();
-    _controller = YoutubeController(
-      videoId: widget.videoId,
-      startAt: widget.startAt,
-      autoPlay: widget.autoPlay,
-    );
     _enter();
   }
 
@@ -55,67 +45,28 @@ class _YoutubeFullScreenState extends State<YoutubeFullScreen> {
               DeviceOrientation.landscapeRight,
             ],
     );
-    // 회전이 끝난 뒤에 걸어야 한다 — 먼저 걸면 회전하면서 상태바가 되살아난다
     if (!mounted) return;
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    // 회전이 끝난 뒤 한 번 더 걸어야 한다 — 먼저만 걸면 회전하면서 상태바가 되살아난다
+    await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  }
-
-  Future<void> _leave() async {
-    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
   }
 
   @override
   void dispose() {
-    _leave();
-    _controller.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
 
-  void _close() => Navigator.of(context).pop(_controller.position);
-
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _close();
-      },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(
-          children: [
-            Center(
-              child: AspectRatio(
-                aspectRatio: widget.aspectRatio,
-                child: WebViewWidget(controller: _controller.webview),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              left: 8,
-              child: SafeArea(
-                child: GestureDetector(
-                  onTap: _close,
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    padding: const EdgeInsets.all(9),
-                    color: Colors.transparent,
-                    child: const Icon(
-                      LucideIcons.minimize,
-                      size: 20,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    // 나가기는 유튜브 자체 버튼(또는 뒤로가기)이 처리한다 —
+    // 웹뷰가 onHideCustomWidget으로 알려주면 이 화면이 닫힌다
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SizedBox.expand(child: widget.content),
     );
   }
 }
