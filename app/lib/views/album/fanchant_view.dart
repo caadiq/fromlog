@@ -14,6 +14,7 @@ import 'package:omni_video_player/omni_video_player.dart';
 import '../../core/constants.dart';
 import '../../core/fanchant_progress.dart';
 import '../../models/fanchant.dart';
+import 'fanchant_line_view.dart';
 import '../../services/albums_service.dart';
 import '../../services/fanchant_service.dart';
 import '../../widgets/e_motion.dart';
@@ -338,98 +339,26 @@ class _FanchantViewState extends State<FanchantView>
 
   Widget _lineWidget(Fanchant data, int li) {
     final line = data.lines[li];
-    final onBar = _activeLines.contains(li);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 지금 진행 중인 줄 표시
-          Container(
-            width: 3,
-            height: 21,
-            margin: const EdgeInsets.only(top: 3, right: 15),
-            color: onBar ? data.callColor : Colors.transparent,
-          ),
-          // 조각을 위젯으로 늘어놓는다 — 응원법에 여백·테두리를 주려면 글자만으로는 안 된다.
-          // 긴 응원법은 이 안에서 다시 접히므로 배경이 두 줄에 걸쳐 그려진다.
-          Expanded(
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              runSpacing: 2,
-              children: [
-                for (var pi = 0; pi < line.parts.length; pi++)
-                  _partWidget(data, li, pi),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _partWidget(Fanchant data, int li, int pi) {
-    final part = data.lines[li].parts[pi];
-    final idx = _progress!.rank['$li-$pi'] ?? -1;
-    final isNow = _active.contains(idx);
-    final passed = _cur >= 0 && idx >= 0 && idx < _cur && !isNow;
-
-    // 조각에 시각이 없으면 줄 시각으로 되돌아간다
-    final t = part.t ?? data.lines[li].t;
-
-    Widget wrapTap(Widget child) => t == null
-        ? child
-        : GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _seek(t),
-            child: child,
-          );
-
-    if (!part.isCall) {
-      return wrapTap(
-        AnimatedDefaultTextStyle(
-          duration: const Duration(milliseconds: 150),
-          style: TextStyle(
-            fontSize: 15,
-            height: 1.75,
-            color: isNow
-                ? EColors.ink
-                : (passed ? const Color(0xFFCFCFCF) : const Color(0xFFB4B4B4)),
-            fontWeight: isNow ? FontWeight.w800 : FontWeight.w600,
-          ),
-          child: Text(part.text),
-        ),
-      );
+    // 조각마다 지금인지·지나갔는지를 넘긴다 (계산은 여기서, 그리기는 줄 위젯에서)
+    final states = <int, PieceState>{};
+    for (var pi = 0; pi < line.parts.length; pi++) {
+      final idx = _progress!.rank['$li-$pi'] ?? -1;
+      states[pi] = _active.contains(idx)
+          ? PieceState.now
+          : (_cur >= 0 && idx >= 0 && idx < _cur
+                ? PieceState.passed
+                : PieceState.upcoming);
     }
 
-    // 지금 외칠 응원법이면 배경·테두리가 들어온다 (웹과 같은 모양)
-    final on = _activeCall?.li == li && _activeCall?.pi == pi;
-    final color = part.type == 'sing' ? data.singColor : data.callColor;
-    return wrapTap(
-      AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        padding: on
-            ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
-            : EdgeInsets.zero,
-        decoration: on
-            ? BoxDecoration(
-                color: color.withValues(alpha: 0.13),
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: color.withValues(alpha: 0.2)),
-              )
-            : null,
-        child: Text(
-          part.text,
-          style: TextStyle(
-            fontSize: 15,
-            height: 1.75,
-            fontWeight: FontWeight.w900,
-            color: on ? color : color.withValues(alpha: passed ? 0.45 : 1.0),
-          ),
-        ),
-      ),
+    return FanchantLineView(
+      line: line,
+      states: states,
+      callPi: _activeCall?.li == li ? _activeCall!.pi : null,
+      showBar: _activeLines.contains(li),
+      callColor: data.callColor,
+      singColor: data.singColor,
+      onSeek: _seek,
     );
   }
 
