@@ -98,7 +98,36 @@ class _YoutubeViewState extends State<YoutubeView> {
       aspectRatio: widget.aspectRatio,
       child: ColoredBox(
         color: Colors.black,
-        child: WebViewWidget(controller: _controller.webview),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: WebViewWidget(controller: _controller.webview),
+            ),
+            // 막혔을 때 유튜브 화면의 코드(152-4)는 안내용이라 원인을 못 좁힌다.
+            // IFrame API가 주는 실제 onError 코드를 같이 띄운다 (2·5·101·150·153…)
+            ListenableBuilder(
+              listenable: _controller,
+              builder: (_, _) {
+                final code = _controller.errorCode;
+                if (code == null) return const SizedBox.shrink();
+                return Positioned(
+                  left: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 3),
+                    color: Colors.black54,
+                    child: Text(
+                      'onError: $code',
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.white),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
