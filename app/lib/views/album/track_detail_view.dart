@@ -9,7 +9,7 @@ import '../../models/album.dart';
 import '../../services/albums_service.dart';
 import '../../services/fanchant_service.dart';
 import '../../widgets/e_motion.dart';
-import '../../widgets/youtube_view.dart';
+import '../../widgets/youtube/youtube_view.dart';
 
 class TrackDetailView extends StatefulWidget {
   final String albumName;
@@ -31,9 +31,6 @@ class _TrackDetailViewState extends State<TrackDetailView> {
 
   /// 응원법이 있는 곡 id — 버튼을 띄울지 판단한다 (없으면 조용히 넘어간다)
   Set<int> _fanchantIds = const {};
-
-  /// 전체화면일 때는 머리말을 치워 영상이 화면을 다 쓰게 한다
-  bool _fullScreen = false;
 
   @override
   void initState() {
@@ -60,9 +57,7 @@ class _TrackDetailViewState extends State<TrackDetailView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EColors.paper,
-      // 전체화면에서는 위쪽 여백을 없애야 상태바 자리가 흰 띠로 남지 않는다
       body: SafeArea(
-        top: !_fullScreen,
         child: FutureBuilder<TrackDetail>(
           future: _trackFuture,
           builder: (context, snapshot) {
@@ -101,8 +96,8 @@ class _TrackDetailViewState extends State<TrackDetailView> {
 
             return Column(
               children: [
-                // 크럼 바 (전체화면에서는 치운다)
-                if (!_fullScreen) Container(
+                // 크럼 바
+                Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: const BoxDecoration(
                     border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
@@ -131,10 +126,7 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                   ),
                 ),
 
-                // 영상 웹뷰는 가장 가까운 Overlay에 그려진다. 여기서 한 겹 두르지 않으면
-                // 스크롤할 때 크럼 바 위까지 덮어버린다 (패키지가 스크롤 clip을 따르지 않는다)
                 Expanded(
-                  child: Overlay.wrap(
                     child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,11 +247,7 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                YoutubeView(
-                                  videoId: videoId,
-                                  onFullScreenChanged: (v) =>
-                                      setState(() => _fullScreen = v),
-                                ),
+                                YoutubeView(videoId: videoId),
                                 Padding(
                                   padding:
                                       const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
@@ -445,7 +433,6 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                         ),
                       ],
                     ),
-                  ),
                   ),
                 ),
               ],

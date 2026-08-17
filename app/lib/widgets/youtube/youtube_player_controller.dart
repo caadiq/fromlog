@@ -28,8 +28,8 @@ YtState _stateOf(int code) => switch (code) {
   _ => YtState.unstarted,
 };
 
-class YtProbeController extends ChangeNotifier {
-  YtProbeController({
+class YoutubeController extends ChangeNotifier {
+  YoutubeController({
     required this.videoId,
     this.startAt = Duration.zero,
     this.autoPlay = false,
@@ -56,9 +56,6 @@ class YtProbeController extends ChangeNotifier {
 
   /// 유튜브가 준 오류 코드 (막혔을 때 무엇 때문인지 알려면 필요하다)
   int? errorCode;
-
-  /// 유튜브가 콘솔에 적은 내용 (막힌 이유가 여기 남는다)
-  final List<String> consoleLines = [];
   YtState _state = YtState.unstarted;
   Duration _duration = Duration.zero;
 
@@ -89,11 +86,9 @@ class YtProbeController extends ChangeNotifier {
     if (platform is AndroidWebViewController) {
       platform.setMediaPlaybackRequiresUserGesture(false);
       // 막히면 유튜브가 콘솔에 이유를 적는다 — 그걸 봐야 한다
-      platform.setOnConsoleMessage((m) {
-        consoleLines.add(m.message);
-        if (consoleLines.length > 40) consoleLines.removeAt(0);
-        notifyListeners();
-      });
+      platform.setOnConsoleMessage(
+        (m) => debugPrint('[yt-console] ${m.message}'),
+      );
     }
 
     webview.loadHtmlString(_html, baseUrl: _host);
@@ -176,7 +171,10 @@ class YtProbeController extends ChangeNotifier {
     player = new YT.Player('p', {
       host: '$_host',
       playerVars: {
-        // 패키지가 만드는 임베드 주소와 바이트 단위로 같게 — 이래야 순수 비교다
+        // 이 세트가 빠지면 유튜브가 임베드를 막는다("볼 수 없습니다 152").
+        // 진단 화면에서 폰으로 확인했다 — 문서 주소·UA가 같아도
+        // 이 파라미터들이 없는 임베드는 차단, 있으면(콜드 상태에서도) 재생됐다.
+        // 정상 동작하는 패키지의 임베드 주소와 바이트 단위로 같은 구성이다.
         autoplay: 1, mute: 0,
         cc_lang_pref: 'en', cc_load_policy: 1,
         color: 'white', controls: 1, disablekb: 1,

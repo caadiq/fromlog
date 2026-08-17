@@ -3,9 +3,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/constants.dart';
@@ -85,17 +85,13 @@ class _EditorialHeader extends StatelessWidget implements PreferredSizeWidget {
             padding: const EdgeInsets.symmetric(horizontal: 22),
             child: Row(
               children: [
-                // 로고를 길게 누르면 유튜브 재생 진단 화면 (임시)
-                GestureDetector(
-                  onLongPress: () => GoRouter.of(context).push('/debug/yt'),
-                  child: const Text(
-                    'fromis_9',
-                    style: TextStyle(
-                      fontSize: 17.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      color: EColors.ink,
-                    ),
+                const Text(
+                  'fromis_9',
+                  style: TextStyle(
+                    fontSize: 17.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: EColors.ink,
                   ),
                 ),
                 const Spacer(),
