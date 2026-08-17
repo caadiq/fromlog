@@ -39,9 +39,12 @@ class YoutubeController extends ChangeNotifier {
 
   final String videoId;
 
-  /// 임베드 도메인. baseUrl과 플레이어 host를 같은 값으로 맞춰야
-  /// "이 동영상은 볼 수 없습니다 (152)"에 걸리지 않는다
-  static const _host = 'https://www.youtube-nocookie.com';
+  /// 임베드를 띄운 곳으로 유튜브에 알릴 주소.
+  ///
+  /// 웹뷰에 심은 문서는 주소가 없어 Referer가 비고, 그러면 유튜브가
+  /// "이 동영상은 볼 수 없습니다"로 막는다. 앱 아이디를 주소 꼴로 만들어
+  /// baseUrl과 playerVars.origin에 같이 준다 (유튜브가 안내하는 방식).
+  static const _origin = 'https://com.caadiq.fromlog';
 
   /// 처음 열 때 여기부터 (전체화면으로 옮겨갈 때 보던 자리를 넘겨받는다)
   final Duration startAt;
@@ -49,6 +52,9 @@ class YoutubeController extends ChangeNotifier {
   late final WebViewController webview;
 
   bool _ready = false;
+
+  /// 유튜브가 준 오류 코드 (막혔을 때 무엇 때문인지 알려면 필요하다)
+  int? errorCode;
   YtState _state = YtState.unstarted;
   Duration _duration = Duration.zero;
 
@@ -73,7 +79,7 @@ class YoutubeController extends ChangeNotifier {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF000000))
       ..addJavaScriptChannel('Bridge', onMessageReceived: _onMessage)
-      ..loadHtmlString(_html, baseUrl: _host);
+      ..loadHtmlString(_html, baseUrl: '$_origin/');
   }
 
   void _onMessage(JavaScriptMessage msg) {
@@ -96,6 +102,9 @@ class YoutubeController extends ChangeNotifier {
             ..stop()
             ..reset();
         }
+        notifyListeners();
+      case 'error':
+        errorCode = (data['c'] as num?)?.toInt();
         notifyListeners();
       case 'time':
         _lastPos = Duration(
@@ -132,6 +141,7 @@ class YoutubeController extends ChangeNotifier {
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <style>
   html, body { margin:0; padding:0; height:100%; background:#000; overflow:hidden; }
   #p { width:100%; height:100%; }
@@ -145,9 +155,10 @@ class YoutubeController extends ChangeNotifier {
   function send(o) { Bridge.postMessage(JSON.stringify(o)); }
   function onYouTubeIframeAPIReady() {
     player = new YT.Player('p', {
-      host: '$_host',
       videoId: '$videoId',
       playerVars: {
+        origin: '$_origin',
+        enablejsapi: 1,
         rel: 0, playsinline: 1, modestbranding: 1,
         fs: 1,            // 유튜브 기본 전체화면 버튼을 그대로 쓴다
         controls: 1
@@ -166,7 +177,8 @@ class YoutubeController extends ChangeNotifier {
             }
           }, 100);
         },
-        onStateChange: function (e) { send({ e: 'state', s: e.data }); }
+        onStateChange: function (e) { send({ e: 'state', s: e.data }); },
+        onError: function (e) { send({ e: 'error', c: e.data }); }
       }
     });
   }
