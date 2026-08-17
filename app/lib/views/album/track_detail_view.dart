@@ -60,7 +60,9 @@ class _TrackDetailViewState extends State<TrackDetailView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EColors.paper,
+      // 전체화면에서는 위쪽 여백을 없애야 상태바 자리가 흰 띠로 남지 않는다
       body: SafeArea(
+        top: !_fullScreen,
         child: FutureBuilder<TrackDetail>(
           future: _trackFuture,
           builder: (context, snapshot) {

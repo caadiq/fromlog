@@ -95,10 +95,15 @@ class _YoutubeViewState extends State<YoutubeView> {
     _resumeAt = await _controller.currentTime;
 
     if (isFullScreen) {
-      SystemChrome.setPreferredOrientations(const [
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
+      // 쇼츠 같은 세로 영상까지 눕히면 가운데 조그맣게 뜬다 — 비율대로 돌린다
+      SystemChrome.setPreferredOrientations(
+        widget.aspectRatio < 1
+            ? const [DeviceOrientation.portraitUp]
+            : const [
+                DeviceOrientation.landscapeLeft,
+                DeviceOrientation.landscapeRight,
+              ],
+      );
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     } else {
       _restore();
@@ -135,6 +140,9 @@ class _YoutubeViewState extends State<YoutubeView> {
     return YoutubePlayer(
       controller: _controller,
       aspectRatio: widget.aspectRatio,
+      // 세로로 끌면 전체화면으로 들어가버려 화면을 못 내린다.
+      // 전체화면은 버튼으로만 들어가게 둔다
+      enableFullScreenOnVerticalDrag: false,
     );
   }
 }

@@ -1458,10 +1458,11 @@ class YoutubeSection extends StatelessWidget {
           border: Border(bottom: BorderSide(color: EColors.hairline)),
         ),
         child: Center(
-          // 세로 영상은 폭에만 맞추면 화면을 넘긴다 — 높이를 화면 절반으로 묶는다
+          // 세로 영상은 폭에만 맞추면 화면을 넘긴다. 높이를 묶어 한 화면에 들어오게 하고,
+          // 위아래로 자리를 남겨 영상 밖에서 화면을 내릴 수 있게 한다
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+              maxHeight: MediaQuery.sizeOf(context).height * 0.45,
             ),
             child: FractionallySizedBox(
               widthFactor: 0.64,
