@@ -205,7 +205,16 @@ async function youtubeBotPlugin(fastify) {
     if (rows.length > 0) {
       // 아직 예정 상태 → 삭제 + 다음 주 생성
       await deleteScheduledAndCreateNext(bot, rows[0].schedule_id);
+      return;
     }
+
+    // 예정 일정이 없다. 두 경우다.
+    //   ① 영상이 올라와 승격됐다 → 그때 다음 주 것을 이미 만들었다
+    //   ② 그 주에 출연이 없어 사람이 미리 지웠다 → 아무도 다음 주를 만들지 않았다
+    // ②에서 그냥 넘어가면 다음 주가 안 생기고, 그 뒤로도 영영 안 생긴다
+    // (예정이 있어야 만들고, 만들어야 예정이 생기는 고리가 끊긴다).
+    // 여기서 한 번 더 세워둔다 — ①이면 이미 있으므로 createScheduledEntry가 알아서 건너뛴다.
+    await createScheduledEntry(bot);
   }
 
   /**
