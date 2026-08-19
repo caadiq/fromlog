@@ -6,7 +6,10 @@ import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Youtube, Search, X, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import { getYouTubeBot, createYouTubeBot, updateYouTubeBot, lookupChannel } from '@/api/admin/bots';
+import {
+  getYouTubeBot, createYouTubeBot, updateYouTubeBot, lookupChannel,
+  getBotScheduled, updateBotScheduled, deleteBotScheduled,
+} from '@/api/admin/bots';
 import {
   BOT_INTERVAL_OPTIONS as INTERVAL_OPTIONS,
   WEEKLY_INTERVAL_OPTIONS,
@@ -18,6 +21,7 @@ import {
 } from '@/constants/bots';
 import { parseBotJsonConfig, buildYouTubeBotPayload } from '@/utils/bots';
 import Dropdown from '../common/PortalDropdown';
+import DatePicker from '../common/DatePicker';
 import { useDialogBackClose } from '@/hooks/common';
 
 // 폼 기본값 — 초기 useState, "추가" 리셋, "수정 중 config 없음" 리셋 세 곳이
@@ -68,6 +72,71 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
   const [addToSchedule, setAddToSchedule] = useState(true);
 
   // YouTube 봇 상세 조회 (수정 모드)
+  // 봇이 세워둔 예정 일정 (설정과 별개로 그 자리에서 바로 고친다)
+  const { data: schedData, refetch: refetchScheduled } = useQuery({
+    queryKey: ['admin', 'youtube-bot', botId, 'scheduled'],
+    queryFn: () => getBotScheduled(botId),
+    enabled: isOpen && !!botId,
+    retry: false,
+  });
+  const scheduled = schedData?.scheduled ?? null;
+
+  const [schedTitle, setSchedTitle] = useState('');
+  const [schedDate, setSchedDate] = useState('');
+  const [schedTime, setSchedTime] = useState('');
+  const [schedSaving, setSchedSaving] = useState(false);
+  const [schedMsg, setSchedMsg] = useState('');
+  // 삭제는 한 번 더 눌러야 실행된다 (다이얼로그를 또 띄우기엔 가벼운 일이라 버튼 자리에서 묻는다)
+  const [schedConfirm, setSchedConfirm] = useState(false);
+
+  // 조회해 온 값으로 입력칸을 채운다 (다이얼로그를 다시 열 때도)
+  useEffect(() => {
+    setSchedTitle(scheduled?.title ?? '');
+    setSchedDate(scheduled?.date ?? '');
+    setSchedTime(scheduled?.time ?? '');
+    setSchedConfirm(false);
+  }, [scheduled?.id, scheduled?.date, scheduled?.time, scheduled?.title]);
+
+  const saveScheduled = async () => {
+    setSchedSaving(true);
+    setSchedMsg('');
+    try {
+      await updateBotScheduled(botId, {
+        date: schedDate,
+        time: schedTime || null,
+        title: schedTitle.trim(),
+      });
+      await refetchScheduled();
+      // 일정 목록에도 바로 반영되게
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      setSchedMsg('저장했습니다');
+    } catch (e) {
+      setSchedMsg(e.message || '저장 실패');
+    } finally {
+      setSchedSaving(false);
+    }
+  };
+
+  const removeScheduled = async () => {
+    if (!schedConfirm) {
+      setSchedConfirm(true);
+      return;
+    }
+    setSchedConfirm(false);
+    setSchedSaving(true);
+    setSchedMsg('');
+    try {
+      await deleteBotScheduled(botId);
+      await refetchScheduled();
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      setSchedMsg('삭제했습니다');
+    } catch (e) {
+      setSchedMsg(e.message || '삭제 실패');
+    } finally {
+      setSchedSaving(false);
+    }
+  };
+
   const { data: bot, isLoading: botLoading } = useQuery({
     queryKey: ['admin', 'youtube-bot', botId],
     queryFn: () => getYouTubeBot(botId),
@@ -519,6 +588,66 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
                         이 요일까지 영상이 없으면 예정 일정을 삭제합니다
                       </p>
                     </div>
+                  </div>
+                )}
+
+                {/* 지금 잡혀 있는 예정 일정 — 봇이 세워둔 것을 직접 고친다.
+                    한 주 쉬면 뒤로 밀고, 공지에 날짜가 뜨면 그 날로 맞춘다.
+                    자동 생성을 꺼도 이미 선 일정은 손볼 수 있어야 하므로 토글 밖에 둔다. */}
+                {botId && (
+                  <div className="border-t border-hairline p-4">
+                    <p className="text-[12px] font-extrabold tracking-k1 text-mute">지금 잡혀 있는 예정 일정</p>
+                    {!scheduled && (
+                      <p className="mt-2 text-[12.5px] text-mute">
+                        {schedMsg || '잡혀 있는 예정 일정이 없습니다. 자동 생성이 켜져 있으면 다음 주기에 다시 생깁니다.'}
+                      </p>
+                    )}
+                    {scheduled && (
+                    <div className="mt-2.5 space-y-2.5">
+                      <input
+                        type="text"
+                        value={schedTitle}
+                        onChange={(e) => setSchedTitle(e.target.value)}
+                        placeholder="예정 일정 제목"
+                        className="w-full border border-hairline px-3 py-2 text-[13.5px] font-semibold text-ink outline-none focus:border-ink"
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <DatePicker value={schedDate} onChange={setSchedDate} />
+                        <Dropdown
+                          value={schedTime}
+                          options={TIME_OPTIONS}
+                          onChange={setSchedTime}
+                          placeholder="시간 선택"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={schedSaving || !schedDate}
+                          onClick={saveScheduled}
+                          className="bg-ink px-4 py-2 text-[12.5px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:bg-[#BBB]"
+                        >
+                          {schedSaving ? '저장 중…' : '예정 일정 저장'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={schedSaving}
+                          onClick={removeScheduled}
+                          className={`border px-4 py-2 text-[12.5px] font-extrabold tracking-k1 transition-colors ${
+                            schedConfirm
+                              ? 'border-[#C0392B] bg-[#C0392B] text-white'
+                              : 'border-hairline text-[#C0392B] hover:border-[#C0392B]'
+                          }`}
+                        >
+                          {schedConfirm ? '정말 삭제' : '삭제'}
+                        </button>
+                        {schedMsg && <span className="text-[12px] text-mute">{schedMsg}</span>}
+                      </div>
+                      <p className="text-[12.5px] text-mute">
+                        옮긴 날짜에 영상이 올라오면 그 영상으로 바뀝니다. 지우면 다음 것은 마감 요일에 다시 생깁니다.
+                      </p>
+                    </div>
+                    )}
                   </div>
                 )}
               </div>

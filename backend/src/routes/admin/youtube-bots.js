@@ -3,6 +3,7 @@ import { badRequest, notFound, serverError } from '../../utils/error.js';
 import { getChannelByHandle } from '../../services/youtube/api.js';
 import { logActivity } from '../../utils/log.js';
 import { parseJsonColumn } from '../../utils/json.js';
+import { syncScheduleById, deleteSchedule } from '../../services/meilisearch/index.js';
 
 /**
  * YouTube 봇 스키마
@@ -435,6 +436,145 @@ export default async function youtubeBotsRoutes(fastify) {
     scheduler.invalidateCache();
 
     logActivity(db, { actor: 'admin', action: 'delete', category: 'bot', targetType: 'youtube_bot', targetId: parseInt(id), summary: `YouTube 봇 삭제: ${existing[0].channel_name}` });
+    return { success: true };
+  });
+
+  /**
+   * GET /api/admin/youtube-bots/:id/scheduled
+   * 이 봇이 잡아둔 예정 일정 (아직 영상이 안 올라온 임시 일정)
+   */
+  fastify.get('/:id/scheduled', {
+    schema: {
+      tags: ['admin/youtube-bots'],
+      summary: '예정 일정 조회',
+      security: [{ bearerAuth: [] }],
+      params: youtubeBotIdParam,
+    },
+    preHandler: [fastify.authenticate],
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const [bots] = await db.query('SELECT channel_id FROM bot_youtube WHERE id = ?', [id]);
+    if (bots.length === 0) return notFound(reply, '봇을 찾을 수 없습니다.');
+
+    const [rows] = await db.query(
+      `SELECT s.id, s.title, s.date, s.time
+         FROM schedules s
+         JOIN schedule_youtube sy ON sy.schedule_id = s.id
+        WHERE s.is_temp = 1 AND sy.channel_id = ?
+        ORDER BY s.date
+        LIMIT 1`,
+      [bots[0].channel_id]
+    );
+    if (rows.length === 0) return { scheduled: null };
+
+    const r = rows[0];
+    return {
+      scheduled: {
+        id: r.id,
+        title: r.title,
+        date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10),
+        time: r.time ? String(r.time).slice(0, 5) : null,
+      },
+    };
+  });
+
+  /**
+   * PUT /api/admin/youtube-bots/:id/scheduled
+   * 예정 일정 고치기 — 그 주를 쉬어 한 주 미루거나, 공지에 뜬 날짜로 맞출 때 쓴다.
+   * 봇은 날짜만 보고 영상을 얹으므로(같은 날 예정이 있으면 승격) 날짜를 옮기면 그날 기다린다.
+   */
+  fastify.put('/:id/scheduled', {
+    schema: {
+      tags: ['admin/youtube-bots'],
+      summary: '예정 일정 수정',
+      security: [{ bearerAuth: [] }],
+      params: youtubeBotIdParam,
+      body: {
+        type: 'object',
+        required: ['date'],
+        properties: {
+          date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+          time: { type: ['string', 'null'] },
+          title: { type: 'string', maxLength: 200 },
+        },
+      },
+    },
+    preHandler: [fastify.authenticate],
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const { date, time = null, title } = request.body;
+
+    const [bots] = await db.query('SELECT channel_id, channel_name FROM bot_youtube WHERE id = ?', [id]);
+    if (bots.length === 0) return notFound(reply, '봇을 찾을 수 없습니다.');
+
+    const [rows] = await db.query(
+      `SELECT s.id FROM schedules s
+         JOIN schedule_youtube sy ON sy.schedule_id = s.id
+        WHERE s.is_temp = 1 AND sy.channel_id = ?
+        ORDER BY s.date LIMIT 1`,
+      [bots[0].channel_id]
+    );
+    if (rows.length === 0) return notFound(reply, '수정할 예정 일정이 없습니다.');
+
+    const scheduleId = rows[0].id;
+    const sets = ['date = ?'];
+    const params = [date];
+    // 시간은 비우면 지운다 (시간 미정인 콘텐츠가 있다)
+    sets.push('time = ?');
+    params.push(time ? `${time}:00`.slice(0, 8) : null);
+    if (title !== undefined) {
+      sets.push('title = ?');
+      params.push(title.trim());
+    }
+    params.push(scheduleId);
+
+    await db.query(`UPDATE schedules SET ${sets.join(', ')} WHERE id = ?`, params);
+    await syncScheduleById(fastify.meilisearch, db, scheduleId, fastify.redis);
+
+    logActivity(db, {
+      actor: 'admin', action: 'update', category: 'schedule',
+      targetType: 'youtube_scheduled', targetId: scheduleId,
+      summary: `예정 일정 수정(${bots[0].channel_name}): ${date}${time ? ` ${time}` : ''}`,
+    });
+    return { success: true, scheduleId };
+  });
+
+  /**
+   * DELETE /api/admin/youtube-bots/:id/scheduled
+   * 예정 일정 지우기. 다음 것은 deadline 때 자동으로 다시 선다.
+   */
+  fastify.delete('/:id/scheduled', {
+    schema: {
+      tags: ['admin/youtube-bots'],
+      summary: '예정 일정 삭제',
+      security: [{ bearerAuth: [] }],
+      params: youtubeBotIdParam,
+    },
+    preHandler: [fastify.authenticate],
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const [bots] = await db.query('SELECT channel_id, channel_name FROM bot_youtube WHERE id = ?', [id]);
+    if (bots.length === 0) return notFound(reply, '봇을 찾을 수 없습니다.');
+
+    const [rows] = await db.query(
+      `SELECT s.id FROM schedules s
+         JOIN schedule_youtube sy ON sy.schedule_id = s.id
+        WHERE s.is_temp = 1 AND sy.channel_id = ?
+        ORDER BY s.date LIMIT 1`,
+      [bots[0].channel_id]
+    );
+    if (rows.length === 0) return notFound(reply, '삭제할 예정 일정이 없습니다.');
+
+    const scheduleId = rows[0].id;
+    await db.query('DELETE FROM schedule_youtube WHERE schedule_id = ?', [scheduleId]);
+    await db.query('DELETE FROM schedules WHERE id = ?', [scheduleId]);
+    await deleteSchedule(fastify.meilisearch, scheduleId, fastify.redis);
+
+    logActivity(db, {
+      actor: 'admin', action: 'delete', category: 'schedule',
+      targetType: 'youtube_scheduled', targetId: scheduleId,
+      summary: `예정 일정 삭제(${bots[0].channel_name})`,
+    });
     return { success: true };
   });
 }

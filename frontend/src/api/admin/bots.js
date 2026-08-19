@@ -206,3 +206,21 @@ export async function getQuotaWarning() {
 export async function dismissQuotaWarning() {
   return fetchAuthApi('/admin/bots/quota-warning', { method: 'DELETE' });
 }
+
+/** 봇이 잡아둔 예정 일정 조회 (없으면 scheduled: null) */
+export async function getBotScheduled(id) {
+  return fetchAuthApi(`/admin/youtube-bots/${id}/scheduled`);
+}
+
+/** 예정 일정 날짜·시간·제목 수정 */
+export async function updateBotScheduled(id, data) {
+  return fetchAuthApi(`/admin/youtube-bots/${id}/scheduled`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/** 예정 일정 삭제 (다음 것은 deadline 때 자동으로 다시 선다) */
+export async function deleteBotScheduled(id) {
+  return fetchAuthApi(`/admin/youtube-bots/${id}/scheduled`, { method: 'DELETE' });
+}

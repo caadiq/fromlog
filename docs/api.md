@@ -451,6 +451,34 @@ YouTube 봇 수정
 ### DELETE /admin/youtube-bots/:id
 YouTube 봇 삭제
 
+### GET /admin/youtube-bots/:id/scheduled
+이 봇이 잡아둔 예정 일정(`is_temp = 1`) 하나. 없으면 `{ "scheduled": null }`
+
+**응답:**
+```json
+{
+  "scheduled": { "id": 3800, "title": "이단장 시즌2 EP.7", "date": "2026-08-24", "time": "17:00" }
+}
+```
+
+### PUT /admin/youtube-bots/:id/scheduled
+예정 일정 수정. 한 주 쉬어 뒤로 미루거나, 공지에 뜬 날짜로 맞출 때 쓴다.
+봇은 날짜를 보고 영상을 얹으므로(같은 날 예정이 있으면 승격) 날짜를 옮기면 그날을 기다린다.
+
+**Request Body:**
+```json
+{
+  "date": "2026-08-24",
+  "time": "17:00",
+  "title": "이단장 시즌2 EP.7"
+}
+```
+- `time`을 `null`로 주면 시간 미정으로 지운다
+- `title` 생략 시 제목은 그대로
+
+### DELETE /admin/youtube-bots/:id/scheduled
+예정 일정 삭제. 다음 것은 마감 요일(`deadline_day_of_week`)에 다시 선다
+
 ---
 
 ## 관리자 - X 봇 (인증 필요)
