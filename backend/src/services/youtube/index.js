@@ -213,7 +213,21 @@ async function youtubeBotPlugin(fastify) {
     //   ② 그 주에 출연이 없어 사람이 미리 지웠다 → 아무도 다음 주를 만들지 않았다
     // ②에서 그냥 넘어가면 다음 주가 안 생기고, 그 뒤로도 영영 안 생긴다
     // (예정이 있어야 만들고, 만들어야 예정이 생기는 고리가 끊긴다).
-    // 여기서 한 번 더 세워둔다 — ①이면 이미 있으므로 createScheduledEntry가 알아서 건너뛴다.
+    // 그래서 여기서 한 번 더 세워둔다.
+    //
+    // 단, 이미 앞으로 잡힌 예정이 있으면 손대지 않는다.
+    // createScheduledEntry의 중복 검사는 '같은 날짜'만 보므로, 격주 봇처럼
+    // 이 요일이 매주 돌아오는 경우 쉬는 주의 deadline이 다른 날짜로 하나 더 만들어버린다
+    // (9/7이 이미 있는데 9/14를 또 세우는 식). 사람이 날짜를 옮겨둔 것도 마찬가지로 지켜야 한다.
+    const [pending] = await fastify.db.query(
+      `SELECT sy.schedule_id FROM schedule_youtube sy
+       JOIN schedules s ON s.id = sy.schedule_id
+       WHERE s.is_temp = 1 AND sy.channel_id = ? AND s.date >= ?
+       LIMIT 1`,
+      [bot.channelId, kst.format('YYYY-MM-DD')]
+    );
+    if (pending.length > 0) return;
+
     await createScheduledEntry(bot);
   }
 
