@@ -395,7 +395,14 @@ export async function resolveWrappedRetweet(nitterUrl, tweet, log) {
     const res = await fetchWithTimeout(`${nitterUrl}/${author}`);
     // 원본 계정 타임라인은 parseTweets만 쓴다 (여기서 fetchTweets를 부르면 서로 부른다)
     const list = parseTweets(await res.text(), author, { includeRetweets: false });
-    const hit = list.find((t) => normBody(t.text).startsWith(key));
+
+    // 같은 공지를 문구만 바꿔 여러 번 올리는 계정이 많아서 앞부분만으로는 못 고른다.
+    // 리트윗은 원본보다 반드시 나중에 생기고 id는 시간순으로 커지므로,
+    // 이 리트윗보다 앞선 것 중 가장 가까운 글이 그 원본이다.
+    const wrapperId = BigInt(tweet.id);
+    const hit = list
+      .filter((t) => normBody(t.text).startsWith(key) && BigInt(t.id) < wrapperId)
+      .sort((a, b) => (BigInt(b.id) < BigInt(a.id) ? -1 : 1))[0];
 
     if (!hit) {
       tweet.text = body;

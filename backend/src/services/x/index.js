@@ -85,6 +85,39 @@ async function xBotPlugin(fastify, opts) {
     return nitter;
   }
 
+  /** 본문 비교용 정규화 (공백·개행 차이 무시) */
+  function normBody(t) {
+    return String(t || '').replace(/\s+/g, ' ').trim();
+  }
+
+  /**
+   * 같은 리트윗이 이미 저장돼 있는지 — 앞부분이 겹치면 같은 글로 본다.
+   *
+   * 래퍼 형태는 본문이 잘려 오므로 전체 비교로는 절대 안 잡힌다(그래서 앞부분으로 본다).
+   * 다만 같은 공지를 문구만 바꿔 며칠 간격으로 다시 올리는 계정이 많아서,
+   * 앞부분을 넉넉히(래퍼가 잘리는 140자보다 짧게) 잡고 날짜도 하루 차이까지만 본다.
+   * 한 리트윗의 두 형태는 시각이 사실상 같으므로 이 범위로 충분하다.
+   */
+  async function findSameRetweet(tweet, username) {
+    const key = normBody(tweet.text).slice(0, 80);
+    if (key.length < 15) return null;
+
+    const date = formatDate(tweet.time);
+    const [rows] = await fastify.db.query(
+      `SELECT sx.id, sx.schedule_id, sx.content
+         FROM schedule_x sx
+         JOIN schedules s ON s.id = sx.schedule_id
+        WHERE sx.username IN (?, ?)
+          AND s.date BETWEEN DATE_SUB(?, INTERVAL 1 DAY) AND DATE_ADD(?, INTERVAL 1 DAY)`,
+      [tweet.originalUsername || username, username, date, date]
+    );
+    // 짧은 쪽(잘린 래퍼)이 긴 쪽의 앞부분과 맞는지 — 어느 쪽이 먼저 저장됐든 잡힌다
+    return rows.find((r) => {
+      const stored = normBody(r.content);
+      return stored.startsWith(key) || key.startsWith(stored.slice(0, 80));
+    }) || null;
+  }
+
   async function saveTweet(tweet, username) {
     // 중복 체크 (post_id로) - 트랜잭션 전에 수행
     const [existing] = await fastify.db.query(
@@ -96,15 +129,30 @@ async function xBotPlugin(fastify, opts) {
     }
 
     // 리트윗 이중 저장 방지: 같은 리트윗이 타임라인에서 래퍼 id / 원본 id 두 형태로
-    // 번갈아 나타나 post_id가 달라도 같은 트윗인 경우가 있음.
-    // hydration으로 양쪽 모두 전체 내용을 갖추므로 동일 내용이면 중복 처리.
-    // username은 형태에 따라 원작자/봇계정으로 불일치할 수 있어 둘 다 매칭.
+    // 번갈아 나타나 post_id가 달라도 같은 트윗인 경우가 있다.
+    //
+    // 본문 전체를 맞춰보면 안 된다 — 래퍼는 140자에서 잘려 오므로 온전한 쪽과
+    // 절대 같아지지 않아 같은 글이 두 번 저장된다. 앞부분으로 같은 글인지 가리고,
+    // 이미 있는 쪽이 잘려 있으면 더 온전한 본문으로 채운다(순서와 무관하게 전체가 남는다).
     if (tweet.isRetweet && tweet.text) {
-      const [dup] = await fastify.db.query(
-        'SELECT id FROM schedule_x WHERE content = ? AND username IN (?, ?) LIMIT 1',
-        [tweet.text, tweet.originalUsername || username, username]
-      );
-      if (dup.length > 0) {
+      const dup = await findSameRetweet(tweet, username);
+      if (dup) {
+        if (normBody(tweet.text).length > normBody(dup.content || '').length) {
+          await fastify.db.query(
+            'UPDATE schedule_x SET content = ?, image_urls = ? WHERE id = ?',
+            [
+              tweet.text,
+              tweet.imageUrls?.length > 0 ? JSON.stringify(tweet.imageUrls) : null,
+              dup.id,
+            ]
+          );
+          await fastify.db.query('UPDATE schedules SET title = ? WHERE id = ?', [
+            extractTitle(tweet.text),
+            dup.schedule_id,
+          ]);
+          await syncScheduleById(fastify.meilisearch, fastify.db, dup.schedule_id, fastify.redis);
+          fastify.log.info(`[x] 같은 리트윗을 더 온전한 본문으로 교체: ${dup.schedule_id}`);
+        }
         return null;
       }
     }
