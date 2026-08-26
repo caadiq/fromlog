@@ -360,6 +360,91 @@ export async function fetchProfile(nitterUrl, username) {
   };
 }
 
+/** 본문 비교용 정규화 — 공백·개행 차이를 무시하고 앞부분만 맞춰본다 */
+function normBody(s) {
+  return String(s || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * 래퍼 형태로 온 리트윗을 원본 글로 바꿔치기.
+ *
+ * Nitter는 같은 리트윗을 두 형태로 준다 — 원본 글 그대로(정상), 또는
+ * `RT @계정: 본문…`으로 감싼 래퍼. 래퍼는 본문이 140자에서 잘리는데,
+ * 그 id로 상태 페이지를 다시 열어도 잘린 래퍼가 그대로 나와서
+ * hydrate로는 복원되지 않는다(그래서 사이트에 잘린 채 올라갔다).
+ *
+ * 원본 계정의 타임라인에서 같은 글을 찾아 id·본문·이미지를 통째로 가져온다.
+ * 못 찾으면 최소한 `RT @계정:` 딱지라도 떼고 작성자를 남긴다.
+ */
+export async function resolveWrappedRetweet(nitterUrl, tweet, log) {
+  const m = /^RT @(\w+):\s*/.exec(tweet.text || '');
+  if (!m) return false;
+
+  const author = m[1];
+  const body = tweet.text.slice(m[0].length);
+  tweet.originalUsername = tweet.originalUsername || author;
+
+  // 앞부분이 너무 짧으면(사진만 있는 글 등) 엉뚱한 글을 물 수 있어 건너뛴다
+  const key = normBody(body.replace(/…\s*$/, '')).slice(0, 25);
+  if (key.length < 12) {
+    tweet.text = body;
+    return false;
+  }
+
+  try {
+    const res = await fetchWithTimeout(`${nitterUrl}/${author}`);
+    // 원본 계정 타임라인은 parseTweets만 쓴다 (여기서 fetchTweets를 부르면 서로 부른다)
+    const list = parseTweets(await res.text(), author, { includeRetweets: false });
+    const hit = list.find((t) => normBody(t.text).startsWith(key));
+
+    if (!hit) {
+      tweet.text = body;
+      log?.warn?.(`[RT] 원본을 못 찾음 (@${author}, ${tweet.id})`);
+      return false;
+    }
+
+    let { text, imageUrls } = hit;
+    // 본문도 이미지도 없는 것으로 바꾸면 빈 글이 된다 — 그럴 바엔 원래 것을 둔다
+    if (!normBody(text) && !(imageUrls?.length > 0)) {
+      tweet.text = body;
+      return false;
+    }
+    // 원본도 타임라인에서 잘려 왔으면 그 글의 상태 페이지에서 마저 채운다
+    if (hit.truncated) {
+      const full = await fetchSingleTweet(nitterUrl, author, hit.id);
+      if (full?.text && full.text.length > text.length) {
+        text = full.text;
+        if (full.imageUrls?.length > 0) imageUrls = full.imageUrls;
+      }
+    }
+
+    // 시각은 리트윗된 때를 그대로 둔다 (피드에 뜨는 순서가 바뀌지 않게)
+    tweet.id = hit.id;
+    tweet.text = text;
+    tweet.imageUrls = imageUrls?.length > 0 ? imageUrls : tweet.imageUrls;
+    if (hit.card) tweet.card = hit.card;
+    if (hit.videoThumbnails?.length > 0) tweet.videoThumbnails = hit.videoThumbnails;
+    tweet.truncated = false;
+    tweet.url = `https://x.com/${author}/status/${hit.id}`;
+    return true;
+  } catch (err) {
+    tweet.text = body;
+    log?.warn?.(`[RT] 원본 조회 실패 (@${author}): ${err.message}`);
+    return false;
+  }
+}
+
+/** 목록 전체에 대해 위를 적용 */
+async function resolveWrappedRetweets(nitterUrl, tweets, log) {
+  for (const tweet of tweets) {
+    if (!/^RT @\w+:/.test(tweet.text || '')) continue;
+    await resolveWrappedRetweet(nitterUrl, tweet, log);
+    // Nitter 부하 완화
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return tweets;
+}
+
 /**
  * 잘린 트윗(…로 끝나는 긴 트윗)을 개별 상태 페이지에서 재요청해 전체 내용으로 교체
  * - 타임라인이 long tweet을 간헐적으로 잘라서 주는 경우 대비
@@ -409,6 +494,9 @@ export async function fetchTweets(nitterUrl, username, options = {}) {
   // 트윗 파싱
   const tweets = parseTweets(html, username, options);
 
+  // 래퍼로 온 리트윗을 원본 글로 (hydrate로는 못 푸는 형태라 먼저 처리)
+  await resolveWrappedRetweets(nitterUrl, tweets, options.log);
+
   // 잘린 긴 트윗 전체 내용 복원
   await hydrateTruncatedTweets(nitterUrl, tweets, username, options.log);
 
@@ -446,6 +534,7 @@ export async function fetchAllTweets(nitterUrl, username, log, options = {}) {
         if (emptyCount >= 3) break;
       } else {
         emptyCount = 0;
+        await resolveWrappedRetweets(nitterUrl, tweets, log);
         // 잘린 긴 트윗 전체 내용 복원
         await hydrateTruncatedTweets(nitterUrl, tweets, username, log);
         allTweets.push(...tweets);

@@ -1,4 +1,4 @@
-import { fetchSingleTweet, extractTitle } from '../../services/x/scraper.js';
+import { fetchSingleTweet, extractTitle, resolveWrappedRetweet } from '../../services/x/scraper.js';
 import { addOrUpdateSchedule, syncScheduleById } from '../../services/meilisearch/index.js';
 import { formatDate, formatTime } from '../../utils/date.js';
 import config, { CATEGORY_IDS } from '../../config/index.js';
@@ -233,14 +233,24 @@ export default async function xRoutes(fastify) {
           // 원본 작성자의 개별 트윗 페이지에서 가져오기
           const tweet = await fetchSingleTweet(NITTER_URL, fetchUsername, row.post_id);
 
-          // fetchSingleTweet이 RT @ 형식을 반환하면 RT 프리픽스 제거
+          // 래퍼 리트윗은 이 id로 몇 번을 다시 열어도 잘린 채로 나온다.
+          // 원본 계정 타임라인에서 그 글을 찾아 통째로 가져와야 복원된다.
+          let newPostId = null;
+          if (/^RT @\w+:/.test(tweet.text || '')) {
+            const resolved = await resolveWrappedRetweet(NITTER_URL, tweet, fastify.log);
+            if (resolved) newPostId = tweet.id;
+          }
+
           let newContent = tweet.text;
+          // 원본을 못 찾았으면 딱지와 끝의 …만 정리한다 (본문은 잘린 그대로)
           const rtPrefixMatch = newContent.match(/^RT @\w+:\s*/);
           if (rtPrefixMatch) {
             newContent = newContent.slice(rtPrefixMatch[0].length);
           }
-          // 끝의 … 제거
           newContent = newContent.replace(/…$/, '').trim();
+
+          // 원본을 찾았으면 그쪽 작성자로 맞춘다
+          if (tweet.originalUsername) fetchUsername = tweet.originalUsername;
 
           const newTitle = extractTitle(newContent);
           const newImageUrls = tweet.imageUrls.length > 0 ? JSON.stringify(tweet.imageUrls) : null;
@@ -252,9 +262,15 @@ export default async function xRoutes(fastify) {
           );
 
           // schedule_x 테이블 업데이트 (원본 작성자 username도 수정)
+          // 원본을 찾았으면 post_id도 원본 것으로 — 그래야 같은 글이 원본 형태로
+          // 다시 들어와도 중복으로 걸러진다
           await db.query(
-            'UPDATE schedule_x SET username = ?, content = ?, image_urls = ? WHERE schedule_id = ?',
-            [fetchUsername, newContent, newImageUrls, row.schedule_id]
+            newPostId
+              ? 'UPDATE schedule_x SET username = ?, content = ?, image_urls = ?, post_id = ? WHERE schedule_id = ?'
+              : 'UPDATE schedule_x SET username = ?, content = ?, image_urls = ? WHERE schedule_id = ?',
+            newPostId
+              ? [fetchUsername, newContent, newImageUrls, newPostId, row.schedule_id]
+              : [fetchUsername, newContent, newImageUrls, row.schedule_id]
           );
 
           // Meilisearch 동기화 + 월별 캐시 무효화
