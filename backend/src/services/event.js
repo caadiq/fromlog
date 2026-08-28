@@ -123,6 +123,33 @@ export async function createEtcSchedule(db, meilisearch, data) {
 }
 
 /**
+ * 예능 일정 생성 (큐에서 바로 등록할 때 쓴다).
+ * 방송사는 NOT NULL이라 빈 값이면 만들지 않는다 — 호출부에서 먼저 막는다.
+ */
+export async function createVarietySchedule(db, meilisearch, data) {
+  const { title, date, time, broadcaster, description = '', replayUrl = null } = data;
+
+  const scheduleId = await withTransaction(db, async (conn) => {
+    const [sResult] = await conn.query(
+      `INSERT INTO schedules (category_id, title, date, time) VALUES (?, ?, ?, ?)`,
+      [CATEGORY_IDS.VARIETY, title, date, time || null]
+    );
+    const sid = sResult.insertId;
+
+    await conn.query(
+      `INSERT INTO schedule_variety (schedule_id, broadcaster, description, replay_url)
+       VALUES (?, ?, ?, ?)`,
+      [sid, broadcaster.trim(), description?.trim() || null, replayUrl?.trim() || null]
+    );
+
+    return sid;
+  });
+
+  await syncScheduleById(meilisearch, db, scheduleId);
+  return scheduleId;
+}
+
+/**
  * 장소명(문자열)을 카카오로 지오코딩해 venue 객체 반환 (실패 시 이름만).
  * 서술형 장소명은 뒤 단어부터 줄이며 재시도.
  * @param {string} query - 장소명

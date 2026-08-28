@@ -43,6 +43,7 @@ function VarietyEditForm() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [replayUrl, setReplayUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [removeThumbnail, setRemoveThumbnail] = useState(false);
@@ -56,6 +57,7 @@ function VarietyEditForm() {
       setDate(scheduleData.date || '');
       setTime(scheduleData.time || '');
       setReplayUrl(scheduleData.replayUrl || '');
+      setDescription(scheduleData.description || '');
       if (scheduleData.thumbnailUrl) setThumbnailPreview(scheduleData.thumbnailUrl);
       setInitialized(true);
     }
@@ -75,6 +77,7 @@ function VarietyEditForm() {
       formData.append('broadcaster', broadcaster.trim());
       formData.append('date', date);
       if (time) formData.append('time', time);
+      formData.append('description', description.trim());
       if (replayUrl.trim()) formData.append('replayUrl', replayUrl.trim());
       if (thumbnailFile) formData.append('thumbnail', thumbnailFile);
       if (removeThumbnail) formData.append('removeThumbnail', 'true');
@@ -181,6 +184,16 @@ function VarietyEditForm() {
           {/* 추가 정보 */}
           <div className={`${F.section} mt-11`}>EXTRA</div>
           <div className="mt-[22px] space-y-[26px]">
+            <div>
+              <label className={F.label}>내용 (선택)</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="예: 지원 게스트 출연 / 2부만 등장"
+                className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
+              />
+            </div>
             <div>
               <label className={F.label}>다시보기 링크 (선택)</label>
               <input

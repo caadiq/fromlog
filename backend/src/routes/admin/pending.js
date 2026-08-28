@@ -1,13 +1,13 @@
 import { parseJsonColumn } from '../../utils/json.js';
 import { logActivity } from '../../utils/log.js';
-import { createEtcSchedule, createEventSchedule, geocodeVenue } from '../../services/event.js';
+import { createEtcSchedule, createEventSchedule, createVarietySchedule, geocodeVenue } from '../../services/event.js';
 import { uploadEtcPoster, uploadEventPoster } from '../../services/image.js';
 import { createTempYoutubeSchedule } from '../../utils/tempSchedule.js';
 
 // 큐에서 서버 등록을 지원하는 카테고리 (그 외는 관리자 폼에서 직접 추가)
 // 유튜브는 영상이 아직 없으므로 '예정 일정'(is_temp=1, video_id 없음)으로 만든다.
 // 나중에 영상이 올라오면 봇이 제목으로 찾아 실제 영상으로 승격한다 → utils/tempSchedule.js
-const REGISTERABLE = ['기타', '행사', '유튜브'];
+const REGISTERABLE = ['기타', '행사', '유튜브', '예능'];
 
 /** multipart에서 payload(JSON) + poster 파일들 추출 */
 async function parseMultipartForm(request) {
@@ -82,7 +82,7 @@ export default async function pendingRoutes(fastify) {
 
   /**
    * POST /admin/pending/:id/register — 검토 후 등록 (multipart: payload + poster 파일들)
-   * payload: { category, title, date, time?, description?, venue?, venueName?, postUrls? }
+   * payload: { category, title, date, time?, description?, venue?, venueName?, postUrls?, broadcaster?, replayUrl? }
    * - venue: 장소 검색으로 고른 객체(좌표 포함). 없고 venueName만 있으면 서버가 지오코딩
    */
   fastify.post('/:id/register', { preHandler: [fastify.authenticate] }, async (request, reply) => {
@@ -114,9 +114,18 @@ export default async function pendingRoutes(fastify) {
     // 장소: 검색으로 고른 객체 우선, 없으면 이름만으로 지오코딩
     const venue = b.venue || (b.venueName ? await geocodeVenue(b.venueName) : null);
 
+    // 예능은 방송사가 필수 (schedule_variety.broadcaster NOT NULL)
+    if (category === '예능' && !b.broadcaster?.trim()) {
+      return reply.code(400).send({ error: '예능은 방송사/플랫폼이 필요합니다.' });
+    }
+
     let scheduleId;
     if (category === '유튜브') {
       scheduleId = await createTempYoutubeSchedule(db, meilisearch, { title, date, time });
+    } else if (category === '예능') {
+      scheduleId = await createVarietySchedule(db, meilisearch, {
+        title, date, time, broadcaster: b.broadcaster, description, replayUrl: b.replayUrl || null,
+      });
     } else if (category === '기타') {
       scheduleId = await createEtcSchedule(db, meilisearch, { title, date, time, description, venue, postUrls });
     } else {
@@ -127,7 +136,8 @@ export default async function pendingRoutes(fastify) {
     }
 
     // 포스터 업로드 (트랜잭션/생성 후 — S3 I/O)
-    if (posterFiles.length > 0) {
+    // 포스터를 붙일 자리가 있는 건 기타·행사뿐 (유튜브·예능은 폼에도 없다)
+    if (posterFiles.length > 0 && (category === '기타' || category === '행사')) {
       const isEtc = category === '기타';
       const uploadFn = isEtc ? uploadEtcPoster : uploadEventPoster;
       const table = isEtc ? 'schedule_etc' : 'schedule_event';

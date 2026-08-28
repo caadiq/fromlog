@@ -339,7 +339,7 @@ fromis_9/
 - `schedule_x` - X(Twitter) 게시물 연결 정보
 - `schedule_concert` - 콘서트 일정 추가 정보
 - `schedule_ticketing` - 티켓팅 일정 추가 정보 (선예매/일반예매 세트, 예매처, 인증 기간, 콘서트 시리즈 연결)
-- `schedule_variety` - 예능 일정 추가 정보 (방송사 등)
+- `schedule_variety` - 예능 일정 추가 정보 (방송사 · 내용 · 다시보기 · 썸네일)
 - `schedule_fansign` - 팬사인회 추가 정보 (대면/영통, 장소)
 - `schedule_etc` - 기타 일정 추가 정보 (설명, 장소, 포스터, 링크)
 - `schedule_links` - 일정 고정 링크 (투표·스밍 안내 등)

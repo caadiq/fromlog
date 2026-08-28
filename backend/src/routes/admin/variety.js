@@ -56,6 +56,7 @@ export default async function varietyRoutes(fastify) {
     let date = '';
     let time = null;
     let broadcaster = '';
+    let description = null;
     let replayUrl = null;
     let thumbnailBuffer = null;
 
@@ -67,6 +68,7 @@ export default async function varietyRoutes(fastify) {
         else if (part.fieldname === 'date') date = part.value;
         else if (part.fieldname === 'time') time = part.value || null;
         else if (part.fieldname === 'broadcaster') broadcaster = part.value;
+        else if (part.fieldname === 'description') description = part.value || null;
         else if (part.fieldname === 'replayUrl') replayUrl = part.value || null;
       }
     }
@@ -96,8 +98,8 @@ export default async function varietyRoutes(fastify) {
 
       // schedule_variety 테이블
       await db.query(
-        'INSERT INTO schedule_variety (schedule_id, broadcaster, replay_url, thumbnail_id) VALUES (?, ?, ?, ?)',
-        [scheduleId, broadcaster.trim(), replayUrl?.trim() || null, thumbnailId]
+        'INSERT INTO schedule_variety (schedule_id, broadcaster, description, replay_url, thumbnail_id) VALUES (?, ?, ?, ?, ?)',
+        [scheduleId, broadcaster.trim(), description?.trim() || null, replayUrl?.trim() || null, thumbnailId]
       );
 
       // Meilisearch 동기화
@@ -138,6 +140,7 @@ export default async function varietyRoutes(fastify) {
     let date = '';
     let time = null;
     let broadcaster = '';
+    let description = null;
     let replayUrl = null;
     let thumbnailBuffer = null;
     let removeThumbnail = false;
@@ -150,6 +153,7 @@ export default async function varietyRoutes(fastify) {
         else if (part.fieldname === 'date') date = part.value;
         else if (part.fieldname === 'time') time = part.value || null;
         else if (part.fieldname === 'broadcaster') broadcaster = part.value;
+        else if (part.fieldname === 'description') description = part.value || null;
         else if (part.fieldname === 'replayUrl') replayUrl = part.value || null;
         else if (part.fieldname === 'removeThumbnail') removeThumbnail = part.value === 'true';
       }
@@ -184,11 +188,11 @@ export default async function varietyRoutes(fastify) {
 
       // schedule_variety upsert
       if (varietyRows.length > 0) {
-        await db.query('UPDATE schedule_variety SET broadcaster = ?, replay_url = ?, thumbnail_id = ? WHERE schedule_id = ?',
-          [broadcaster?.trim() || '', replayUrl?.trim() || null, thumbnailId, id]);
+        await db.query('UPDATE schedule_variety SET broadcaster = ?, description = ?, replay_url = ?, thumbnail_id = ? WHERE schedule_id = ?',
+          [broadcaster?.trim() || '', description?.trim() || null, replayUrl?.trim() || null, thumbnailId, id]);
       } else {
-        await db.query('INSERT INTO schedule_variety (schedule_id, broadcaster, replay_url, thumbnail_id) VALUES (?, ?, ?, ?)',
-          [id, broadcaster?.trim() || '', replayUrl?.trim() || null, thumbnailId]);
+        await db.query('INSERT INTO schedule_variety (schedule_id, broadcaster, description, replay_url, thumbnail_id) VALUES (?, ?, ?, ?, ?)',
+          [id, broadcaster?.trim() || '', description?.trim() || null, replayUrl?.trim() || null, thumbnailId]);
       }
 
       await syncScheduleById(meilisearch, db, parseInt(id), redis);
@@ -213,7 +217,7 @@ export default async function varietyRoutes(fastify) {
     try {
       const [rows] = await db.query(`
         SELECT s.id, s.title, s.date, s.time,
-               sv.broadcaster, sv.replay_url, sv.thumbnail_id,
+               sv.broadcaster, sv.description, sv.replay_url, sv.thumbnail_id,
                i.original_url as thumb_original, i.medium_url as thumb_medium, i.thumb_url as thumb_thumb
         FROM schedules s
         LEFT JOIN schedule_variety sv ON s.id = sv.schedule_id
@@ -231,6 +235,7 @@ export default async function varietyRoutes(fastify) {
         date: s.date instanceof Date ? s.date.toISOString().split('T')[0] : s.date?.split('T')[0] || '',
         time: s.time ? s.time.substring(0, 5) : '',
         broadcaster: s.broadcaster || '',
+        description: s.description || '',
         replayUrl: s.replay_url || '',
         thumbnailUrl: s.thumb_medium || s.thumb_original || '',
       };

@@ -900,10 +900,12 @@ DC봇이 적재한 신규 일정 후보(`bot_pending_schedules`)를 검토·등�
 대기 건수 (배지용). **응답:** `{ count }`
 
 ### POST /admin/pending/:id/register
-검토 후 등록 (수정된 값으로). **본문:** `{ category, title, date, time?, venueName?, description?, postUrls? }`
+검토 후 등록 (수정된 값으로). **본문:** `{ category, title, date, time?, venueName?, description?, postUrls?, broadcaster? }`
 - `기타` → `schedule_etc`, `행사` → `schedule_event`(general)로 생성. `venueName`은 카카오로 지오코딩
 - `유튜브` → **예정 일정**(`schedules.is_temp=1` + `schedule_youtube.video_id=NULL`)으로 생성.
   영상이 아직 없으므로 장소·포스터·링크는 무시한다. 나중에 영상이 올라오면 봇이 제목으로 찾아 승격한다(아래)
+- `예능` → `schedule_variety`로 생성. `broadcaster` 필수(NOT NULL), `description`으로 출연 내용을 적는다.
+  장소·포스터·링크는 쓰지 않는다
 - 그 외 카테고리는 400(`UNSUPPORTED_CATEGORY`) — 관리자 폼에서 직접 추가 후 무시
 - 성공 시 큐 항목 `status='registered'`, `created_schedule_id` 연결. **응답:** `{ id }`(생성된 일정 id)
 

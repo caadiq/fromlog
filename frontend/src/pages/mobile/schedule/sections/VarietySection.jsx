@@ -31,6 +31,13 @@ function MobileVarietySection({ schedule }) {
           {decodeHtmlEntities(schedule.title)}
         </h1>
 
+        {/* 내용 */}
+        {schedule.description && (
+          <p className="mt-5 whitespace-pre-wrap border-t-2 border-ink pt-5 text-[15px] leading-[1.7] text-ebody">
+            {decodeHtmlEntities(schedule.description)}
+          </p>
+        )}
+
         {/* 팩트 시트 */}
         <div className="mt-5 border-t-2 border-ink">
           <Fact k="DATE">{formatFactDate(schedule.date, schedule.time)}</Fact>

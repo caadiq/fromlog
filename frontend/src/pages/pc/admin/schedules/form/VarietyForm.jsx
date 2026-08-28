@@ -26,6 +26,7 @@ function VarietyForm() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [replayUrl, setReplayUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -63,6 +64,7 @@ function VarietyForm() {
       formData.append('broadcaster', broadcaster.trim());
       formData.append('date', date);
       if (time) formData.append('time', time);
+      if (description.trim()) formData.append('description', description.trim());
       if (replayUrl.trim()) formData.append('replayUrl', replayUrl.trim());
       if (thumbnailFile) formData.append('thumbnail', thumbnailFile);
 
@@ -151,6 +153,17 @@ function VarietyForm() {
         {/* 추가 정보 */}
         <div className={`${F.section} mt-11`}>EXTRA</div>
         <div className="mt-[22px] space-y-[26px]">
+          <div>
+            <label className={F.label}>내용 (선택)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="예: 지원 게스트 출연 / 2부만 등장"
+              className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
+            />
+          </div>
+
           <div>
             <label className={F.label}>다시보기 링크 (선택)</label>
             <input

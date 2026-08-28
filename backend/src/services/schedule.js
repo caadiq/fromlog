@@ -168,6 +168,7 @@ export async function getScheduleDetail(db, id, getXProfile = null) {
       sx.video_thumbnails as x_video_thumbnails,
       sx.card_data as x_card_data,
       sv.broadcaster as variety_broadcaster,
+      sv.description as variety_description,
       sv.replay_url as variety_replay_url,
       svi.medium_url as variety_thumbnail_url,
       se.subtype as event_subtype,
@@ -312,9 +313,10 @@ async function enrichX(s, result, getXProfile) {
   }
 }
 
-/** 예능: 방송사·다시보기·썸네일 */
+/** 예능: 방송사·내용·다시보기·썸네일 */
 function enrichVariety(s, result) {
   result.broadcaster = s.variety_broadcaster;
+  result.description = s.variety_description || null;
   result.replayUrl = s.variety_replay_url || null;
   result.thumbnailUrl = s.variety_thumbnail_url || null;
 }
