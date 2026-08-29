@@ -1694,6 +1694,27 @@ class VarietySection extends StatelessWidget {
                     color: EColors.ink,
                   ),
                 ),
+                if (schedule.description != null &&
+                    schedule.description!.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.only(top: 20),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: EColors.ink, width: 2),
+                      ),
+                    ),
+                    child: Text(
+                      decodeHtmlEntities(schedule.description!),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.7,
+                        color: EColors.ebody,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 Container(
                   decoration: const BoxDecoration(
