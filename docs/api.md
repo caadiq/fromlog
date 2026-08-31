@@ -114,8 +114,7 @@ X 게시물 일정의 이미지를 원본 화질(name=orig)로 프록시 스트�
 응원법이 있는 곡 목록 (곡 상세에서 링크를 띄울지 판단용).
 
 **응답:** `{ items: [{ trackId, title, albumTitle }] }`
-- **시각을 하나라도 찍은 곡만** 나온다. 영상만 걸어둔 준비 상태는 빼는데,
-  들어가봐야 하이라이트가 없어 그냥 가사만 흐르기 때문이다
+- **`published = 1`인 곡만** 나온다 (아래 참고)
 
 ### GET /fanchant/:trackId
 곡 응원법 조회 (공개). 재생 중 매 프레임 계산해야 해서 한 벌을 통째로 내려준다.
@@ -123,16 +122,24 @@ X 게시물 일정의 이미지를 원본 화질(name=orig)로 프록시 스트�
 **응답:** `{ trackId, trackTitle, albumId, albumTitle, videoId, video, colors, lines }`
 - `video`: 아카이브에 있으면 `{ title, channelName, publishedAt }`, 없으면 `null`
 - `colors`: `{ call, sing }` — 관리자 지정값 > 앨범 커버에서 뽑은 두 색 > 커버가 단색이면 진한 변주 > 기본값
-- 곡이 없거나, 영상이 없거나, **시각을 하나도 안 찍었으면** 404
+- 곡이 없거나, 영상이 없거나, **아직 공개하지 않았으면**(`published = 0`) 404 — 주소를 알아도 못 본다
+
+#### 초안과 공개 (`published`)
+싱크는 곡당 100~250개 지점을 찍는 작업이라 한 번에 안 끝난다. 종전에는 공개 조건이
+"시각이 하나라도 찍혔는가"여서, 중간에 저장하면 반쯤 찍힌 응원법이 곧바로 팬에게 보였다
+(그래서 저장 자체를 망설이게 됐다 — 실제로 곡당 30번 가까이 손으로 저장한 기록이 남아 있다).
+공개 여부를 따로 두어, 편집기는 마음껏 자동 저장하고 다 되면 관리자가 공개를 켠다.
 
 ### GET /fanchant/:trackId/admin (인증)
 편집용. 응원법이 아직 없으면 `lyrics`(곡 가사)를 초기값으로 준다.
 
-**응답:** `{ trackId, trackTitle, albumTitle, coverUrl, lyrics, videoId, colors, colorSource, manualColors, lines }`
+**응답:** `{ trackId, trackTitle, albumTitle, coverUrl, lyrics, videoId, published, colors, colorSource, manualColors, lines }`
 
 ### PUT /fanchant/:trackId (인증)
-저장. **본문:** `{ videoId, colorCall?, colorSing?, lines }`
+저장. **본문:** `{ videoId, colorCall?, colorSing?, published?, lines }`
 - 색은 `#RRGGBB` 형식만. 비우면(`null`) 커버에서 자동 추출
+- `published` 생략 시 `false` — 편집기는 항상 현재 토글 상태를 함께 보낸다
+- 편집기가 **입력이 멈추고 3초 뒤 자동으로** 호출한다(연타 중에는 안 나간다). Ctrl+S는 즉시 저장
 - **응답:** `{ success, lines, synced, total }` (synced/total = 시각을 찍은 줄 수)
 
 ### DELETE /fanchant/:trackId (인증)

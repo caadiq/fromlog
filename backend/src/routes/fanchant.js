@@ -12,19 +12,19 @@ import { normalizeLines, resolveColors, PART_TYPES } from '../services/fanchant.
 /**
  * 시각을 하나라도 찍었는가.
  *
- * 영상만 걸어두고 가사를 넣어둔 준비 상태에서는 공개하지 않는다 —
- * 하이라이트가 하나도 안 걸려 그냥 가사만 흐르는 페이지가 된다.
- * 줄이든 구간이든 `"t":<숫자>`가 하나라도 있으면 작업이 시작된 것으로 본다
- * (안 찍힌 자리는 `"t":null`이라 걸리지 않는다).
+ * 작업이 끝났다고 표시한 것만 공개한다(`published`).
+ *
+ * 종전에는 "시각이 하나라도 찍혔는가"로 판단했다. 그런데 싱크는 한 번에 끝나지 않아
+ * 중간중간 저장하게 되는데, 그 저장이 곧 공개였다 — 반쯤 찍힌 응원법이 팬에게 보였다.
+ * 이제 저장은 얼마든지 하고, 내보낼 때 공개를 켠다.
  */
-const SYNCED = /"t":\s*[0-9]/;
 
 /** 곡 + 앨범 커버 + 응원법 행을 한 번에 */
 async function loadTrack(db, trackId) {
   const [rows] = await db.query(
     `SELECT t.id, t.title, t.lyrics, t.album_id,
             a.title AS album_title, a.cover_medium_url,
-            f.video_id, f.color_call, f.color_sing, f.lines_json
+            f.video_id, f.published, f.color_call, f.color_sing, f.lines_json
        FROM album_tracks t
        JOIN albums a ON a.id = t.album_id
        LEFT JOIN track_fanchant f ON f.track_id = t.id
@@ -47,8 +47,8 @@ export default async function fanchantRoutes(fastify) {
   }, async (request, reply) => {
     const row = await loadTrack(db, request.params.trackId);
     if (!row) return notFound(reply, '곡을 찾을 수 없습니다.');
-    // 영상만 걸어둔 준비 상태는 주소를 알아도 들어올 수 없다 (목록에도 안 나온다)
-    if (!row.video_id || !SYNCED.test(row.lines_json || '')) {
+    // 작업 중인 것은 주소를 알아도 들어올 수 없다 (목록에도 안 나온다)
+    if (!row.video_id || !row.published) {
       return notFound(reply, '이 곡은 아직 응원법이 등록되지 않았습니다.');
     }
 
@@ -92,6 +92,7 @@ export default async function fanchantRoutes(fastify) {
       colors: { call: colors.call, sing: colors.sing },
       colorSource: colors.source,
       manualColors: { call: row.color_call, sing: row.color_sing },
+      published: !!row.published,
       lines: parseJsonColumn(row.lines_json, null),
     };
   });
@@ -109,6 +110,7 @@ export default async function fanchantRoutes(fastify) {
           videoId: { type: 'string', minLength: 5, maxLength: 20 },
           colorCall: { type: ['string', 'null'] },
           colorSing: { type: ['string', 'null'] },
+          published: { type: 'boolean' },
           lines: { type: 'array' },
         },
       },
@@ -116,7 +118,7 @@ export default async function fanchantRoutes(fastify) {
     preHandler: [fastify.authenticate],
   }, async (request, reply) => {
     const trackId = request.params.trackId;
-    const { videoId, colorCall = null, colorSing = null, lines } = request.body;
+    const { videoId, colorCall = null, colorSing = null, lines, published = false } = request.body;
 
     const [[track]] = await db.query('SELECT id, title FROM album_tracks WHERE id = ?', [trackId]);
     if (!track) return notFound(reply, '곡을 찾을 수 없습니다.');
@@ -131,12 +133,13 @@ export default async function fanchantRoutes(fastify) {
 
     try {
       await db.query(
-        `INSERT INTO track_fanchant (track_id, video_id, color_call, color_sing, lines_json)
-              VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO track_fanchant (track_id, video_id, published, color_call, color_sing, lines_json)
+              VALUES (?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
-              video_id = VALUES(video_id), color_call = VALUES(color_call),
+              video_id = VALUES(video_id), published = VALUES(published),
+              color_call = VALUES(color_call),
               color_sing = VALUES(color_sing), lines_json = VALUES(lines_json)`,
-        [trackId, videoId, colorCall, colorSing, JSON.stringify(normalized)]
+        [trackId, videoId, published ? 1 : 0, colorCall, colorSing, JSON.stringify(normalized)]
       );
     } catch (err) {
       fastify.log.error(`응원법 저장 오류: ${err.message}`);
@@ -148,7 +151,7 @@ export default async function fanchantRoutes(fastify) {
     logActivity(db, {
       actor: 'admin', action: 'update', category: 'album',
       targetType: 'fanchant', targetId: Number(trackId),
-      summary: `응원법 저장: ${track.title} (${synced}/${total}줄 싱크)`,
+      summary: `응원법 저장: ${track.title} (${synced}/${total}줄 싱크${published ? ', 공개' : ''})`,
     });
 
     return { success: true, lines: normalized.length, synced, total };
@@ -181,7 +184,7 @@ export default async function fanchantRoutes(fastify) {
          FROM track_fanchant f
          JOIN album_tracks t ON t.id = f.track_id
          JOIN albums a ON a.id = t.album_id
-        WHERE f.lines_json REGEXP '"t":[0-9]'
+        WHERE f.published = 1
         ORDER BY a.release_date DESC`
     );
     return { items: rows.map((r) => ({ trackId: r.track_id, title: r.title, albumTitle: r.album_title })) };

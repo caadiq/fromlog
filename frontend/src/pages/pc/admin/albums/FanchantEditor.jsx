@@ -11,7 +11,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Megaphone, Play, Pause, RotateCcw, Trash2 } from 'lucide-react';
+import { Megaphone, Play, Pause, RotateCcw, Trash2, Eye, EyeOff } from 'lucide-react';
 
 import { Toast } from '@/components/common';
 import { AdminLayout, AdminPageHeader, F } from '@/components/pc/admin';
@@ -62,6 +62,10 @@ function FanchantEditor() {
   // 목록을 눌러 고른 상태인가 — 스페이스로 자동 이동한 것과 구분한다
   const [pickedByUser, setPickedByUser] = useState(false);
   const [saving, setSaving] = useState(false);
+  // 공개 여부 — 켜야 팬에게 보인다. 작업 중에는 아무리 저장해도 안 보인다
+  const [published, setPublished] = useState(false);
+  // 자동 저장 상태 표시 ('' | 'saving' | 'saved' | 오류 문구)
+  const [autoState, setAutoState] = useState('');
   const textRef = useRef(null);
   const listRef = useRef(null);
   const loadedRef = useRef(false);
@@ -79,6 +83,7 @@ function FanchantEditor() {
     setVideoId(data.videoId || '');
     setColorCall(data.manualColors?.call || '');
     setColorSing(data.manualColors?.sing || '');
+    setPublished(!!data.published);
     if (data.lines) {
       setMarkup(toMarkup(data.lines));
       setTimes(extractCueTimes(data.lines, buildCues(data.lines)));
@@ -305,24 +310,61 @@ function FanchantEditor() {
     return () => window.removeEventListener('keydown', onKey);
   }, [step, stamp, stepBack, nudge, player]);
 
+  /** 지금 화면 상태를 서버가 받는 모양으로 */
+  const buildPayload = useCallback(() => ({
+    videoId: videoId.trim(),
+    colorCall: colorCall || null,
+    colorSing: colorSing || null,
+    published,
+    lines: applyCueTimes(mergeTimings(lines, data?.lines), cues, times),
+  }), [videoId, colorCall, colorSing, published, lines, data, cues, times]);
+
   const handleSave = async () => {
     if (!videoId.trim()) { setToast({ type: 'error', message: '응원법 영상 ID를 입력해주세요.' }); return; }
     setSaving(true);
     try {
-      const merged = applyCueTimes(mergeTimings(lines, data?.lines), cues, times);
-      const res = await saveFanchant(trackId, {
-        videoId: videoId.trim(),
-        colorCall: colorCall || null,
-        colorSing: colorSing || null,
-        lines: merged,
-      });
+      const res = await saveFanchant(trackId, buildPayload());
       setToast({ type: 'success', message: `저장했습니다. (${res.synced}/${res.total}줄 싱크)` });
+      setAutoState('saved');
     } catch (err) {
       setToast({ type: 'error', message: err.message || '저장에 실패했습니다.' });
     } finally {
       setSaving(false);
     }
   };
+
+  /**
+   * 자동 저장.
+   *
+   * 싱크는 한 곡에 수백 번 찍는 작업이라, 날아갈까 봐 중간중간 손으로 저장하게 된다
+   * (실제로 곡당 30번 가까이 저장한 기록이 남아 있다). 손을 뗀 뒤 잠깐 있다가 알아서 저장한다.
+   * 연타 중에는 나가지 않는다 — 마지막 입력에서 3초를 센다.
+   */
+  const autoRef = useRef({ first: true, last: '' });
+  useEffect(() => {
+    if (!data || !videoId.trim() || markup.trim() === '') return undefined;
+
+    // 서버에서 막 받아온 첫 상태는 저장할 필요가 없다
+    const snapshot = JSON.stringify({ markup, times, videoId, colorCall, colorSing, published });
+    if (autoRef.current.first) {
+      autoRef.current.first = false;
+      autoRef.current.last = snapshot;
+      return undefined;
+    }
+    if (snapshot === autoRef.current.last) return undefined;
+
+    const timer = setTimeout(async () => {
+      autoRef.current.last = snapshot;
+      setAutoState('saving');
+      try {
+        await saveFanchant(trackId, buildPayload());
+        setAutoState('saved');
+      } catch (err) {
+        setAutoState(err.message || '자동 저장 실패');
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [markup, times, videoId, colorCall, colorSing, published, data, trackId, buildPayload]);
 
   /**
    * Ctrl+S(맥은 ⌘S)로 저장.
@@ -415,7 +457,27 @@ function FanchantEditor() {
             solid="응원법 "
             outline="편집"
             right={
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {/* 자동 저장 상태 — 눈에 띄지 않게, 그러나 확인은 되게 */}
+                <span className="mr-1 text-[12.5px] font-bold text-mute">
+                  {autoState === 'saving' ? '저장 중…'
+                    : autoState === 'saved' ? '저장됨'
+                    : autoState || ''}
+                </span>
+                {/* 공개 토글 — 켜야 팬에게 보인다 */}
+                <button
+                  type="button"
+                  onClick={() => setPublished((v) => !v)}
+                  title={published ? '팬에게 보이는 상태입니다' : '작업 중 — 팬에게 보이지 않습니다'}
+                  className={`flex items-center gap-1.5 border px-[14px] py-[11px] text-[13px] font-extrabold tracking-k15 transition-colors ${
+                    published
+                      ? 'border-ink bg-ink text-white'
+                      : 'border-hairline bg-white text-mute hover:border-ink hover:text-ink'
+                  }`}
+                >
+                  {published ? <Eye size={14} /> : <EyeOff size={14} />}
+                  {published ? '공개' : '작업 중'}
+                </button>
                 <button onClick={() => navigate(-1)} className="border border-hairline bg-white px-[18px] py-[11px] text-[13px] font-extrabold tracking-k15 text-esub transition-colors hover:border-ink hover:text-ink">← 뒤로</button>
                 <button onClick={handleSave} disabled={saving} className={F.btnInk}>{saving ? '저장 중…' : '저장'}</button>
               </div>
