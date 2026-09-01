@@ -931,22 +931,28 @@ DC봇이 적재한 신규 일정 후보(`bot_pending_schedules`)를 검토·등�
 
 ## 관리자 - 팬사인회 (인증 필요)
 
-팬사인회(카테고리 5)는 `schedule_fansign`(format, venue_id)에 1:1로 저장. JSON 본문.
+팬사인회(카테고리 5)는 `schedule_fansign`(format, host, venue_id, post_urls)에 1:1로 저장. JSON 본문.
 
 ### POST /admin/fansign
 팬사인회 생성
 
-**본문:** `{ title, date, time?, format, venue?, postUrls?, members? }`
-- `format`: `'offline'`(대면) | `'online'`(영통). 기본 `'offline'`
-- `venue`: `{ name, address?, lat?, lng?, kakao_id? }` — 대면일 때만 event_venues에 upsert. 영통이면 무시되어 NULL 저장
-- `postUrls`: 출처 링크 문자열 배열 (위버스 공지·판매처 등). `schedule_fansign.post_urls`(JSON)에 저장
-- `members`: 멤버 id 배열
+**본문:** `{ title, date, time?, format, host?, venue?, venueName?, postUrls? }`
+- `format`: `'offline'`(대면) | `'online'`(영상통화) | `'both'`(대면+영상통화). 기본 `'offline'`
+- `host`: 주최(음반점·판매처). 예: 뮤직아트, 비트로드
+- `venue` / `venueName`: **선택**. 좌표까지 고른 장소는 `venue`(`{ name, address?, lat?, lng?, kakao_id? }`),
+  이름만 알면 `venueName`으로 주면 서버가 카카오로 찾는다. `event_venues`에 upsert
+- `postUrls`: 출처 링크 문자열 배열 (판매처 공지·X 원문 등). `post_urls`(JSON)에 저장
 - `title`, `date` 필수
 
 **응답:** `{ "success": true, "scheduleId": 3201 }`
 
+#### 장소는 왜 선택인가
+비공개 팬사인회는 장소가 당첨자에게 개별 안내되어 공지에 없다. 반면 공개 팬사인회
+(예: 스타필드 수원 타워 아트리움)는 장소가 그대로 공지된다. 그래서 있으면 넣고,
+없으면 화면에서 "장소는 당첨자에게 개별 안내됩니다"를 그대로 보여준다.
+
 ### PUT /admin/fansign/:id
-팬사인회 수정 (본문은 POST와 동일, 멤버는 전체 교체)
+팬사인회 수정 (본문은 POST와 동일). 장소를 빼고 보내면 지워진다
 
 ### 삭제
 별도 라우트 없이 공용 `DELETE /schedules/:id` 사용 (schedules CASCADE로 schedule_fansign 정리)

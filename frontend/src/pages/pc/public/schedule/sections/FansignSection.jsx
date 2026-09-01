@@ -1,4 +1,5 @@
 import { ExternalLink, PenLine, Video, Users } from 'lucide-react';
+import { KakaoMap } from '@/components/common';
 import { decodeHtmlEntities } from './utils';
 import Crumb from './Crumb';
 
@@ -17,6 +18,10 @@ function FansignSection({ schedule }) {
   const meta = FANSIGN_FORMAT[schedule.format] || FANSIGN_FORMAT.offline;
   const Icon = meta.icon;
   const postUrls = schedule.postUrls || [];
+  const venue = schedule.venue || null;
+  const kakaoMapUrl = venue && venue.lat && venue.lng
+    ? `https://map.kakao.com/link/map/${encodeURIComponent(venue.name)},${venue.lat},${venue.lng}`
+    : null;
 
   const linkLabel = (url) => {
     try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
@@ -28,6 +33,20 @@ function FansignSection({ schedule }) {
     facts.push({ k: 'HOST', v: schedule.host });
   }
   facts.push({ k: 'FORMAT', v: meta.fact });
+  // 공개 팬사인회처럼 장소가 공지된 경우에만 있다 (비공개는 당첨자 개별 안내)
+  if (venue) {
+    facts.push({
+      k: 'VENUE',
+      v: (
+        <>
+          {venue.name}
+          {venue.address && (
+            <span className="mt-[3px] block text-[14.5px] font-medium text-mute">{venue.address}</span>
+          )}
+        </>
+      ),
+    });
+  }
   if (postUrls.length > 0) {
     facts.push({
       k: 'LINKS',
@@ -81,9 +100,34 @@ function FansignSection({ schedule }) {
         ))}
       </div>
 
-      <p className="mt-5 text-[13.5px] leading-[1.7] text-mute">
-        장소는 당첨자에게 개별 안내됩니다.
-      </p>
+      {/* 장소가 공개된 경우에만 지도. 아니면 개별 안내 문구 */}
+      {venue && venue.lat && venue.lng ? (
+        <div className="relative mt-[26px] border border-hairline">
+          <KakaoMap
+            lat={Number(venue.lat)}
+            lng={Number(venue.lng)}
+            name={venue.name}
+            className="h-[230px] w-full"
+          />
+          <span className="pointer-events-none absolute bottom-3.5 left-4 z-10 text-[13.5px] font-extrabold tracking-k15 text-esub">
+            KAKAO MAP
+          </span>
+          {kakaoMapUrl && (
+            <a
+              href={kakaoMapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute bottom-3 right-3 z-10 border border-hairline bg-white px-3 py-1.5 text-[12.5px] font-extrabold tracking-k15 text-esub transition-colors hover:border-ink hover:text-ink"
+            >
+              길찾기
+            </a>
+          )}
+        </div>
+      ) : (
+        <p className="mt-5 text-[13.5px] leading-[1.7] text-mute">
+          장소는 당첨자에게 개별 안내됩니다.
+        </p>
+      )}
     </div>
   );
 }

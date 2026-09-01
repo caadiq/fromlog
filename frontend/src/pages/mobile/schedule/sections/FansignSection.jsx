@@ -1,5 +1,5 @@
 import { ExternalLink, PenLine, Users, Video } from 'lucide-react';
-import { decodeHtmlEntities, Fact, formatFactDate } from './utils';
+import { decodeHtmlEntities, Fact, formatFactDate, VenueMap } from './utils';
 
 /**
  * Mobile 팬사인회 섹션 — 에디토리얼 리뉴얼
@@ -13,9 +13,11 @@ const MOBILE_FANSIGN_FORMAT = {
 };
 
 /**
- * Mobile 팬사인회 섹션 — 주최·형식·링크 (장소는 당첨자 개별 안내라 미표기)
+ * Mobile 팬사인회 섹션 — 주최·형식·장소·링크
+ * 장소는 선택 — 공개 팬사인회만 공지에 나오고, 비공개는 당첨자 개별 안내다
  */
 function MobileFansignSection({ schedule }) {
+  const venue = schedule.venue || null;
   const meta = MOBILE_FANSIGN_FORMAT[schedule.format] || MOBILE_FANSIGN_FORMAT.offline;
   const Icon = meta.icon;
   const postUrls = schedule.postUrls || [];
@@ -44,6 +46,14 @@ function MobileFansignSection({ schedule }) {
         <Fact k="DATE">{formatFactDate(schedule.date, schedule.time)}</Fact>
         {schedule.host && <Fact k="HOST">{schedule.host}</Fact>}
         <Fact k="FORMAT">{meta.fact}</Fact>
+        {venue && (
+          <Fact k="VENUE">
+            {venue.name}
+            {venue.address && (
+              <span className="mt-[2px] block text-[13px] font-medium text-mute">{venue.address}</span>
+            )}
+          </Fact>
+        )}
         {postUrls.length > 0 && (
           <Fact k="LINKS">
             <span className="flex flex-wrap gap-1.5">
@@ -64,7 +74,11 @@ function MobileFansignSection({ schedule }) {
         )}
       </div>
 
-      <p className="mt-4 text-[13px] leading-[1.7] text-mute">장소는 당첨자에게 개별 안내됩니다.</p>
+      {venue ? (
+        <VenueMap venue={venue} />
+      ) : (
+        <p className="mt-4 text-[13px] leading-[1.7] text-mute">장소는 당첨자에게 개별 안내됩니다.</p>
+      )}
     </div>
   );
 }

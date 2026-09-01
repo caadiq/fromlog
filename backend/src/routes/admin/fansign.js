@@ -1,13 +1,15 @@
 /**
  * 팬사인회 일정 생성/수정 라우트
  * format: 'offline'(대면) | 'online'(영상통화) | 'both'(대면+영상통화)
- * 장소는 당첨자 개별 안내라 표기하지 않고, 주최(음반점)를 host에 저장한다.
+ * 주최(음반점)는 host에, 장소는 venue_id에 저장한다.
+ * 장소는 선택 — 비공개 팬사인회는 당첨자 개별 안내라 없고, 공개 팬사인회만 공지에 나온다.
  */
 import { errorResponse } from '../../schemas/index.js';
 import { badRequest, notFound } from '../../utils/error.js';
 import { logActivity } from '../../utils/log.js';
 import { withTransaction } from '../../utils/transaction.js';
 import { syncScheduleById } from '../../services/meilisearch/index.js';
+import { upsertVenue, geocodeVenue } from '../../services/event.js';
 import { CATEGORY_IDS } from '../../config/index.js';
 
 const fansignBody = {
@@ -18,10 +20,21 @@ const fansignBody = {
     time: { type: ['string', 'null'] },
     format: { type: 'string', enum: ['offline', 'online', 'both'], default: 'offline' },
     host: { type: ['string', 'null'], maxLength: 100 },
+    // 장소 검색으로 고르면 객체, 이름만 알면 venueName (서버가 지오코딩)
+    venue: { type: ['object', 'null'], additionalProperties: true },
+    venueName: { type: ['string', 'null'] },
     postUrls: { type: 'array', items: { type: 'string' }, default: [] },
   },
   required: ['title', 'date'],
 };
+
+/** 좌표까지 고른 장소는 그대로, 이름만 온 것은 카카오로 찾아본다 (기타·행사와 같은 방식) */
+async function resolveVenue(body) {
+  if (body.venue?.lat) return body.venue;
+  if (body.venue?.id) return body.venue;
+  const name = (body.venueName || body.venue?.name || '').trim();
+  return name ? await geocodeVenue(name) : null;
+}
 
 export default async function fansignAdminRoutes(fastify) {
   const { db, meilisearch, redis } = fastify;
@@ -44,6 +57,7 @@ export default async function fansignAdminRoutes(fastify) {
     if (!date) return badRequest(reply, '날짜는 필수입니다.');
 
     const cleanUrls = postUrls.map((u) => u.trim()).filter(Boolean);
+    const venue = await resolveVenue(request.body);
 
     const scheduleId = await withTransaction(db, async (conn) => {
       const [result] = await conn.query(
@@ -53,8 +67,12 @@ export default async function fansignAdminRoutes(fastify) {
       const sid = result.insertId;
 
       await conn.query(
-        'INSERT INTO schedule_fansign (schedule_id, format, host, post_urls) VALUES (?, ?, ?, ?)',
-        [sid, format, host?.trim() || null, cleanUrls.length > 0 ? JSON.stringify(cleanUrls) : null]
+        'INSERT INTO schedule_fansign (schedule_id, format, host, venue_id, post_urls) VALUES (?, ?, ?, ?, ?)',
+        [
+          sid, format, host?.trim() || null,
+          venue ? await upsertVenue(conn, venue) : null,
+          cleanUrls.length > 0 ? JSON.stringify(cleanUrls) : null,
+        ]
       );
 
       return sid;
@@ -90,6 +108,7 @@ export default async function fansignAdminRoutes(fastify) {
     if (!title?.trim()) return badRequest(reply, '제목은 필수입니다.');
 
     const cleanUrls = postUrls.map((u) => u.trim()).filter(Boolean);
+    const venue = await resolveVenue(request.body);
 
     const [existing] = await db.query('SELECT schedule_id FROM schedule_fansign WHERE schedule_id = ?', [id]);
     if (existing.length === 0) return notFound(reply, '팬사인회 일정을 찾을 수 없습니다.');
@@ -100,8 +119,12 @@ export default async function fansignAdminRoutes(fastify) {
         [title.trim(), date, time || null, id]
       );
       await conn.query(
-        'UPDATE schedule_fansign SET format = ?, host = ?, post_urls = ? WHERE schedule_id = ?',
-        [format, host?.trim() || null, cleanUrls.length > 0 ? JSON.stringify(cleanUrls) : null, id]
+        'UPDATE schedule_fansign SET format = ?, host = ?, venue_id = ?, post_urls = ? WHERE schedule_id = ?',
+        [
+          format, host?.trim() || null,
+          venue ? await upsertVenue(conn, venue) : null,
+          cleanUrls.length > 0 ? JSON.stringify(cleanUrls) : null, id,
+        ]
       );
     });
 

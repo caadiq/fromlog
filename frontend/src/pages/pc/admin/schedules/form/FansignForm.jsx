@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { PenLine, Video, Users, X } from 'lucide-react';
+import { PenLine, Video, Users, X, MapPin } from 'lucide-react';
 import AdminLayout from '@/components/pc/admin/layout/Layout';
 import DatePicker from '@/components/pc/admin/common/DatePicker';
 import TimePicker from '@/components/pc/admin/common/TimePicker';
@@ -18,6 +18,7 @@ import { useAdminAuth } from '@/hooks/pc/admin';
 import { EASE } from '@/components/editorial';
 import { getSchedule } from '@/api/admin/schedules';
 import { createFansign, updateFansign } from '@/api/admin/fansign';
+import LocationSearchDialog from '@/components/pc/admin/schedule/LocationSearchDialog';
 
 const FORMATS = [
   { value: 'offline', label: '대면', icon: PenLine },
@@ -39,6 +40,9 @@ function FansignForm({ inline = false }) {
   const [host, setHost] = useState('');
   const [postUrls, setPostUrls] = useState([]);
   const [urlInput, setUrlInput] = useState('');
+  // 장소는 선택 — 비공개 팬사인회는 당첨자 개별 안내라 없고, 공개 팬사인회만 공지에 나온다
+  const [venue, setVenue] = useState(null);
+  const [venueDialogOpen, setVenueDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const addUrl = () => {
@@ -64,6 +68,7 @@ function FansignForm({ inline = false }) {
     setFormat(existing.format || 'offline');
     setHost(existing.host || '');
     setPostUrls(existing.postUrls || []);
+    setVenue(existing.venue || null);
     initRef.current = true;
   }, [existing]);
 
@@ -80,6 +85,7 @@ function FansignForm({ inline = false }) {
         time: time || null,
         format,
         host: host.trim() || null,
+        venue,
         postUrls,
       };
       if (isEditMode) {
@@ -245,6 +251,12 @@ function FansignForm({ inline = false }) {
         </div>
       </form>
 
+      {/* 장소 검색 다이얼로그 */}
+      <LocationSearchDialog
+        isOpen={venueDialogOpen}
+        onClose={() => setVenueDialogOpen(false)}
+        onSelect={(place) => setVenue(place)}
+      />
     </>
   );
 

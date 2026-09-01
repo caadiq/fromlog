@@ -900,6 +900,7 @@ class FansignSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final postUrls = schedule.postUrls;
+    final venue = schedule.venue;
     final (label, icon, factText) = _formatMeta;
 
     return Padding(
@@ -941,7 +942,7 @@ class FansignSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          // 팩트 시트 (장소는 당첨자 개별 안내라 미표기)
+          // 팩트 시트. 장소는 선택 — 공개 팬사인회만 공지에 나오고, 비공개는 당첨자 개별 안내다
           Container(
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: EColors.ink, width: 2)),
@@ -955,6 +956,27 @@ class FansignSection extends StatelessWidget {
                 if (schedule.fansignHost != null)
                   Fact(label: 'HOST', child: Text(schedule.fansignHost!)),
                 Fact(label: 'FORMAT', child: Text(factText)),
+                if (venue != null)
+                  Fact(
+                    label: 'VENUE',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(venue.name),
+                        if (venue.address != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              venue.address!,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: EColors.mute,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 if (postUrls.isNotEmpty)
                   Fact(
                     label: 'LINKS',
@@ -1001,10 +1023,13 @@ class FansignSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            '장소는 당첨자에게 개별 안내됩니다.',
-            style: TextStyle(fontSize: 13, height: 1.7, color: EColors.mute),
-          ),
+          if (venue != null)
+            KakaoMapButton(venue: venue, launchUrl: launchUrl)
+          else
+            const Text(
+              '장소는 당첨자에게 개별 안내됩니다.',
+              style: TextStyle(fontSize: 13, height: 1.7, color: EColors.mute),
+            ),
         ],
       ),
     );

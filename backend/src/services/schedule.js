@@ -194,6 +194,12 @@ export async function getScheduleDetail(db, id, getXProfile = null) {
       sf.format as fansign_format,
       sf.host as fansign_host,
       sf.post_urls as fansign_post_urls,
+      fv.id as fansign_venue_id,
+      fv.name as fansign_venue_name,
+      fv.address as fansign_venue_address,
+      fv.road_address as fansign_venue_road_address,
+      fv.lat as fansign_venue_lat,
+      fv.lng as fansign_venue_lng,
       st.stage as ticketing_stage,
       st.vendor as ticketing_vendor,
       st.ticket_url as ticketing_url,
@@ -218,6 +224,7 @@ export async function getScheduleDetail(db, id, getXProfile = null) {
     LEFT JOIN schedule_album sa ON s.id = sa.schedule_id
     LEFT JOIN albums al ON sa.album_id = al.id
     LEFT JOIN schedule_fansign sf ON s.id = sf.schedule_id
+    LEFT JOIN event_venues fv ON sf.venue_id = fv.id
     LEFT JOIN schedule_ticketing st ON s.id = st.schedule_id
     WHERE s.id = ?
   `, [id]);
@@ -400,10 +407,24 @@ async function enrichEtc(db, s, result) {
   }
 }
 
-/** 팬사인회: 형태·주최·출처 (장소는 당첨자 개별 안내라 미표기) */
+/**
+ * 팬사인회: 형태·주최·출처·장소.
+ * 장소는 선택이다 — 비공개 팬사인회는 당첨자 개별 안내라 없고,
+ * 공개 팬사인회(스타필드 같은 곳)만 공지에 장소가 나온다.
+ */
 function enrichFansign(s, result) {
   result.format = s.fansign_format; // 'offline' | 'online' | 'both'
   result.host = s.fansign_host || null;
+  result.venue = s.fansign_venue_id
+    ? {
+        id: s.fansign_venue_id,
+        name: s.fansign_venue_name,
+        address: s.fansign_venue_address,
+        roadAddress: s.fansign_venue_road_address,
+        lat: s.fansign_venue_lat,
+        lng: s.fansign_venue_lng,
+      }
+    : null;
   result.postUrls = s.fansign_post_urls
     ? (typeof s.fansign_post_urls === 'string' ? JSON.parse(s.fansign_post_urls) : s.fansign_post_urls)
     : [];
