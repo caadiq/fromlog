@@ -186,7 +186,33 @@ function FansignForm({ inline = false }) {
               placeholder="예: 후즈팬스토어, 애플뮤직"
               className={`${F.underline} mt-1.5`}
             />
-            <p className="mt-2 text-[12.5px] text-mute">장소는 당첨자에게 개별 안내되므로 입력하지 않습니다.</p>
+          </div>
+
+          {/* 장소 (선택) — 공개 팬사인회처럼 장소가 공지된 경우에만 */}
+          <div>
+            <label className={F.label}>장소 (선택)</label>
+            {venue ? (
+              <div className="mt-2.5 flex items-start gap-3 border border-hairline bg-white px-4 py-3.5">
+                <MapPin size={15} className="mt-0.5 flex-shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14.5px] font-extrabold text-ink">{venue.name}</p>
+                  {venue.address && <p className="mt-0.5 truncate text-[13.5px] text-mute">{venue.address}</p>}
+                </div>
+                <button type="button" onClick={() => setVenueDialogOpen(true)} className="text-[13px] font-bold text-esub transition-colors hover:text-ink">변경</button>
+                <button type="button" onClick={() => setVenue(null)} className="text-faint transition-colors hover:text-[#C0392B]"><X size={15} /></button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setVenueDialogOpen(true)}
+                className={`${F.dropzone} mt-2.5 w-full py-3.5 text-[13.5px] font-bold`}
+              >
+                ◎ 장소 검색
+              </button>
+            )}
+            <p className="mt-2 text-[12.5px] text-mute">
+              비공개 팬사인회는 당첨자에게 개별 안내되므로 비워두세요. 공개 팬사인회처럼 장소가 공지된 경우에만 넣습니다.
+            </p>
           </div>
         </div>
 
