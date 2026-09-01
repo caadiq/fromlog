@@ -23,6 +23,12 @@ const YOUTUBE_CATEGORY = '유튜브';
 // 채널명을 시리즈 키로 쪼갤 구분자 ('스프 : 스튜디오 프로미스나인' → 스프 / 스튜디오 프로미스나인)
 const CHANNEL_NAME_SPLIT = /[:|\-–—/]/;
 
+/**
+ * 생일 '당일'이 아니라 그날 따로 열리는 행사를 가리키는 말.
+ * 생일카페·지하철 광고·서포트 같은 건 별개 일정이라 큐에 남겨야 한다.
+ */
+const BIRTHDAY_EVENT = /생카|카페|광고|서포트|전시|팝업|나눔|컵홀더|파티|이벤트|지하철|버스|옥외|스크린/;
+
 // 제목 포함관계로 '확실한 중복'이라 단정할 최소 조건.
 // X 일정에는 'ME', 'MEEEEE' 같은 짧은 제목이 있어 길이 제한이 없으면 아무 데나 걸린다.
 // 실제 사례("뮤지컬헬스키친" 7자 ⊂ 12자 = 0.58, "워터뮤직풀파티" 7자 ⊂ 17자 = 0.41)를 통과시키는 값.
@@ -200,6 +206,15 @@ async function festivalBotPlugin(fastify) {
     return [...new Set(rows.flatMap(seriesKeysOf))];
   }
 
+  /** 현 멤버 생일 (이름 + MM-DD) — 생일 항목을 큐에서 빼는 데 쓴다 */
+  async function fetchMemberBirthdays() {
+    const [rows] = await db.query(
+      `SELECT name, DATE_FORMAT(birth_date, '%m-%d') AS md
+         FROM members WHERE is_former = 0 AND birth_date IS NOT NULL`
+    );
+    return rows.map(r => ({ key: comparableTitle(r.name).slice(-2), md: r.md }));
+  }
+
   /** 이 글을 이미 처리했는지 (festival_crawl_log 재사용) */
   async function isPostProcessed(postUrl) {
     const [rows] = await db.query(
@@ -348,7 +363,21 @@ async function festivalBotPlugin(fastify) {
       const t = comparableTitle(it.title);
       return coveredSeries.some(k => t.includes(k));
     };
-    const fresh = items.filter(it => it && it.title && !it.is_duplicate && !coveredByBot(it));
+
+    //    멤버 생일도 뺀다 — members.birth_date로 매년 자동 생성되므로 큐에 담아봐야 중복이다.
+    //    단 생일카페·지하철 광고처럼 그날 따로 열리는 행사는 별개 일정이라 남긴다.
+    const birthdays = await fetchMemberBirthdays();
+    const isMemberBirthday = (it) => {
+      const t = comparableTitle(it.title);
+      if (!/생일|생신/.test(t)) return false;
+      if (BIRTHDAY_EVENT.test(t)) return false;
+      const md = String(it.date || '').slice(5);
+      return birthdays.some(b => (md && b.md === md) || (b.key.length === 2 && t.includes(b.key)));
+    };
+
+    const fresh = items.filter(
+      it => it && it.title && !it.is_duplicate && !coveredByBot(it) && !isMemberBirthday(it)
+    );
     const { added, updated, skipped } = await enqueueItems(fresh, String(post.postNo), existing);
 
     // 5-1) 최신 글에서 사라진 대기 항목 표시 (적재 뒤에 해야 방금 날짜가 채워진 행이 안 걸린다)
