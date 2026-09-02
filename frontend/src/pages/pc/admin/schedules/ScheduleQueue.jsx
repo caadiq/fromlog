@@ -13,7 +13,7 @@ import LocationSearchDialog from '@/components/pc/admin/schedule/LocationSearchD
 import { useAdminAuth } from '@/hooks/pc/admin';
 import { useToast, useDocumentTitle } from '@/hooks/common';
 import { EASE } from '@/components/editorial';
-import { uid } from '@/utils';
+import { uid, invalidateSchedules, invalidatePending } from '@/utils';
 import { getPending, registerPending, dismissPending } from '@/api/admin/pending';
 
 // 큐에서 바로 등록 가능한 카테고리
@@ -42,7 +42,7 @@ function ScheduleQueue() {
   const [postUrls, setPostUrls] = useState([]);
   const [urlInput, setUrlInput] = useState('');
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['pending-schedules'] });
+  const refresh = () => invalidatePending(queryClient);
 
   /** 다이얼로그 열기 — 큐 값으로 초기화 */
   const openEditor = (it) => {
@@ -126,6 +126,8 @@ function ScheduleQueue() {
       await registerPending(editing.id, formData);
       closeEditor();
       refresh();
+      // 큐는 sessionStorage 토스트로 이동하지 않으므로 목록 무효화를 여기서 직접 한다
+      invalidateSchedules(queryClient);
       setToast({ type: 'success', message: '일정으로 등록했습니다.' });
     } catch (err) {
       setToast({ type: 'error', message: err.message || '등록에 실패했습니다.' });

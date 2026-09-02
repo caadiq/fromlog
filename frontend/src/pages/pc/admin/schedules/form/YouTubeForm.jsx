@@ -5,15 +5,18 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 import Toast from '@/components/common/Toast';
 import { F } from '@/components/pc/admin';
 import { useToast } from '@/hooks/common';
 import useAuthStore from '@/stores/useAuthStore';
+import { invalidateSchedules } from '@/utils';
 
 function YouTubeForm() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast, setToast } = useToast();
 
   const [url, setUrl] = useState('');
@@ -114,6 +117,8 @@ function YouTubeForm() {
       }
 
       // 성공 메시지를 sessionStorage에 저장하고 목록 페이지로 이동
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({

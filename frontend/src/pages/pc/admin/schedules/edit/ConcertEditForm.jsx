@@ -17,6 +17,7 @@ import ConcertInfoSection from "../form/concert/ConcertInfoSection";
 import ScheduleSection from "../form/concert/ScheduleSection";
 import SetlistSection from "../form/concert/SetlistSection";
 import MerchandiseSection from "../form/concert/MerchandiseSection";
+import { invalidateSchedules } from '@/utils';
 
 /**
  * 콘서트 일정 수정 폼
@@ -200,6 +201,8 @@ function ConcertEditForm() {
       // 목록 페이지는 scheduleToast가 있을 때만 캐시를 비우므로 다른 폼과 같은 방식으로 넘긴다.
       // 남겨두면 다음에 수정 화면을 열 때 저장 전 값이 채워진다
       queryClient.removeQueries({ queryKey: ["concert", seriesId] });
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         "scheduleToast",
         JSON.stringify({ type: "success", message: "콘서트 일정이 수정되었습니다." })

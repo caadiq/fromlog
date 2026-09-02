@@ -3,7 +3,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Image } from 'lucide-react';
 
@@ -14,10 +14,12 @@ import { F } from '@/components/pc/admin';
 import { useToast } from '@/hooks/common';
 import { useAdminAuth } from '@/hooks/pc/admin';
 import { createVarietySchedule, getBroadcasters } from '@/api/admin/variety';
+import { invalidateSchedules } from '@/utils';
 
 function VarietyForm() {
   const navigate = useNavigate();
   const { toast, setToast } = useToast();
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useAdminAuth();
 
   // 폼 상태
@@ -70,6 +72,8 @@ function VarietyForm() {
 
       await createVarietySchedule(formData);
 
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({ type: 'success', message: '예능 일정이 추가되었습니다.' })

@@ -517,3 +517,37 @@ curl -X POST https://fromlog.caadiq.co.kr/api/schedules/sync-search \
 # Redis 확인 (SCAN 사용 권장)
 docker exec fromlog-redis redis-cli SCAN 0 MATCH "*" COUNT 100
 ```
+
+## 쓰기 후 캐시 무효화
+
+React Query 기본값이 `staleTime: 5분` · `refetchOnWindowFocus: false`(`frontend/src/main.jsx`)라,
+어느 화면에서 데이터를 바꾼 뒤 다른 화면으로 **이동만 하면 최대 5분간 낡은 캐시**를 본다.
+
+종전에는 폼이 `sessionStorage`에 토스트를 넣고 목록으로 이동하면, 목록이 그 토스트를 보고
+`['adminSchedules']`만 무효화했다(`Schedules.jsx`). 두 가지가 샜다.
+
+1. 토스트를 안 쓰는 경로(수집 큐 등록 후 '← 일정 관리')는 **아무도 무효화하지 않았다**
+2. 토스트를 쓰더라도 공개 달력·일정 상세·검색 결과는 낡은 채였다.
+   특히 상세(`['schedule', id]`)는 **수정 폼의 초기값**이라, 고친 직후 다시 열면 수정 전 값이
+   채워지고 그대로 저장하면 방금 수정이 되돌아갔다
+
+그래서 무효화는 화면 이동이 아니라 **쓰기가 일어난 자리**에 붙인다.
+일정을 건드렸으면 `frontend/src/utils/invalidate.js`의 헬퍼를 부르면 된다.
+
+```js
+import { invalidateSchedules } from '@/utils';
+
+const queryClient = useQueryClient();
+// ... 저장/삭제 성공 직후, navigate 전에
+invalidateSchedules(queryClient);
+```
+
+접두사로 걸리므로 연·월이나 id를 몰라도 되고, 관리자 목록·공개 달력·상세·검색이 한 번에 갱신된다.
+
+### 서버 캐시도 같이 봐야 한다
+
+월별 일정은 Redis에도 캐시된다(`schedule:monthly:*`, TTL 60초). 무효화는
+`syncScheduleById(meilisearch, db, id, redis)`의 **네 번째 인자 redis가 있을 때만** 동작한다
+(`services/meilisearch/index.js`의 `invalidateMonthlyCache`). redis를 빼먹으면 프론트가 다시
+요청해도 서버가 낡은 JSON을 그대로 돌려준다 — 실제로 수집 큐 등록 경로가 그랬다.
+새 생성 경로를 만들 때 **redis를 반드시 넘길 것**.

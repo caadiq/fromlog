@@ -15,7 +15,7 @@ import { ScheduleItem } from '@/components/pc/admin/schedule';
 import useScheduleStore from '@/stores/useScheduleStore';
 import { useAdminAuth, useScheduleSearch } from '@/hooks/pc/admin';
 import { useToast, useDocumentTitle } from '@/hooks/common';
-import { getTodayKST, formatDate } from '@/utils';
+import { getTodayKST, formatDate, invalidateSchedules } from '@/utils';
 import { getCategoryId } from '@/utils/schedule';
 import { EASE } from '@/components/editorial';
 import * as schedulesApi from '@/api/admin/schedules';
@@ -255,8 +255,9 @@ function Schedules() {
     try {
       await schedulesApi.deleteSchedule(scheduleToDelete.id);
       setToast({ type: 'success', message: '일정이 삭제되었습니다.' });
-      // 캐시 무효화하여 목록 새로고침
-      queryClient.invalidateQueries({ queryKey: ['adminSchedules', year, month + 1] });
+      // 지운 일정은 목록뿐 아니라 검색 결과·공개 달력·상세에서도 사라져야 한다.
+      // (종전에는 보고 있던 달의 목록만 지워, 검색 모드나 다른 달에서는 그대로 남았다)
+      invalidateSchedules(queryClient);
     } catch (error) {
       console.error('삭제 오류:', error);
       setToast({ type: 'error', message: error.message || '삭제 중 오류가 발생했습니다.' });

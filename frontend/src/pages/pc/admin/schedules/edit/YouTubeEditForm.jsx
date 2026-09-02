@@ -15,6 +15,7 @@ import { useToast, useDocumentTitle } from '@/hooks/common';
 import { EASE } from '@/components/editorial';
 import useAuthStore from '@/stores/useAuthStore';
 import { WEEKDAYS } from '@/constants';
+import { invalidateSchedules } from '@/utils';
 
 function YouTubeEditForm() {
   const navigate = useNavigate();
@@ -86,6 +87,8 @@ function YouTubeEditForm() {
       // 캐시 무효화
       queryClient.invalidateQueries({ queryKey: ['schedule', id] });
 
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({

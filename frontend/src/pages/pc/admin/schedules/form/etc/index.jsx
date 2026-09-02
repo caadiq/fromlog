@@ -3,6 +3,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { MapPin, X, Image as ImageIcon } from 'lucide-react';
 
@@ -13,10 +14,11 @@ import LocationSearchDialog from '@/components/pc/admin/schedule/LocationSearchD
 import { F } from '@/components/pc/admin';
 import { useToast } from '@/hooks/common';
 import { createEtc } from '@/api/admin/etc';
-import { uid } from '@/utils';
+import { uid, invalidateSchedules } from '@/utils';
 
 function EtcForm() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast, setToast } = useToast();
 
   const [title, setTitle] = useState('');
@@ -89,6 +91,8 @@ function EtcForm() {
 
       await createEtc(formData);
 
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({ type: 'success', message: '기타 일정이 추가되었습니다.' })

@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import AdminLayout from '@/components/pc/admin/layout/Layout';
@@ -20,6 +20,7 @@ import { useAdminAuth } from '@/hooks/pc/admin';
 import { EASE } from '@/components/editorial';
 import { getSchedule } from '@/api/admin/schedules';
 import { createTicketing, updateTicketing, getTicketingSeries } from '@/api/admin/ticketing';
+import { invalidateSchedules } from '@/utils';
 
 const STAGE_LABEL = { presale: '팬클럽 선예매', general: '일반예매' };
 
@@ -81,6 +82,7 @@ function TicketingForm({ inline = false }) {
   const isEditMode = !!id && !inline;
   const { user } = useAdminAuth();
   const { toast, setToast } = useToast();
+  const queryClient = useQueryClient();
 
   // 공통 정보
   const [eventName, setEventName] = useState(''); // 생성: 공연명 / 편집: 일정 제목
@@ -207,6 +209,8 @@ function TicketingForm({ inline = false }) {
           general: generalOn ? { date: general.date, time: general.time, purchaseLimit: general.purchaseLimit.trim() || null } : null,
         });
       }
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({ type: 'success', message: isEditMode ? '티켓팅 일정이 수정되었습니다.' : '티켓팅 일정이 추가되었습니다.' })

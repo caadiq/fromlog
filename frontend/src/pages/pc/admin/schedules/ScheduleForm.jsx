@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { AdminLayout, AdminPageHeader, DatePicker, TimePicker, CustomSelect, F } from '@/components/pc/admin';
 import { Toast } from '@/components/common';
@@ -15,6 +15,7 @@ import * as categoriesApi from '@/api/admin/categories';
 import { getSchedule } from '@/api/admin/schedules';
 import { getColorStyle } from '@/utils/color';
 import useAuthStore from '@/stores/useAuthStore';
+import { invalidateSchedules } from '@/utils';
 
 // 전용 폼이 없는 단순 카테고리만 이 공용 폼에서 처리
 const SHARED_CATEGORIES = ['컴백', '팬사인회', '기타'];
@@ -28,6 +29,7 @@ function ScheduleForm({ inline = false, categoryId = null }) {
   const isEditMode = !!id;
   const { user } = useAdminAuth();
   const { toast, setToast } = useToast();
+  const queryClient = useQueryClient();
   useDocumentTitle(inline ? undefined : '일정 수정');
 
   const [formData, setFormData] = useState({
@@ -136,6 +138,8 @@ function ScheduleForm({ inline = false, categoryId = null }) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || (isEditMode ? '일정 수정에 실패했습니다.' : '일정 생성에 실패했습니다.'));
       }
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({ type: 'success', message: isEditMode ? '일정이 수정되었습니다.' : '일정이 추가되었습니다.' })

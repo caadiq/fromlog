@@ -60,3 +60,6 @@ export { fireBirthdayConfetti, fireDebutConfetti } from './confetti';
 
 // 검색어 강조
 export { highlightTerm } from './highlight';
+
+// 쓰기 직후 캐시 무효화
+export { invalidateSchedules, invalidatePending } from './invalidate';

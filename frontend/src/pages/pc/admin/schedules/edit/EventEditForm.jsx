@@ -17,6 +17,7 @@ import { useToast, useDocumentTitle } from '@/hooks/common';
 import { useAdminAuth } from '@/hooks/pc/admin';
 import { EASE } from '@/components/editorial';
 import { getEvent, updateEvent } from '@/api/admin/events';
+import { invalidateSchedules } from '@/utils';
 
 const SUBTYPES = [
   { value: 'university', label: '대학 축제' },
@@ -131,6 +132,8 @@ function EventEditForm() {
       await updateEvent(id, formData);
       // 캐시 제거 — 남겨두면 다음에 수정 화면을 열 때 저장 전 값이 채워진다
       queryClient.removeQueries({ queryKey: ['event-schedule', id] });
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({ type: 'success', message: '행사 일정이 수정되었습니다.' })

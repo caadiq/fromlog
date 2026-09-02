@@ -5,7 +5,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { PenLine, Video, Users, X, MapPin } from 'lucide-react';
 import AdminLayout from '@/components/pc/admin/layout/Layout';
@@ -19,6 +19,7 @@ import { EASE } from '@/components/editorial';
 import { getSchedule } from '@/api/admin/schedules';
 import { createFansign, updateFansign } from '@/api/admin/fansign';
 import LocationSearchDialog from '@/components/pc/admin/schedule/LocationSearchDialog';
+import { invalidateSchedules } from '@/utils';
 
 const FORMATS = [
   { value: 'offline', label: '대면', icon: PenLine },
@@ -32,6 +33,7 @@ function FansignForm({ inline = false }) {
   const isEditMode = !!id && !inline;
   const { user } = useAdminAuth();
   const { toast, setToast } = useToast();
+  const queryClient = useQueryClient();
 
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
@@ -93,6 +95,8 @@ function FansignForm({ inline = false }) {
       } else {
         await createFansign(payload);
       }
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({ type: 'success', message: isEditMode ? '팬사인회가 수정되었습니다.' : '팬사인회가 추가되었습니다.' })

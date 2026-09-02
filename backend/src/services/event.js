@@ -51,7 +51,7 @@ export async function upsertVenue(conn, venue) {
  * @param {object} data - { title, date, time, subtype, schoolName, venue, postUrls }
  * @returns {Promise<number>} 생성된 schedule_id
  */
-export async function createEventSchedule(db, meilisearch, data) {
+export async function createEventSchedule(db, meilisearch, data, redis = null) {
   const {
     title, date, time, subtype = 'university', schoolName,
     venue, postUrls = [],
@@ -85,7 +85,7 @@ export async function createEventSchedule(db, meilisearch, data) {
   });
 
   // Meilisearch 동기화 (트랜잭션 외부)
-  await syncScheduleById(meilisearch, db, scheduleId);
+  await syncScheduleById(meilisearch, db, scheduleId, redis);
 
   return scheduleId;
 }
@@ -97,7 +97,7 @@ export async function createEventSchedule(db, meilisearch, data) {
  * @param {object} data - { title, date, time, description, venue, postUrls }
  * @returns {Promise<number>} 생성된 schedule id
  */
-export async function createEtcSchedule(db, meilisearch, data) {
+export async function createEtcSchedule(db, meilisearch, data, redis = null) {
   const { title, date, time, description = '', venue = null, postUrls = [] } = data;
 
   const scheduleId = await withTransaction(db, async (conn) => {
@@ -118,7 +118,7 @@ export async function createEtcSchedule(db, meilisearch, data) {
     return sid;
   });
 
-  await syncScheduleById(meilisearch, db, scheduleId);
+  await syncScheduleById(meilisearch, db, scheduleId, redis);
   return scheduleId;
 }
 
@@ -126,7 +126,7 @@ export async function createEtcSchedule(db, meilisearch, data) {
  * 예능 일정 생성 (큐에서 바로 등록할 때 쓴다).
  * 방송사는 NOT NULL이라 빈 값이면 만들지 않는다 — 호출부에서 먼저 막는다.
  */
-export async function createVarietySchedule(db, meilisearch, data) {
+export async function createVarietySchedule(db, meilisearch, data, redis = null) {
   const { title, date, time, broadcaster, description = '', replayUrl = null } = data;
 
   const scheduleId = await withTransaction(db, async (conn) => {
@@ -145,7 +145,7 @@ export async function createVarietySchedule(db, meilisearch, data) {
     return sid;
   });
 
-  await syncScheduleById(meilisearch, db, scheduleId);
+  await syncScheduleById(meilisearch, db, scheduleId, redis);
   return scheduleId;
 }
 

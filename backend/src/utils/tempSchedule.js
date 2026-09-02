@@ -89,7 +89,7 @@ export async function promoteTempSchedule(db, video) {
  *
  * @returns {Promise<number>} 만들어진 schedule_id
  */
-export async function createTempYoutubeSchedule(db, meilisearch, { title, date, time }) {
+export async function createTempYoutubeSchedule(db, meilisearch, { title, date, time }, redis = null) {
   const scheduleId = await withTransaction(db, async (conn) => {
     const [result] = await conn.query(
       'INSERT INTO schedules (category_id, title, date, time, is_temp) VALUES (?, ?, ?, ?, 1)',
@@ -103,7 +103,7 @@ export async function createTempYoutubeSchedule(db, meilisearch, { title, date, 
     return sid;
   });
 
-  await syncScheduleById(meilisearch, db, scheduleId);
+  await syncScheduleById(meilisearch, db, scheduleId, redis);
   return scheduleId;
 }
 

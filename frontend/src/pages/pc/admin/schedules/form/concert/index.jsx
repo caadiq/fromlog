@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Save } from "lucide-react";
 
@@ -15,12 +15,14 @@ import ConcertInfoSection from "./ConcertInfoSection";
 import ScheduleSection from "./ScheduleSection";
 import SetlistSection from "./SetlistSection";
 import MerchandiseSection from "./MerchandiseSection";
+import { invalidateSchedules } from "@/utils";
 
 /**
  * 콘서트 일정 추가 폼
  */
 function ConcertForm() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast, setToast } = useToast();
   const { isAuthenticated } = useAdminAuth();
 
@@ -178,6 +180,8 @@ function ConcertForm() {
       await createConcertSchedule(formData);
 
       // 목록 페이지는 scheduleToast가 있을 때만 캐시를 비운다 — 다른 폼과 같은 방식으로 넘긴다
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         "scheduleToast",
         JSON.stringify({ type: "success", message: "콘서트 일정이 저장되었습니다." })

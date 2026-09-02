@@ -17,6 +17,7 @@ import { useToast, useDocumentTitle } from '@/hooks/common';
 import { useAdminAuth } from '@/hooks/pc/admin';
 import { EASE } from '@/components/editorial';
 import { getEtc, updateEtc } from '@/api/admin/etc';
+import { invalidateSchedules } from '@/utils';
 
 function EtcEditForm() {
   const { id } = useParams();
@@ -122,6 +123,8 @@ function EtcEditForm() {
       // 캐시 제거 — 남겨두면 다음에 수정 화면을 열 때 저장 전 값이 폼에 채워진다
       // (폼은 첫 데이터만 반영하므로 뒤늦게 온 최신 데이터가 무시됨)
       queryClient.removeQueries({ queryKey: ['etc-schedule', id] });
+      // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
+      invalidateSchedules(queryClient);
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({ type: 'success', message: '기타 일정이 수정되었습니다.' })

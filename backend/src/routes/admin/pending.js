@@ -60,7 +60,7 @@ function rowToItem(r) {
  * DC봇이 적재한 신규 일정 후보를 검토·등록·무시한다.
  */
 export default async function pendingRoutes(fastify) {
-  const { db, meilisearch } = fastify;
+  const { db, meilisearch, redis } = fastify;
 
   /** GET /admin/pending — 대기 목록 (기본 pending만) */
   fastify.get('/', { preHandler: [fastify.authenticate] }, async (request) => {
@@ -121,18 +121,18 @@ export default async function pendingRoutes(fastify) {
 
     let scheduleId;
     if (category === '유튜브') {
-      scheduleId = await createTempYoutubeSchedule(db, meilisearch, { title, date, time });
+      scheduleId = await createTempYoutubeSchedule(db, meilisearch, { title, date, time }, redis);
     } else if (category === '예능') {
       scheduleId = await createVarietySchedule(db, meilisearch, {
         title, date, time, broadcaster: b.broadcaster, description, replayUrl: b.replayUrl || null,
-      });
+      }, redis);
     } else if (category === '기타') {
-      scheduleId = await createEtcSchedule(db, meilisearch, { title, date, time, description, venue, postUrls });
+      scheduleId = await createEtcSchedule(db, meilisearch, { title, date, time, description, venue, postUrls }, redis);
     } else {
       // 행사 (일반)
       scheduleId = await createEventSchedule(db, meilisearch, {
         title, date, time, subtype: 'general', schoolName: null, venue, postUrls,
-      });
+      }, redis);
     }
 
     // 포스터 업로드 (트랜잭션/생성 후 — S3 I/O)
