@@ -68,6 +68,11 @@ class FanchantProgress {
         // 아직 안 찍은 조각은 앞 조각 시각을 물려받아 같은 타이밍으로 본다
         final t = line.parts[pi].t ?? (pi == 0 ? line.t : null) ?? carry;
         if (t != null) carry = t;
+        // 공백만 있는 조각은 순서에서 뺀다.
+        // 앞 조각의 시각을 물려받고 문서상 뒤에 있어서 "지금 조각"을 가로챈다.
+        // 응원법 뒤에 공백이 붙어 있으면 그 응원법이 켜지자마자 자리를 빼앗겨
+        // 강조가 통째로 안 뜬다(DM의 (listen!)·(special!)). 보일 글자도 없다.
+        if (line.parts[pi].text.trim().isEmpty) continue;
         flat.add(FanchantPiece(li, pi, t));
       }
     }

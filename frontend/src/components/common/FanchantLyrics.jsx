@@ -26,6 +26,12 @@ function useProgress(lines, time) {
       line.parts?.forEach((p, pi) => {
         const t = p.t ?? (pi === 0 ? line.t : null) ?? carry;
         if (t != null) carry = t;
+        // 공백만 있는 조각은 순서에서 뺀다.
+        // 앞 조각의 시각을 물려받고 문서상 뒤에 있어서, "지금 조각"을 가로채 간다.
+        // 응원법 뒤에 공백이 붙어 있으면(“넌 So special {(special!)} ”) 그 응원법이
+        // 켜지자마자 공백에게 자리를 빼앗겨 강조가 통째로 안 뜬다(DM의 (listen!)·(special!)).
+        // 보일 글자가 없는 조각이 '지금'이 될 이유도 없다.
+        if (!String(p.text ?? '').trim()) return;
         out.push({ li, pi, t });
       });
     });
