@@ -121,14 +121,17 @@ function ConcertSection({ schedule }) {
               </div>
             )}
 
-            {/* 카카오맵 */}
+            {/* 카카오맵 — 남는 높이를 채운다(flex-1).
+                포스터가 오른쪽 정보보다 길어서 지도 아래가 130px쯤 비어 있었다.
+                회차 탭 수나 포스터 비율이 달라도 알아서 맞춰지고,
+                정보가 많은 공연에서는 min-h에서 멈춘다. */}
             {venue && venue.lat && venue.lng && (
-              <div className="relative mt-6 border border-hairline">
+              <div className="relative mt-6 min-h-[170px] flex-1 border border-hairline">
                 <KakaoMap
                   lat={Number(venue.lat)}
                   lng={Number(venue.lng)}
                   name={venue.name}
-                  className="h-[170px] w-full"
+                  className="h-full w-full"
                 />
                 {kakaoMapUrl && (
                   <a
