@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test:album": "node --test test/album-update.test.js"
+    "test:album": "node --test test/album-update.test.js",
+    "test:media": "node --test test/album-media.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.970.0",

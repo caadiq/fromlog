@@ -158,7 +158,7 @@ export async function deleteAlbumCover(folderName) {
  * 앨범 사진 업로드 (컨셉포토 또는 티저)
  * @param {string} folderName - 앨범 폴더명
  * @param {string} subFolder - 'photo' 또는 'teaser'
- * @param {string} filename - 파일명 (예: '01.webp')
+ * @param {string} filename - Immutable UUID filename shared by all image sizes
  * @param {Buffer} buffer - 이미지 버퍼
  * @returns {Promise<{originalUrl: string, mediumUrl: string, thumbUrl: string, metadata: object}>}
  */
@@ -203,7 +203,7 @@ export async function deleteAlbumPhoto(folderName, subFolder, filename) {
 /**
  * 앨범 비디오 업로드 (티저 전용)
  * @param {string} folderName - 앨범 폴더명
- * @param {string} filename - 파일명 (예: '01.mp4')
+ * @param {string} filename - Immutable UUID filename
  * @param {Buffer} buffer - 비디오 버퍼
  * @returns {Promise<string>} - 비디오 URL
  */

@@ -31,6 +31,48 @@ docker stop fromlog-album-test-db
 테스트는 애플리케이션의 `DB_*` 설정을 사용하지 않는다. 명시한 `ALBUM_TEST_HOST`의
 `fromlog_test_album` DB에만 접속한다. 테스트 전용 DB의 fixture 데이터는 매 테스트마다 초기화된다.
 
+## 앨범 미디어 UUID 이전
+
+앨범 사진·티저의 저장 파일명은 표시 순서와 독립적인 UUID다. 기존 `album_photos`와
+`album_teasers`의 URL 컬럼으로 관리하며 테이블/컬럼 추가는 없다.
+앨범 커버, 멤버 프로필, 일정 포스터는 이 이전 대상에 포함하지 않는다.
+
+회귀 테스트는 실제 업로드·삭제 라우트와 이미지 변환을 실행하고 DB/S3 입출력만 대역으로 처리한다.
+삭제·순서 압축 후 재업로드, 동일 번호의 티저 이미지/영상, 티저 자동 순서,
+기존 URL 이전 계획과 재실행/충돌 검사를 포함한 10개 테스트다.
+
+```bash
+docker compose exec -T fromlog-backend npm run test:media
+```
+
+이전 도구는 `backend/scripts/migrate-album-media-ids.mjs`다. 프로젝트 루트에서
+별도의 비공개 백업 디렉터리를 사용한다. 아래는 2026-09-05 실행에 사용한 디렉터리이며,
+새 이전 계획을 만들 때는 새 경로를 사용한다. 기존 snapshot/manifest는 덮어쓰지 않는다.
+
+```bash
+# plan → copy → apply → verify 순으로, 각 명령이 성공한 뒤 다음 단계 실행
+docker compose run --rm --no-deps -T --user "$(id -u):$(id -g)" \
+  --entrypoint node \
+  -v /docker/fromlog/backups/album-media-uuid-20260905:/migration \
+  fromlog-backend scripts/migrate-album-media-ids.mjs plan /migration
+```
+
+- `plan`: DB 행·멤버 태그를 `snapshot.json`에 백업하고, 이전 전후 URL과 S3 객체 정보(ETag·크기)를 `manifest.json`에 기록한다. 모든 원본의 존재와 대상 경로 미사용을 확인한다.
+- `copy`: 새 UUID 경로로 복사하고 원본/복사본 SHA-256을 비교한다. `copied.json`에 검증 결과를 저장하여 중단 후 재개할 수 있다. 원본 파일은 삭제하지 않는다.
+- `apply`: 모든 복사본을 확인하고 URL 컬럼만 한 트랜잭션에서 변경한다. 계획 이후 URL이나 앨범 폴더가 바뀌었으면 중단한다. 캐시 무효화와 활동 로그를 기록한다.
+- `verify`: 새 파일 전체 SHA-256, 전환된 URL, ID·표시 순서·컨셉·크기 등 기존 메타데이터와 멤버 태그 보존을 검증한다.
+- `rollback`: 위 명령의 `plan`을 `rollback`으로 바꾼다. 보존된 원본의 SHA-256을 확인한 뒤 DB URL만 복구한다. 이후 편집으로 URL이 달라진 행은 덮어쓰지 않고 중단한다. 파일 삭제는 수행하지 않는다.
+
+동일 백업 디렉터리에 여러 실행을 동시에 시작하지 않는다. 이전 중에는 해당 앨범의 편집·삭제를 피한다.
+`backups/`는 Git에서 제외되며 백업 파일은 비공개로 보관한다.
+환경 변수는 Compose의 `env_file` 처리를 사용한다. `.env`를 `docker run --env-file`에 직접
+넘기면 따옴표 처리 차이로 인증이 실패할 수 있다.
+
+2026-09-05 운영 이전 완료: 컨셉 포토 **590건**, 티저 **13건**(영상 2개 포함),
+스토리지 객체 **1,811개 / 3,184,814,792바이트**. 전환 후 전체 SHA-256과 DB 메타데이터·멤버 태그 검증 통과.
+기존 파일은 모두 보존했으며 자동 정리하지 않는다. 백업은 위 경로의 snapshot/manifest/copied/apply/verified JSON에 있다.
+백엔드와 DB 변경은 운영에 반영되었다. 관리자 표시 순서 안내 문구는 dev에서 확인하며 프론트 prod 배포는 별도다.
+
 ## 서빙 구조 (프로덕션/개발 병행)
 
 | 도메인 | 컨테이너 | 내용 |

@@ -39,6 +39,17 @@ Base URL: `/api`
 ### GET /albums/:id
 앨범 상세 조회
 
+### POST /albums/:albumId/photos (관리자)
+
+컨셉 포토/티저 업로드. multipart `photos` 파일, `metadata` JSON 배열,
+`photoType` (`concept`/`teaser`), 선택적인 `startNumber`를 받으며 SSE로 진행률과 결과를 반환한다.
+
+- 각 업로드는 UUID 파일명을 사용한다. 이미지의 원본·800px·400px 변형은 같은 UUID의 `.webp`, 영상은 `.mp4`로 저장한다.
+- DB의 `original_url`, `medium_url`, `thumb_url`, `video_url`이 실제 파일을 가리킨다. 별도 미디어 테이블 추가는 필요하지 않다.
+- `startNumber`는 `sort_order`에만 적용된다. 생략하면 해당 컨셉 포토/티저 목록의 최대 순서 다음부터 시작한다.
+- 같은 번호로 다시 업로드하거나 순서를 바꿔도 기존 파일을 덮어쓰지 않는다. 순서 변경은 파일 이름을 바꾸지 않는다.
+- 기존 번호형 파일의 UUID 이전 절차는 [개발 가이드](development.md#앨범-미디어-uuid-이전)를 참고한다.
+
 ### PUT /albums/:albumId/photos/bulk-update (관리자)
 등록된 컨셉 포토의 순서·타입·컨셉명·멤버 일괄 수정.
 body: `{ photos: [{ id, sort_order, photo_type, concept_name, members }] }`

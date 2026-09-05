@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   uploadAlbumPhoto,
   deleteAlbumPhoto,
@@ -81,6 +82,7 @@ export default async function photosRoutes(fastify) {
 
       const [albums] = await connection.query('SELECT folder_name FROM albums WHERE id = ?', [albumId]);
       if (albums.length === 0) {
+        await connection.rollback();
         reply.raw.write(`data: ${JSON.stringify({ error: '앨범을 찾을 수 없습니다.' })}\n\n`);
         reply.raw.end();
         return;
@@ -102,6 +104,7 @@ export default async function photosRoutes(fastify) {
           try {
             metadata = JSON.parse(part.value);
           } catch {
+            await connection.rollback();
             reply.raw.write(`data: ${JSON.stringify({ error: '잘못된 metadata JSON 형식입니다.' })}\n\n`);
             reply.raw.end();
             return;
@@ -118,7 +121,7 @@ export default async function photosRoutes(fastify) {
         nextOrder = startNumber;
       } else {
         const [existingPhotos] = await connection.query(
-          'SELECT MAX(sort_order) as maxOrder FROM album_photos WHERE album_id = ?',
+          `SELECT MAX(sort_order) as maxOrder FROM ${photoType === 'teaser' ? 'album_teasers' : 'album_photos'} WHERE album_id = ?`,
           [albumId]
         );
         nextOrder = (existingPhotos[0].maxOrder || 0) + 1;
@@ -131,11 +134,11 @@ export default async function photosRoutes(fastify) {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const meta = metadata[i] || {};
-        const orderNum = String(nextOrder + i).padStart(2, '0');
         const isVideo = file.mimetype === 'video/mp4';
-        const filename = `${orderNum}.${isVideo ? 'mp4' : 'webp'}`;
+        // Storage identity must not depend on editable display order.
+        const filename = `${randomUUID()}.${isVideo ? 'mp4' : 'webp'}`;
 
-        sendProgress(i + 1, totalFiles, `${filename} 처리 중...`);
+        sendProgress(i + 1, totalFiles, `${nextOrder + i}번 ${isVideo ? '영상' : '사진'} 처리 중...`);
 
         let originalUrl, mediumUrl, thumbUrl, videoUrl;
         let photoMetadata = {};

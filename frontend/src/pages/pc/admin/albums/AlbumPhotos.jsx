@@ -787,7 +787,7 @@ function AdminAlbumPhotos() {
 
               {/* 시작 번호 설정 */}
               <div>
-                <label className="block text-[12px] font-extrabold tracking-k2 text-mute">시작 번호</label>
+                <label className="block text-[12px] font-extrabold tracking-k2 text-mute">표시 시작 번호</label>
                 <input
                   type="number"
                   min="1"
@@ -799,12 +799,11 @@ function AdminAlbumPhotos() {
               </div>
 
               <p className="pb-1.5 text-[13px] leading-relaxed text-mute">
-                파일명은{' '}
+                표시 순서는{' '}
                 <b className="font-extrabold text-ink">
-                  {String(startNumber).padStart(2, '0')}.webp ~{' '}
-                  {String(startNumber + Math.max(0, pendingFiles.length - 1)).padStart(2, '0')}.webp
-                </b>{' '}
-                로 저장됩니다
+                  {startNumber} ~{' '}
+                  {startNumber + Math.max(0, pendingFiles.length - 1)}번
+                </b>으로 저장됩니다
                 <br />
                 {pendingFiles.length > 0
                   ? '파일이 추가된 상태에서는 타입을 변경할 수 없습니다.'
@@ -919,8 +918,7 @@ function AdminAlbumPhotos() {
                   <div className="p-5">
                     <div className="mb-4 flex items-center justify-between">
                       <p className="text-[13px] text-mute">
-                        드래그하여 순서를 변경할 수 있습니다. 순서대로{' '}
-                        <b className="font-extrabold text-ink">01.webp, 02.webp...</b> 로 저장됩니다.
+                        드래그하여 순서를 변경할 수 있습니다. 지정한 순서대로 갤러리에 표시됩니다.
                       </p>
                       <button
                         onClick={() => fileInputRef.current?.click()}
@@ -1214,10 +1212,10 @@ function AdminAlbumPhotos() {
                     <span className="font-bold text-ink">{pendingFiles.length}개</span>
                   </div>
                   <div className="flex items-baseline justify-between border-b border-hairline px-0.5 py-3">
-                    <span className="text-[12px] font-extrabold tracking-k2 text-mute">파일명 범위</span>
+                    <span className="text-[12px] font-extrabold tracking-k2 text-mute">표시 순서</span>
                     <span className="font-bold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {String(startNumber).padStart(2, '0')}.webp ~{' '}
-                      {String(startNumber + pendingFiles.length - 1).padStart(2, '0')}.webp
+                      {startNumber} ~{' '}
+                      {startNumber + pendingFiles.length - 1}번
                     </span>
                   </div>
                 </div>
