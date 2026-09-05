@@ -1,5 +1,36 @@
 # 개발/배포 가이드
 
+## 앨범 수정 회귀 테스트
+
+`backend/test/album-update.test.js`는 실제 MariaDB의 트랙 번호 UNIQUE 제약과
+응원법 ON DELETE CASCADE를 사용해 앨범 수정의 데이터 보존을 검증한다.
+설명/커버 수정, 트랙 편집·순서 교환·추가·삭제, 잘못된 요청, 저장 실패 롤백 등 13개를 검사한다.
+이미지 업로드는 S3 대역으로 처리하며 운영 스토리지에는 쓰지 않는다.
+
+운영 DB와 분리한 임시 컨테이너에서 실행한다. 아래 명령은 프로젝트 루트 기준이며,
+기존 백엔드 이미지와 설치된 `backend/node_modules`를 사용한다.
+테스트 DB는 외부 네트워크와 포트를 열지 않고 메모리에만 저장한다.
+
+```bash
+docker run -d --rm --name fromlog-album-test-db --network none \
+  --tmpfs /var/lib/mysql \
+  -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1 \
+  -e MARIADB_DATABASE=fromlog_test_album mariadb:11
+
+# 성공할 때까지 준비 상태를 확인한다.
+docker exec fromlog-album-test-db healthcheck.sh --connect --innodb_initialized
+
+docker run --rm --network container:fromlog-album-test-db \
+  -v "$PWD/backend:/app:ro" -w /app \
+  -e JWT_SECRET=album-tests-only -e ALBUM_TEST_HOST=127.0.0.1 \
+  --entrypoint npm fromlog-fromlog-backend run test:album
+
+docker stop fromlog-album-test-db
+```
+
+테스트는 애플리케이션의 `DB_*` 설정을 사용하지 않는다. 명시한 `ALBUM_TEST_HOST`의
+`fromlog_test_album` DB에만 접속한다. 테스트 전용 DB의 fixture 데이터는 매 테스트마다 초기화된다.
+
 ## 서빙 구조 (프로덕션/개발 병행)
 
 | 도메인 | 컨테이너 | 내용 |

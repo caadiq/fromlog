@@ -193,6 +193,76 @@ async function insertTracks(connection, albumId, tracks) {
   );
 }
 
+// Preserve track identity so album edits cannot cascade-delete its fanchants.
+async function updateTracks(connection, albumId, tracks) {
+  if (tracks === undefined) return;
+
+  const invalid = (message) => {
+    throw Object.assign(new Error(message), { statusCode: 400 });
+  };
+  if (!Array.isArray(tracks)) invalid('트랙 목록은 배열이어야 합니다.');
+
+  const [existingTracks] = await connection.query(
+    'SELECT id, track_number FROM album_tracks WHERE album_id = ? FOR UPDATE',
+    [albumId]
+  );
+  const existingIds = new Set(existingTracks.map(track => track.id));
+  const retainedIds = new Set();
+  const numbers = new Set();
+  const normalized = tracks.map(track => {
+    if (!track || typeof track !== 'object') invalid('잘못된 트랙 정보입니다.');
+    const number = Number(track.track_number);
+    if (!Number.isInteger(number) || number < 1 || number > 2147483647 || numbers.has(number)) {
+      invalid('트랙 번호는 중복되지 않는 양의 정수여야 합니다.');
+    }
+    if (typeof track.title !== 'string' || !track.title.trim()) {
+      invalid('트랙 제목을 입력해주세요.');
+    }
+    numbers.add(number);
+
+    const trackId = track.id == null ? null : Number(track.id);
+    if (trackId !== null) {
+      if (!existingIds.has(trackId) || retainedIds.has(trackId)) {
+        invalid('트랙 ID가 유효하지 않습니다. 앨범을 새로 불러온 뒤 다시 저장해주세요.');
+      }
+      retainedIds.add(trackId);
+    }
+    return { ...track, id: trackId, track_number: number };
+  });
+
+  const removedIds = existingTracks.filter(track => !retainedIds.has(track.id)).map(track => track.id);
+  if (removedIds.length > 0) {
+    await connection.query('DELETE FROM album_tracks WHERE album_id = ? AND id IN (?)', [albumId, removedIds]);
+  }
+
+  // Park retained tracks at unused negative numbers before assigning final numbers.
+  // This supports swaps under UNIQUE(album_id, track_number), including legacy gaps.
+  const occupiedNumbers = new Set(existingTracks.map(track => track.track_number));
+  let temporaryNumber = -1;
+  for (const track of existingTracks) {
+    if (!retainedIds.has(track.id)) continue;
+    while (occupiedNumbers.has(temporaryNumber)) temporaryNumber--;
+    await connection.query(
+      'UPDATE album_tracks SET track_number = ? WHERE id = ? AND album_id = ?',
+      [temporaryNumber, track.id, albumId]
+    );
+    temporaryNumber--;
+  }
+
+  for (const track of normalized) {
+    if (track.id === null) continue;
+    await connection.query(
+      `UPDATE album_tracks SET track_number = ?, title = ?, duration = ?, is_title_track = ?,
+                               lyricist = ?, composer = ?, arranger = ?, lyrics = ?, video_url = ?, video_type = ?
+       WHERE id = ? AND album_id = ?`,
+      [track.track_number, track.title, track.duration || null, track.is_title_track ? 1 : 0,
+       track.lyricist || null, track.composer || null, track.arranger || null, track.lyrics || null,
+       track.video_url || null, track.video_type || null, track.id, albumId]
+    );
+  }
+  await insertTracks(connection, albumId, normalized.filter(track => track.id === null));
+}
+
 /**
  * 앨범 생성
  * @param {object} db - 데이터베이스 연결 풀
@@ -247,15 +317,13 @@ export async function createAlbum(db, data, coverBuffer) {
 export async function updateAlbum(db, id, data, coverBuffer) {
   const { title, album_type, album_type_short, release_date, folder_name, description, tracks } = data;
 
-  // 앨범 존재 여부 먼저 확인 (트랜잭션 외부)
-  const [existingAlbums] = await db.query('SELECT * FROM albums WHERE id = ?', [id]);
-  if (existingAlbums.length === 0) {
-    return null;
-  }
-
-  const existing = existingAlbums[0];
-
   return withTransaction(db, async (connection) => {
+    // Serialize edits to the same album and validate tracks before uploading a cover.
+    const [existingAlbums] = await connection.query('SELECT * FROM albums WHERE id = ? FOR UPDATE', [id]);
+    if (existingAlbums.length === 0) return null;
+    const existing = existingAlbums[0];
+    await updateTracks(connection, id, tracks);
+
     // 커버 이미지 처리
     let coverOriginalUrl = existing.cover_original_url;
     let coverMediumUrl = existing.cover_medium_url;
@@ -279,10 +347,6 @@ export async function updateAlbum(db, id, data, coverBuffer) {
       [title, album_type, album_type_short || null, release_date, folder_name,
        coverOriginalUrl, coverMediumUrl, coverThumbUrl, themeColor, description || null, id]
     );
-
-    // 기존 트랙 삭제 후 새로 삽입
-    await connection.query('DELETE FROM album_tracks WHERE album_id = ?', [id]);
-    await insertTracks(connection, id, tracks);
 
     return { message: '앨범이 수정되었습니다.' };
   });
