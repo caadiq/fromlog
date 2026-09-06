@@ -11,6 +11,8 @@ import 'update_info.dart';
 
 /// Otto 인앱 OTA 자가 업데이트 서비스.
 class UpdateService {
+  static const checkTimeout = Duration(seconds: 5);
+
   /// 현재 빌드 versionCode로 latest 조회.
   /// 새 버전이면 [UpdateInfo], 최신이면 null.
   Future<UpdateInfo?> checkForUpdate() async {
@@ -21,10 +23,16 @@ class UpdateService {
       '${UpdateConfig.baseUrl}/api/apps/${UpdateConfig.appId}/latest'
       '?versionCode=$current',
     );
-    final res = await http.get(
-      uri,
-      headers: {'X-App-Key': UpdateConfig.appKey},
-    );
+    final client = http.Client();
+    late final http.Response res;
+    try {
+      res = await client
+          .get(uri, headers: {'X-App-Key': UpdateConfig.appKey})
+          .timeout(checkTimeout);
+    } finally {
+      // Release the connection even when the server never responds.
+      client.close();
+    }
 
     if (res.statusCode == 204) return null; // 이미 최신
     if (res.statusCode != 200) {

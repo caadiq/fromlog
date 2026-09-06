@@ -409,6 +409,28 @@ HTTP 어댑터만 대역으로 바꿔 성공/실패 응답 순서를 제어한�
 2026-09-06 Android arm64 릴리스 빌드 및 Otto 발행 완료: `2.0.0+127` (versionCode `2127`).
 업데이트 조회 응답과 로컬 APK의 SHA-256 일치를 확인했다.
 
+## Flutter 업데이트 확인 시간 제한
+
+2026-09-06 F07 수정. `UpdateService.checkForUpdate()`의 HTTP 요청과 응답 본문 수신에
+5초 제한(`checkTimeout`)을 적용한다. 완료/실패/시간 초과 모두 전용 HTTP 클라이언트를 닫는다.
+시간 초과 예외는 기존 `SplashGate`의 실패 처리로 전달되어 네이티브 스플래시를 제거하고 홈으로 이동한다.
+제한은 업데이트 확인 요청에만 적용하며, 정상 응답으로 받은 강제 업데이트 다이얼로그에는 적용하지 않는다.
+타임아웃 후 늦게 온 응답도 다이얼로그를 다시 띄우지 않는다.
+
+```bash
+cd /docker/fromlog/app
+flutter test --no-pub test/update_startup_test.dart --reporter expanded
+flutter analyze --no-pub
+```
+
+실제 `SplashGate`·GoRouter·업데이트 다이얼로그와 HTTP 대역을 사용한 위젯 테스트 5개 통과:
+무응답 서버의 5초 제한 및 늦은 응답 무시, HTTP 204/500 진입, 강제 업데이트 진입 차단 유지,
+선택 업데이트 닫기 후 홈 진입. 실제 Otto 장애를 일으키거나 휴대폰에서 수동 검증한 것은 아니다.
+변경 파일 분석 문제 0건이며, 전체 분석의 기존 info 지적 10건은 별도다.
+
+2026-09-06 Android arm64 릴리스 `2.0.0+128` (versionCode `2128`) Otto 발행 완료.
+업데이트 조회와 APK SHA-256 일치를 확인했다.
+
 ## 수집 큐 등록 재시도
 
 2026-09-06 F04 수정. `bot_pending_schedules.created_schedule_id`를 등록 시작 시점부터 사용한다.
