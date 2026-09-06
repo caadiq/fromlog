@@ -359,7 +359,12 @@ queryClient.invalidateQueries();
 ### 동기화 흐름 (syncNewVideos)
 1. `fetchRecentUploads()` — Activities API로 최근 업로드 조회 (1 unit).
    **snippet(제목·설명)이 함께 오므로 그대로 반환** — 제목 필터를 추가 API 호출 없이 적용
-2. 이미 저장된 것(`schedule_youtube`) + 이전에 거부된 것(`youtube_skipped_videos`) 제외
+2. 일정에 등록된 것(`schedule_youtube`) + 이전에 거부된 것(`youtube_skipped_videos`) 제외.
+   **일정 생성 봇은 `videos`에만 저장된 영상을 완료로 보지 않는다.** 상세 API/일정 DB 저장이
+   실패하면 다음 수집에서 다시 처리한다. 아카이브 저장은 `INSERT IGNORE`로 기존 데이터를 유지한다.
+   아카이브 전용 봇(`add_to_schedule=0`)은 이미 저장된 영상의 타입과 최근 업로드의 제목·날짜로
+   예정 일정 승격을 다시 시도한다. 승격된 영상은 `schedule_youtube`로 완료를 판정하며,
+   매칭되는 예정 일정이 없으면 새 일정을 만들지 않는다. 이 재시도에는 추가 YouTube API 호출이 없다.
 3. **제목 필터** — 1의 snippet **title + description**으로 판별 (API 비용 0). 거부분은 스킵 캐시에 기록
    > 워크돌 쇼츠처럼 제목에는 키워드가 없고 설명란 해시태그(#프로미스나인)에만 출연자가
    > 표기되는 채널이 있어 설명란까지 본다. '지원' 같은 흔한 단어를 필터로 쓰면
@@ -380,6 +385,24 @@ queryClient.invalidateQueries();
    > 추가 API 호출이 들지 않는다. 쇼츠는 길이가 정보가 못 되어 웹에서 배지를 그리지 않는다.
    > 기존 영상 백필: `node scripts/backfill-duration.mjs --apply` (50개당 1 unit)
 5. 필터를 통과한 영상만 `fetchVideoInfo()` (영상당 1 unit) → `saveVideo()` + Meilisearch 동기화
+
+### 수집 실패 재시도 회귀 테스트
+
+```bash
+docker compose exec -T fromlog-backend npm run test:youtube
+```
+
+`backend/test/youtube-retry.test.js`는 실제 봇·API 응답 처리·트랜잭션 코드를 실행하며
+외부 HTTP와 DB 입출력은 대역으로 처리한다. 운영 API/DB에는 쓰지 않는다.
+상세 조회 예외/빈 결과, 일정 DB 실패 후 롤백·재시도, 여러 후보 일괄 아카이브 후 실패,
+이미 등록/제외된 영상, 제목/쇼츠 필터, 아카이브 전용 봇의 예정 일정 승격 재시도와
+매칭 없는 경우를 포함한 8개 테스트다. 실제 MariaDB/Meilisearch 통합 검증은 포함하지 않는다.
+
+2026-09-06 F03 수정: 별도 스키마 변경 없이 위 완료 판정을 적용했다.
+재시도 범위는 기존과 같이 Activities API가 반환하는 최근 업로드 **최대 50개**다.
+이 범위에 남아 있는 기존 누락 후보도 다음 수집에서 재평가된다. 범위 밖의 과거 누락을
+찾아 복구하는 전체 백필은 수행하지 않았다. 검색 인덱스 동기화 실패나 다음 주 예정 일정
+생성 실패의 별도 복구는 이번 변경 범위에 포함하지 않는다.
 
 ### 스킵 캐시 (youtube_skipped_videos) — 할당량 누수 방지
 쇼츠 제외/제목 필터로 **거부된 영상은 `schedule_youtube`에 저장되지 않아**, 캐시가 없으면

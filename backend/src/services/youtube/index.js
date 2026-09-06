@@ -345,6 +345,29 @@ async function youtubeBotPlugin(fastify) {
     );
   }
 
+  async function promoteArchivedVideo(bot, candidate, videoType) {
+    const publishedAt = formatDateTime(candidate.publishedAt);
+    const scheduleId = await promoteTempSchedule(fastify.db, {
+      videoId: candidate.videoId,
+      videoType,
+      channelId: bot.channelId,
+      channelName: bot.channelName,
+      title: candidate.title,
+      date: publishedAt.slice(0, 10),
+      time: publishedAt.slice(11),
+    });
+    if (scheduleId) {
+      await syncScheduleById(fastify.meilisearch, fastify.db, scheduleId, fastify.redis);
+      fastify.log.info(`[${bot.id}] 예정 일정 승격(아카이브 전용 봇): ${candidate.title}`);
+      logActivity(fastify.db, {
+        actor: bot.id, action: 'update', category: 'schedule',
+        targetType: 'youtube_schedule', targetId: scheduleId,
+        summary: `YouTube 예정 일정 승격: ${candidate.title}`,
+      });
+    }
+    return scheduleId;
+  }
+
   async function syncNewVideos(bot) {
     // 예정 일정 deadline 체크 (금요일 00시)
     if (bot.autoScheduleNext) {
@@ -361,8 +384,7 @@ async function youtubeBotPlugin(fastify) {
     const total = uploads.length;
     const ids = uploads.map((u) => u.videoId);
 
-    // 2. 이미 처리된 영상 제외 — 일정(schedule_youtube) + 필터 거부(skipped) + 아카이브(videos)
-    //    (아카이브 전용 봇(add_to_schedule=0)은 videos 적재가 곧 "처리 완료" 표시)
+    // Archive persistence does not imply that schedule processing succeeded.
     const [saved] = await fastify.db.query(
       'SELECT video_id FROM schedule_youtube WHERE video_id IN (?)',
       [ids]
@@ -372,22 +394,33 @@ async function youtubeBotPlugin(fastify) {
       [ids]
     );
     const [archived] = await fastify.db.query(
-      'SELECT video_id FROM videos WHERE video_id IN (?)',
+      'SELECT video_id, video_type FROM videos WHERE video_id IN (?)',
       [ids]
     );
     const seen = new Set([
       ...saved.map((r) => r.video_id),
       ...skipped.map((r) => r.video_id),
-      ...archived.map((r) => r.video_id),
     ]);
+    let promotedCount = 0;
+    if (bot.addToSchedule === false) {
+      const archivedTypes = new Map(archived.map(r => [r.video_id, r.video_type]));
+      // Retry pending promotion using stored metadata, without another YouTube API call.
+      // A successful promotion appears in schedule_youtube on the next poll.
+      for (const upload of uploads) {
+        if (!seen.has(upload.videoId) && archivedTypes.has(upload.videoId)) {
+          if (await promoteArchivedVideo(bot, upload, archivedTypes.get(upload.videoId))) promotedCount++;
+        }
+      }
+      for (const row of archived) seen.add(row.video_id);
+    }
     let candidates = uploads.filter((u) => !seen.has(u.videoId));
 
     // 평상시(새 영상 없음)엔 여기서 종료 → sync 1회 = activities.list 1 unit
     if (candidates.length === 0) {
-      return { addedCount: 0, total, foundTarget: false };
+      return { addedCount: promotedCount, total, foundTarget: false };
     }
 
-    let addedCount = 0;
+    let addedCount = promotedCount;
     let foundTarget = false; // 오늘 게시된 일반 영상(그날의 본편)을 저장했는지
     const today = todayKST();
 
@@ -442,22 +475,9 @@ async function youtubeBotPlugin(fastify) {
     // 이 봇은 일정을 안 만들고 X봇은 '관리 중인 채널'이라 건너뛰어, 안 채우면 아무도 안 채운다)
     if (bot.addToSchedule === false) {
       for (const cand of candidates) {
-        const publishedAt = formatDateTime(cand.publishedAt);
-        const promotedId = await promoteTempSchedule(fastify.db, {
-          videoId: cand.videoId,
-          videoType: durationMap[cand.videoId]?.isShorts ? 'shorts' : 'video',
-          channelId: bot.channelId,
-          channelName: bot.channelName,
-          title: cand.title,
-          date: publishedAt.slice(0, 10),
-          time: publishedAt.slice(11),
-        });
-        if (promotedId) {
-          await syncScheduleById(fastify.meilisearch, fastify.db, promotedId, fastify.redis);
-          fastify.log.info(`[${bot.id}] 예정 일정 승격(아카이브 전용 봇): ${cand.title}`);
-        }
+        await promoteArchivedVideo(bot, cand, durationMap[cand.videoId]?.isShorts ? 'shorts' : 'video');
       }
-      return { addedCount: candidates.length, total, foundTarget };
+      return { addedCount: addedCount + candidates.length, total, foundTarget };
     }
 
     if (bot.excludeShorts) {
