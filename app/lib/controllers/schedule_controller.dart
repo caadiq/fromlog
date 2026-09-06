@@ -145,55 +145,96 @@ class ScheduleState {
 
 /// 일정 컨트롤러
 class ScheduleController extends Notifier<ScheduleState> {
+  int _nextRequestId = 0;
+  int _latestForegroundRequestId = 0;
+  final Map<String, int> _monthRequests = {};
+
+  String _monthKey(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+  bool _isCurrentRequest(int requestId, String cacheKey) =>
+      ref.mounted && _monthRequests[cacheKey] == requestId;
+
+  bool _isVisibleRequest(int requestId, String cacheKey) =>
+      _latestForegroundRequestId == requestId &&
+      _monthKey(state.selectedDate) == cacheKey;
+
   @override
   ScheduleState build() {
-    // 초기 상태
-    final initialState = ScheduleState(selectedDate: DateTime.now());
-    // 초기 데이터 로드
-    Future.microtask(() => loadSchedules());
-    return initialState;
+    final initialRequestId = ++_nextRequestId;
+    _latestForegroundRequestId = initialRequestId;
+    ref.onDispose(() {
+      _latestForegroundRequestId = ++_nextRequestId;
+      _monthRequests.clear();
+    });
+    Future.microtask(() {
+      if (ref.mounted && _latestForegroundRequestId == initialRequestId) {
+        loadSchedules();
+      }
+    });
+    return ScheduleState(selectedDate: DateTime.now());
   }
 
   /// 월별 일정 로드
   /// [silent] true면 isLoading 토글 없이 로드 (당겨서 새로고침 — 기존 목록 유지)
   Future<void> loadSchedules({bool silent = false}) async {
+    final date = state.selectedDate;
+    final cacheKey = _monthKey(date);
+    final requestId = ++_nextRequestId;
+    _latestForegroundRequestId = requestId;
+    _monthRequests[cacheKey] = requestId;
     if (!silent) state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final schedules = await getSchedules(
-        state.selectedDate.year,
-        state.selectedDate.month,
-      );
-      // 현재 월 일정을 캐시에도 저장
-      final cacheKey =
-          '${state.selectedDate.year}-${state.selectedDate.month.toString().padLeft(2, '0')}';
-      final newCache = Map<String, List<Schedule>>.from(state.calendarCache);
-      newCache[cacheKey] = schedules;
-      state = state.copyWith(
-        schedules: schedules,
-        isLoading: false,
-        calendarCache: newCache,
-      );
+      final schedules = await getSchedules(date.year, date.month);
+      if (!_isCurrentRequest(requestId, cacheKey)) return;
+      final newCache = {...state.calendarCache, cacheKey: schedules};
+      if (_isVisibleRequest(requestId, cacheKey)) {
+        state = state.copyWith(
+          schedules: schedules,
+          isLoading: false,
+          calendarCache: newCache,
+        );
+      } else {
+        // Cache late responses only under their original month.
+        state = state.copyWith(calendarCache: newCache, error: state.error);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (_isCurrentRequest(requestId, cacheKey) &&
+          _isVisibleRequest(requestId, cacheKey)) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
+    } finally {
+      if (_monthRequests[cacheKey] == requestId) {
+        _monthRequests.remove(cacheKey);
+      }
     }
   }
 
   /// 달력용 특정 월의 일정 비동기 로드 (UI 블로킹 없음)
   Future<void> loadCalendarMonth(int year, int month) async {
-    final cacheKey = '$year-${month.toString().padLeft(2, '0')}';
-
-    // 이미 캐시에 있으면 스킵
-    if (state.calendarCache.containsKey(cacheKey)) return;
+    final date = DateTime(year, month);
+    final cacheKey = _monthKey(date);
+    if (state.calendarCache.containsKey(cacheKey) ||
+        _monthRequests.containsKey(cacheKey)) {
+      return;
+    }
+    final requestId = ++_nextRequestId;
+    _monthRequests[cacheKey] = requestId;
 
     try {
-      final schedules = await getSchedules(year, month);
-      // 비동기 완료 후 캐시 업데이트
-      final newCache = Map<String, List<Schedule>>.from(state.calendarCache);
-      newCache[cacheKey] = schedules;
-      state = state.copyWith(calendarCache: newCache);
-    } catch (e) {
-      // 에러는 무시 (달력 점 표시가 안될 뿐)
+      final schedules = await getSchedules(date.year, date.month);
+      if (!_isCurrentRequest(requestId, cacheKey)) return;
+      state = state.copyWith(
+        calendarCache: {...state.calendarCache, cacheKey: schedules},
+        error: state.error,
+      );
+    } catch (_) {
+      // Prefetch failures must not change foreground loading or errors.
+    } finally {
+      if (_monthRequests[cacheKey] == requestId) {
+        _monthRequests.remove(cacheKey);
+      }
     }
   }
 
@@ -229,23 +270,19 @@ class ScheduleController extends Notifier<ScheduleState> {
         ? today.day
         : 1;
 
-    state = state.copyWith(
-      selectedDate: DateTime(newDate.year, newDate.month, selectedDay),
-    );
-    loadSchedules();
+    goToDate(DateTime(newDate.year, newDate.month, selectedDay));
   }
 
   /// 특정 날짜로 이동 (달력에서 선택 시)
   void goToDate(DateTime date) {
-    final currentMonth = state.selectedDate.month;
-    final currentYear = state.selectedDate.year;
-
-    state = state.copyWith(selectedDate: date);
-
-    // 월이 변경되면 일정 다시 로드
-    if (date.month != currentMonth || date.year != currentYear) {
-      loadSchedules();
-    }
+    final monthChanged = _monthKey(date) != _monthKey(state.selectedDate);
+    state = state.copyWith(
+      selectedDate: date,
+      schedules: monthChanged
+          ? state.calendarCache[_monthKey(date)] ?? const []
+          : state.schedules,
+    );
+    if (monthChanged) loadSchedules();
   }
 
   /// 오늘 여부
