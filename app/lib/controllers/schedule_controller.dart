@@ -350,23 +350,30 @@ class SearchState {
 /// 검색 컨트롤러
 class ScheduleSearchController extends Notifier<SearchState> {
   static const int _pageSize = 20;
+  int _generation = 0;
+
+  bool _isCurrent(int generation) => ref.mounted && generation == _generation;
 
   @override
   SearchState build() {
+    _generation++;
+    ref.onDispose(() => _generation++);
     return const SearchState();
   }
 
   /// 검색 실행
   Future<void> search(String query) async {
     if (query.trim().isEmpty) {
-      state = const SearchState();
+      clear();
       return;
     }
 
+    final generation = ++_generation;
     state = SearchState(searchTerm: query, isLoading: true);
 
     try {
       final result = await searchSchedules(query, offset: 0, limit: _pageSize);
+      if (!_isCurrent(generation)) return;
       state = state.copyWith(
         results: result.schedules,
         isLoading: false,
@@ -374,37 +381,47 @@ class ScheduleSearchController extends Notifier<SearchState> {
         offset: result.schedules.length,
       );
     } catch (e) {
+      if (!_isCurrent(generation)) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   /// 다음 페이지 로드
   Future<void> loadMore() async {
-    if (state.isFetchingMore || !state.hasMore || state.searchTerm.isEmpty) {
+    if (state.isLoading ||
+        state.isFetchingMore ||
+        !state.hasMore ||
+        state.searchTerm.isEmpty) {
       return;
     }
 
+    final generation = _generation;
+    final query = state.searchTerm;
+    final offset = state.offset;
     state = state.copyWith(isFetchingMore: true);
 
     try {
       final result = await searchSchedules(
-        state.searchTerm,
-        offset: state.offset,
+        query,
+        offset: offset,
         limit: _pageSize,
       );
+      if (!_isCurrent(generation)) return;
       state = state.copyWith(
         results: [...state.results, ...result.schedules],
         isFetchingMore: false,
         hasMore: result.hasMore,
-        offset: state.offset + result.schedules.length,
+        offset: offset + result.schedules.length,
       );
     } catch (e) {
+      if (!_isCurrent(generation)) return;
       state = state.copyWith(isFetchingMore: false, error: e.toString());
     }
   }
 
   /// 검색 초기화
   void clear() {
+    _generation++;
     state = const SearchState();
   }
 }
@@ -441,33 +458,46 @@ class SuggestionState {
 
 /// 추천 검색어 컨트롤러
 class SuggestionController extends Notifier<SuggestionState> {
+  int _generation = 0;
+
+  bool _isCurrent(int generation) => ref.mounted && generation == _generation;
+
   @override
   SuggestionState build() {
+    _generation++;
+    ref.onDispose(() => _generation++);
     return const SuggestionState();
   }
 
   /// 추천 검색어 로드
   Future<void> loadSuggestions(String query) async {
     if (query.trim().isEmpty) {
-      state = const SuggestionState();
+      clear();
       return;
     }
 
     // 같은 쿼리면 스킵
-    if (state.query == query && state.suggestions.isNotEmpty) return;
+    if (state.query == query &&
+        (state.isLoading || state.suggestions.isNotEmpty)) {
+      return;
+    }
 
-    state = state.copyWith(query: query, isLoading: true);
+    final generation = ++_generation;
+    state = SuggestionState(query: query, isLoading: true);
 
     try {
       final suggestions = await getSuggestions(query, limit: 10);
+      if (!_isCurrent(generation)) return;
       state = state.copyWith(suggestions: suggestions, isLoading: false);
     } catch (e) {
+      if (!_isCurrent(generation)) return;
       state = state.copyWith(suggestions: [], isLoading: false);
     }
   }
 
   /// 추천 검색어 초기화
   void clear() {
+    _generation++;
     state = const SuggestionState();
   }
 }

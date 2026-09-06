@@ -379,6 +379,36 @@ flutter analyze --no-pub
 
 2026-09-06 Android arm64 릴리스 빌드 및 Otto 발행 완료: `2.0.0+126` (versionCode `2126`).
 
+## Flutter 검색 응답 순서 보장
+
+2026-09-06 F06 수정. `ScheduleSearchController`는 검색 실행·빈 검색어·초기화·Provider 종료/초기화 시
+요청 번호를 변경한다. 검색과 더 보기 응답은 자신이 시작된 검색 번호가 여전히 유효할 때만
+목록·offset·hasMore·로딩·오류를 갱신한다. 같은 검색어를 연속 실행해도 최신 요청을 기준으로 한다.
+첫 페이지 로딩 중에는 더 보기를 막고, 추가 페이지 실패 시 같은 offset으로 재시도할 수 있다.
+
+`SuggestionController`도 독립적인 요청 번호로 추천 검색어를 보호한다. 입력 변경 즉시 기존 추천을
+비우고 이전 응답을 무효화한다. 화면의 200ms 디바운스 타이머는 입력 지우기·검색 실행·추천 화면
+닫기·검색 종료 시 취소한다. 네트워크 요청 자체를 취소하는 방식은 아니며 늦은 응답을 무시한다.
+
+```bash
+cd /docker/fromlog/app
+flutter test --no-pub test/schedule_search_controller_test.dart \
+  test/schedule_search_view_test.dart test/schedule_controller_test.dart --reporter expanded
+flutter analyze --no-pub
+```
+
+검색 컨트롤러 16개 + 실제 `ScheduleView` 위젯 테스트 3개 + 월별 일정 회귀 12개 = **31개 통과**.
+HTTP 어댑터만 대역으로 바꿔 성공/실패 응답 순서를 제어한다. 검색어 전환·같은 검색어 재검색·초기화,
+이전 추가 페이지의 성공/실패·페이지 중복 방지·실패 재시도·추천 검색어 경쟁·Provider 재생성/종료와
+실제 화면의 디바운스 중 입력 변경/지우기/검색 실행을 검증한다.
+변경 파일의 분석은 문제 0건이며 앱 전체의 기존 info 수준 지적 10건은 별도다.
+실제 휴대폰의 수동 조작 검증은 포함하지 않았다.
+
+웹 `useSuggestions`의 유사한 응답 순서 문제는 소스 확인만 했으며, 이번 앱 수정 범위에 포함하지 않았다.
+
+2026-09-06 Android arm64 릴리스 빌드 및 Otto 발행 완료: `2.0.0+127` (versionCode `2127`).
+업데이트 조회 응답과 로컬 APK의 SHA-256 일치를 확인했다.
+
 ## 수집 큐 등록 재시도
 
 2026-09-06 F04 수정. `bot_pending_schedules.created_schedule_id`를 등록 시작 시점부터 사용한다.

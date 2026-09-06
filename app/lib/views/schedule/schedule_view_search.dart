@@ -55,6 +55,8 @@ extension _ScheduleSearchPart on _ScheduleViewState {
 
   /// 추천 검색어 화면에서 뒤로가기 (검색 결과가 있으면 결과 화면으로)
   void _hideSuggestionsScreen() {
+    _debounceTimer?.cancel();
+    ref.read(suggestionProvider.notifier).clear();
     final searchState = ref.read(searchProvider);
     if (searchState.results.isNotEmpty) {
       // 검색 결과가 있으면 결과 화면으로 (검색어 복원)
@@ -72,6 +74,8 @@ extension _ScheduleSearchPart on _ScheduleViewState {
   /// 검색 실행
   void _onSearch(String query) {
     if (query.trim().isNotEmpty) {
+      _debounceTimer?.cancel();
+      ref.read(suggestionProvider.notifier).clear();
       _lastSearchTerm = query; // 검색어 저장
       ref.read(searchProvider.notifier).search(query);
       ref.read(recentSearchProvider.notifier).addSearch(query); // 최근 검색기록 저장
@@ -87,6 +91,9 @@ extension _ScheduleSearchPart on _ScheduleViewState {
     _refresh(() {}); // X 버튼 표시 갱신
 
     _debounceTimer?.cancel();
+    // Invalidate the previous response before the debounce delay starts.
+    ref.read(suggestionProvider.notifier).clear();
+    if (value.trim().isEmpty) return;
     _debounceTimer = Timer(const Duration(milliseconds: 200), () {
       if (value.trim().isNotEmpty) {
         ref.read(suggestionProvider.notifier).loadSuggestions(value);
@@ -169,6 +176,7 @@ extension _ScheduleSearchPart on _ScheduleViewState {
                       if (_searchInputController.text.isNotEmpty)
                         GestureDetector(
                           onTap: () {
+                            _debounceTimer?.cancel();
                             _refresh(() {
                               _searchInputController.clear();
                               _showSuggestions = true;
