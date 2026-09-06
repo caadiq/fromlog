@@ -354,6 +354,53 @@ queryClient.invalidateQueries();
 
 ---
 
+## 수집 큐 등록 재시도
+
+2026-09-06 F04 수정. `bot_pending_schedules.created_schedule_id`를 등록 시작 시점부터 사용한다.
+스키마 변경은 없다. 한 큐 항목에서 새 일정은 최대 한 번 생성한다.
+
+1. 큐 행을 `SELECT ... FOR UPDATE`로 잠그고 일정 생성과 큐 ID 연결을 같은 트랜잭션으로 커밋한다.
+2. 다음 트랜잭션에서 큐/일정 행을 다시 잠그고 포스터 업로드·`images` 저장·포스터 연결·등록 완료를 수행한다.
+3. 2단계가 실패하면 일정과 큐 연결은 유지되고 이미지 DB 변경만 롤백된다. 다음 요청은 기존 일정 ID로 2단계부터 재개한다. 완료된 항목 재요청은 같은 ID만 반환한다.
+
+재시도는 포스터에만 적용된다. 기존 일정 제목·날짜·분류 등은 일정 관리에서 수정한다.
+포스터 없이 재시도해도 등록을 완료할 수 있다. 등록 시작 후에는 무시를 차단하며,
+DC봇의 미정 날짜 갱신/중복 행 제거도 `created_schedule_id IS NULL`인 미등록 행만 대상으로 한다.
+잠금은 해당 큐/일정에 한정되지만 포스터 S3 I/O 동안 유지되므로 같은 항목의 동시 요청은 대기할 수 있다.
+
+큐 포스터는 변환 형식과 일치하는 UUID `.webp` 파일명을 사용한다.
+실패한 시도의 S3 객체는 DB에서 참조되지 않은 채 남을 수 있으며 자동 삭제하지 않는다.
+DB 커밋 응답 유실 시 실제 커밋 여부가 불확실하므로 오류만 보고 파일을 지우지 않는다.
+기존 실패로 큐 연결이 남지 않았던 과거 일정의 추정 연결/중복 삭제나,
+큐를 거치지 않는 직접 생성 요청의 중복 방지는 이번 범위에 포함하지 않는다.
+
+### 수집 큐 통합 테스트
+
+실제 MariaDB/InnoDB와 Fastify multipart 라우트, 이미지 변환을 사용한다.
+S3·검색 인덱스 쓰기는 대역으로 처리하며 운영 DB와 네트워크는 사용하지 않는다.
+포스터 손상·S3 장애·링크 저장/완료 갱신 DB 오류, 동시 등록 3개, 등록/무시 경쟁,
+삭제된 일정, 4개 카테고리 생성, 기존 포스터/제목 보존과 공용 생성 함수 등 15개를 검증한다.
+
+```bash
+docker run -d --rm --name fromlog-pending-test-db --network none \
+  --tmpfs /var/lib/mysql \
+  -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1 \
+  -e MARIADB_DATABASE=fromlog_test_pending mariadb:11
+
+# 준비 완료 후 테스트 실행
+docker exec fromlog-pending-test-db healthcheck.sh --connect --innodb_initialized
+docker run --rm --network container:fromlog-pending-test-db \
+  -v "$PWD/backend:/app:ro" -w /app \
+  -e JWT_SECRET=pending-tests-only -e PENDING_TEST_HOST=127.0.0.1 \
+  --entrypoint npm fromlog-fromlog-backend run test:pending
+
+docker stop fromlog-pending-test-db
+```
+
+공유 일정 생성 서비스는 `insert*Schedule(conn, data)`에 DB 쓰기를 모았다.
+이 함수는 호출자가 트랜잭션과 커밋 후 검색 동기화를 책임진다.
+기존 `create*Schedule(db, meilisearch, data, redis)`는 이전처럼 자체 트랜잭션과 검색 동기화를 수행한다.
+
 ## YouTube 봇 동기화
 
 ### 동기화 흐름 (syncNewVideos)

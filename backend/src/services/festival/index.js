@@ -262,23 +262,23 @@ async function festivalBotPlugin(fastify) {
       // 날짜가 생긴 경우: 같은 제목의 '미정' 대기 행이 있으면 채워서 업데이트
       if (hasDate) {
         const [u] = await db.query(
-          `SELECT id FROM bot_pending_schedules WHERE dedup_key = ? AND status = 'pending' LIMIT 1`,
+          `SELECT id FROM bot_pending_schedules WHERE dedup_key = ? AND status = 'pending' AND created_schedule_id IS NULL LIMIT 1`,
           [`nodate|${titleKey}`]
         );
         if (u.length) {
           const newKey = `${it.date}|${titleKey}`;
           try {
-            await db.query(
+            const [result] = await db.query(
               `UPDATE bot_pending_schedules
                  SET date = ?, time = ?, category_name = ?, members = ?, venue_name = ?, description = ?, raw = ?, dedup_key = ?, source_ref = ?
-               WHERE id = ?`,
+               WHERE id = ? AND status = 'pending' AND created_schedule_id IS NULL`,
               [it.date, it.time || null, it.category || '기타', members, it.venue_name || null, it.description || null, JSON.stringify(it), newKey, sourceRef, u[0].id]
             );
-            updated++;
+            updated += result.affectedRows;
           } catch (e) {
             // 이미 같은 날짜|제목 행이 있으면(중복) 미정 행 제거
             if (e.code === 'ER_DUP_ENTRY') {
-              await db.query('DELETE FROM bot_pending_schedules WHERE id = ?', [u[0].id]);
+              await db.query("DELETE FROM bot_pending_schedules WHERE id = ? AND status = 'pending' AND created_schedule_id IS NULL", [u[0].id]);
             } else {
               throw e;
             }

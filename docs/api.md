@@ -927,22 +927,28 @@ DC봇이 적재한 신규 일정 후보(`bot_pending_schedules`)를 검토·등�
 **응답:** `{ items: [{ id, category, title, date, time, members[], venueName, description, dupHint, stale, status, ... }] }`
 - `dupHint` — 같은 날·같은 카테고리에 비슷한 일정이 이미 있을 때 그 요약 (관리자 화면 '중복 의심' 배지)
 - `stale` — 최신 DC 글에 더 이상 없는 항목. 날짜가 바뀌었거나 취소됐을 수 있다 ('원문에서 사라짐' 배지)
+- `createdScheduleId` — 먼저 생성된 일정 ID. `pending`이면서 값이 있으면 포스터 처리/등록 완료를 재시도할 수 있는 항목이다.
 
 ### GET /admin/pending/count
 대기 건수 (배지용). **응답:** `{ count }`
 
 ### POST /admin/pending/:id/register
-검토 후 등록 (수정된 값으로). **본문:** `{ category, title, date, time?, venueName?, description?, postUrls?, broadcaster? }`
+검토 후 등록. **multipart 본문:** `payload` JSON `{ category, title, date, time?, venue?, venueName?, description?, postUrls?, broadcaster?, replayUrl? }` + 선택적인 포스터 파일들.
 - `기타` → `schedule_etc`, `행사` → `schedule_event`(general)로 생성. `venueName`은 카카오로 지오코딩
 - `유튜브` → **예정 일정**(`schedules.is_temp=1` + `schedule_youtube.video_id=NULL`)으로 생성.
   영상이 아직 없으므로 장소·포스터·링크는 무시한다. 나중에 영상이 올라오면 봇이 제목으로 찾아 승격한다(아래)
 - `예능` → `schedule_variety`로 생성. `broadcaster` 필수(NOT NULL), `description`으로 출연 내용을 적는다.
   장소·포스터·링크는 쓰지 않는다
 - 그 외 카테고리는 400(`UNSUPPORTED_CATEGORY`) — 관리자 폼에서 직접 추가 후 무시
-- 성공 시 큐 항목 `status='registered'`, `created_schedule_id` 연결. **응답:** `{ id }`(생성된 일정 id)
+- 일정 생성과 큐의 `created_schedule_id` 연결은 같은 트랜잭션으로 저장한다. 포스터 처리와 `status='registered'` 전환은 다음 트랜잭션으로 확정한다.
+- 최초 생성 완료는 HTTP 201, 같은 항목의 재시도/이미 완료된 요청은 HTTP 200과 동일한 `{ id }`를 반환한다. 동시 등록도 큐 행 잠금으로 직렬 처리하며 일정/포스터를 중복 등록하지 않는다.
+- 포스터/완료 처리 실패는 HTTP 500 `{ error, createdScheduleId }`. 큐는 `pending`이고 이미 생성한 일정은 유지된다. 같은 항목에 다시 등록하면 포스터만 처리하며, 제목·날짜 등 저장된 일정 정보는 덮어쓰지 않는다. 변경은 일정 관리 화면에서 한다. 포스터 없이 재시도하면 기존 일정으로 등록을 완료한다.
+- 큐의 최초 분류와 재시도 payload가 달라도 포스터는 실제 저장된 일정 카테고리에 붙인다. 별도로 첨부한 기존 포스터도 보존한다.
+- 무시된 항목, 연결된 일정이 삭제된 항목은 HTTP 409. 삭제된 일정을 자동으로 재생성하지 않는다.
 
 ### POST /admin/pending/:id/dismiss
 무시 처리 (`status='dismissed'`). **응답:** `{ success: true }`
+- 이미 일정이 생성된 항목(포스터 재시도 대기 포함)이나 등록 완료 항목은 HTTP 409. 등록/무시 동시 요청도 큐 행 잠금으로 처리한다.
 - 행을 지우지 않고 남긴다. `dedup_key` 유니크 + `INSERT IGNORE`라 **같은 키는 다시 안 담긴다**
 - 단 `dedup_key`가 `날짜|정규화제목`이라 **날짜나 제목이 바뀌면 다시 담긴다**(일정이 실제로 옮겨졌을 수 있으므로 의도된 동작)
 

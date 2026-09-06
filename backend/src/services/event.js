@@ -52,42 +52,42 @@ export async function upsertVenue(conn, venue) {
  * @returns {Promise<number>} 생성된 schedule_id
  */
 export async function createEventSchedule(db, meilisearch, data, redis = null) {
+  const scheduleId = await withTransaction(db, conn => insertEventSchedule(conn, data));
+  await syncScheduleById(meilisearch, db, scheduleId, redis);
+  return scheduleId;
+}
+
+// The caller owns the transaction and synchronizes search after committing.
+export async function insertEventSchedule(conn, data) {
   const {
     title, date, time, subtype = 'university', schoolName,
     venue, postUrls = [],
   } = data;
 
-  const scheduleId = await withTransaction(db, async (conn) => {
-    // 1) venue upsert
-    const venueId = await upsertVenue(conn, venue);
+  // 1) venue upsert
+  const venueId = await upsertVenue(conn, venue);
 
-    // 2) schedules INSERT
-    const [sResult] = await conn.query(
-      `INSERT INTO schedules (category_id, title, date, time) VALUES (?, ?, ?, ?)`,
-      [EVENT_CATEGORY_ID, title, date, time || null]
-    );
-    const sid = sResult.insertId;
+  // 2) schedules INSERT
+  const [sResult] = await conn.query(
+    `INSERT INTO schedules (category_id, title, date, time) VALUES (?, ?, ?, ?)`,
+    [EVENT_CATEGORY_ID, title, date, time || null]
+  );
+  const sid = sResult.insertId;
 
-    // 3) schedule_event INSERT
-    await conn.query(
-      `INSERT INTO schedule_event (schedule_id, subtype, school_name, venue_id, post_urls)
-       VALUES (?, ?, ?, ?, ?)`,
-      [
-        sid,
-        subtype,
-        schoolName,
-        venueId,
-        postUrls.length > 0 ? JSON.stringify(postUrls) : null,
-      ]
-    );
+  // 3) schedule_event INSERT
+  await conn.query(
+    `INSERT INTO schedule_event (schedule_id, subtype, school_name, venue_id, post_urls)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      sid,
+      subtype,
+      schoolName,
+      venueId,
+      postUrls.length > 0 ? JSON.stringify(postUrls) : null,
+    ]
+  );
 
-    return sid;
-  });
-
-  // Meilisearch 동기화 (트랜잭션 외부)
-  await syncScheduleById(meilisearch, db, scheduleId, redis);
-
-  return scheduleId;
+  return sid;
 }
 
 /**
@@ -98,28 +98,30 @@ export async function createEventSchedule(db, meilisearch, data, redis = null) {
  * @returns {Promise<number>} 생성된 schedule id
  */
 export async function createEtcSchedule(db, meilisearch, data, redis = null) {
-  const { title, date, time, description = '', venue = null, postUrls = [] } = data;
-
-  const scheduleId = await withTransaction(db, async (conn) => {
-    const venueId = venue ? await upsertVenue(conn, venue) : null;
-
-    const [sResult] = await conn.query(
-      `INSERT INTO schedules (category_id, title, date, time) VALUES (1, ?, ?, ?)`,
-      [title, date, time || null]
-    );
-    const sid = sResult.insertId;
-
-    await conn.query(
-      `INSERT INTO schedule_etc (schedule_id, venue_id, description, post_urls)
-       VALUES (?, ?, ?, ?)`,
-      [sid, venueId, description || null, postUrls.length > 0 ? JSON.stringify(postUrls) : null]
-    );
-
-    return sid;
-  });
-
+  const scheduleId = await withTransaction(db, conn => insertEtcSchedule(conn, data));
   await syncScheduleById(meilisearch, db, scheduleId, redis);
   return scheduleId;
+}
+
+// The caller owns the transaction and synchronizes search after committing.
+export async function insertEtcSchedule(conn, data) {
+  const { title, date, time, description = '', venue = null, postUrls = [] } = data;
+
+  const venueId = venue ? await upsertVenue(conn, venue) : null;
+
+  const [sResult] = await conn.query(
+    `INSERT INTO schedules (category_id, title, date, time) VALUES (1, ?, ?, ?)`,
+    [title, date, time || null]
+  );
+  const sid = sResult.insertId;
+
+  await conn.query(
+    `INSERT INTO schedule_etc (schedule_id, venue_id, description, post_urls)
+     VALUES (?, ?, ?, ?)`,
+    [sid, venueId, description || null, postUrls.length > 0 ? JSON.stringify(postUrls) : null]
+  );
+
+  return sid;
 }
 
 /**
@@ -127,26 +129,28 @@ export async function createEtcSchedule(db, meilisearch, data, redis = null) {
  * 방송사는 NOT NULL이라 빈 값이면 만들지 않는다 — 호출부에서 먼저 막는다.
  */
 export async function createVarietySchedule(db, meilisearch, data, redis = null) {
-  const { title, date, time, broadcaster, description = '', replayUrl = null } = data;
-
-  const scheduleId = await withTransaction(db, async (conn) => {
-    const [sResult] = await conn.query(
-      `INSERT INTO schedules (category_id, title, date, time) VALUES (?, ?, ?, ?)`,
-      [CATEGORY_IDS.VARIETY, title, date, time || null]
-    );
-    const sid = sResult.insertId;
-
-    await conn.query(
-      `INSERT INTO schedule_variety (schedule_id, broadcaster, description, replay_url)
-       VALUES (?, ?, ?, ?)`,
-      [sid, broadcaster.trim(), description?.trim() || null, replayUrl?.trim() || null]
-    );
-
-    return sid;
-  });
-
+  const scheduleId = await withTransaction(db, conn => insertVarietySchedule(conn, data));
   await syncScheduleById(meilisearch, db, scheduleId, redis);
   return scheduleId;
+}
+
+// The caller owns the transaction and synchronizes search after committing.
+export async function insertVarietySchedule(conn, data) {
+  const { title, date, time, broadcaster, description = '', replayUrl = null } = data;
+
+  const [sResult] = await conn.query(
+    `INSERT INTO schedules (category_id, title, date, time) VALUES (?, ?, ?, ?)`,
+    [CATEGORY_IDS.VARIETY, title, date, time || null]
+  );
+  const sid = sResult.insertId;
+
+  await conn.query(
+    `INSERT INTO schedule_variety (schedule_id, broadcaster, description, replay_url)
+     VALUES (?, ?, ?, ?)`,
+    [sid, broadcaster.trim(), description?.trim() || null, replayUrl?.trim() || null]
+  );
+
+  return sid;
 }
 
 /**

@@ -90,21 +90,24 @@ export async function promoteTempSchedule(db, video) {
  * @returns {Promise<number>} 만들어진 schedule_id
  */
 export async function createTempYoutubeSchedule(db, meilisearch, { title, date, time }, redis = null) {
-  const scheduleId = await withTransaction(db, async (conn) => {
-    const [result] = await conn.query(
-      'INSERT INTO schedules (category_id, title, date, time, is_temp) VALUES (?, ?, ?, ?, 1)',
-      [CATEGORY_IDS.YOUTUBE, title, date, time || null]
-    );
-    const sid = result.insertId;
-    await conn.query(
-      'INSERT INTO schedule_youtube (schedule_id, video_id, video_type) VALUES (?, NULL, ?)',
-      [sid, 'video']
-    );
-    return sid;
-  });
+  const scheduleId = await withTransaction(db, conn => insertTempYoutubeSchedule(conn, { title, date, time }));
 
   await syncScheduleById(meilisearch, db, scheduleId, redis);
   return scheduleId;
+}
+
+// The caller owns the transaction and synchronizes search after committing.
+export async function insertTempYoutubeSchedule(conn, { title, date, time }) {
+  const [result] = await conn.query(
+    'INSERT INTO schedules (category_id, title, date, time, is_temp) VALUES (?, ?, ?, ?, 1)',
+    [CATEGORY_IDS.YOUTUBE, title, date, time || null]
+  );
+  const sid = result.insertId;
+  await conn.query(
+    'INSERT INTO schedule_youtube (schedule_id, video_id, video_type) VALUES (?, NULL, ?)',
+    [sid, 'video']
+  );
+  return sid;
 }
 
 export { comparableTitle };
