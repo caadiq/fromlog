@@ -8,11 +8,15 @@ import { CATEGORY_IDS } from '@/constants';
  * 안내(공지) 일정인지 판별
  *
  * X 일정 제목은 트윗 첫 문단을 그대로 가져오는데, 소스 계정이 표식을 붙이는
- * 관습이 있다(💌 소식 · 📺 영상 · 💡 편성 · 📢 안내 …). 이 중 📢만
- * "팬이 실제로 행동해야 하는 안내"(인원체크·재모임·사전판매 등)라 목록에서 강조한다.
+ * 관습이 있다(💌 소식 · 📺 영상 · 💡 편성 · 📢 안내 · [공지] …). 이 중
+ * 📢와 [공지]만 "팬이 실제로 행동해야 하는 안내"(인원체크·재모임·불참 안내 등)라 강조한다.
  *
- * 위치는 따지지 않는다 — `[📢] …` 뿐 아니라 `📢 …`(대괄호 없음),
+ * 📢는 위치를 따지지 않는다 — `[📢] …` 뿐 아니라 `📢 …`(대괄호 없음),
  * `… MD NOTICE 📢`(끝), 리트윗 본문 안에 있는 경우까지 실제로 전부 안내였다.
+ *
+ * 반면 '공지'는 **대괄호 태그일 때만** 본다. 이모지와 달리 흔한 낱말이라,
+ * "공지를 확인해 주시기 바랍니다"처럼 본문에 스쳐 나오는 글까지 물들기 때문이다
+ * (그런 글은 대개 이미 📢가 붙어 있다).
  * 카테고리는 X로 한정해 다른 일정 제목에 우연히 들어가도 오작동하지 않게 한다.
  *
  * @param {object} schedule - 스케줄 객체
@@ -20,7 +24,8 @@ import { CATEGORY_IDS } from '@/constants';
  */
 export function isNoticeSchedule(schedule) {
   if (!schedule || getCategoryId(schedule) !== CATEGORY_IDS.X) return false;
-  return (schedule.title ?? '').includes('📢');
+  const title = schedule.title ?? '';
+  return title.includes('📢') || title.includes('[공지]');
 }
 
 /**

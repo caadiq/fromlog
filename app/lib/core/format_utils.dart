@@ -85,10 +85,17 @@ String formatVideoDuration(int? seconds) {
 /// 안내(공지) 일정인지 판별 — 웹 utils/schedule.js `isNoticeSchedule`과 동일 규칙.
 ///
 /// X 일정 제목은 트윗 첫 문단을 그대로 가져오는데, 소스 계정이 표식을 붙이는
-/// 관습이 있다(💌 소식 · 📺 영상 · 💡 편성 · 📢 안내). 이 중 📢만 팬이 실제로
-/// 행동해야 하는 안내(인원체크·재모임·사전판매 등)라 목록에서 강조한다.
+/// 관습이 있다(💌 소식 · 📺 영상 · 💡 편성 · 📢 안내 · [공지]). 이 중 📢와
+/// [공지]만 팬이 실제로 행동해야 하는 안내(인원체크·재모임·불참 안내 등)라 강조한다.
 ///
-/// 위치는 따지지 않는다 — `[📢] …`, `📢 …`, `… NOTICE 📢`, 리트윗 본문까지
-/// 실제 데이터에서 전부 안내였다. 카테고리는 X로 한정한다.
-bool isNoticeSchedule({int? categoryId, String? title}) =>
-    categoryId == CategoryId.x && (title ?? '').contains('📢');
+/// 📢는 위치를 따지지 않는다 — `[📢] …`, `📢 …`, `… NOTICE 📢`, 리트윗 본문까지
+/// 실제 데이터에서 전부 안내였다.
+///
+/// 반면 '공지'는 **대괄호 태그일 때만** 본다. 이모지와 달리 흔한 낱말이라
+/// "공지를 확인해 주시기 바랍니다"처럼 본문에 스쳐 나오는 글까지 물들기 때문이다.
+/// 카테고리는 X로 한정한다.
+bool isNoticeSchedule({int? categoryId, String? title}) {
+  if (categoryId != CategoryId.x) return false;
+  final t = title ?? '';
+  return t.contains('📢') || t.contains('[공지]');
+}
