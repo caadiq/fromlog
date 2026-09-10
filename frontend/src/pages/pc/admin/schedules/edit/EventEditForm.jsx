@@ -226,7 +226,6 @@ function EventEditForm() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                placeholder="예: 박지원 뮤지컬 일정으로 불참"
                 className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
               />
             </div>

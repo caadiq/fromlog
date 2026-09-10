@@ -377,7 +377,7 @@ function ScheduleQueue() {
                       rows={2}
                       placeholder={
                         editing.category === '행사'
-                          ? '예: 박지원 뮤지컬 일정으로 불참'
+                          ? ''
                           : '예: 뮤지컬 <헬스키친> / 박지원 - 앨리(ALI) 역'
                       }
                       className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
