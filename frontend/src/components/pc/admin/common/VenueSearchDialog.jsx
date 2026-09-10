@@ -204,11 +204,7 @@ function VenueSearchDialog({ isOpen, onClose, onSelect }) {
                       handleSearch();
                     }
                   }}
-                  placeholder={
-                    region === "domestic"
-                      ? "장소명을 입력하세요 (예: 올림픽홀)"
-                      : "장소명을 입력하세요 (예: Tokyo Dome)"
-                  }
+                  placeholder="장소명을 입력하세요"
                   className="w-full border-b-2 border-ink bg-transparent py-2.5 pl-7 pr-2 text-[14.5px] font-semibold text-ink placeholder-faint outline-none"
                   autoFocus
                 />
