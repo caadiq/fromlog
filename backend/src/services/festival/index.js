@@ -30,10 +30,6 @@ const CHANNEL_NAME_SPLIT = /[:|\-–—/]/;
  */
 const BIRTHDAY_EVENT = /생카|카페|광고|서포트|전시|팝업|나눔|컵홀더|파티|이벤트|지하철|버스|옥외|스크린/;
 
-// 제목 포함관계로 '확실한 중복'이라 단정할 최소 조건.
-// X 일정에는 'ME', 'MEEEEE' 같은 짧은 제목이 있어 길이 제한이 없으면 아무 데나 걸린다.
-// 실제 사례("뮤지컬헬스키친" 7자 ⊂ 12자 = 0.58, "워터뮤직풀파티" 7자 ⊂ 17자 = 0.41)를 통과시키는 값.
-
 /** 제목 정규화 (공백 제거 + 소문자) — 큐 dedup_key용 */
 function normalizeTitle(title) {
   return String(title || '').replace(/\s+/g, '').toLowerCase();
@@ -221,10 +217,12 @@ async function festivalBotPlugin(fastify) {
           const newKey = `${it.date}|${titleKey}`;
           try {
             const [result] = await db.query(
+              // dup_hint도 같이 갱신한다 — 날짜가 정해져야 비로소 중복 판정이 되는데,
+              // 여기서 안 넣으면 '미정'일 때 판정된 값(=항상 null)이 그대로 남아 표시가 안 뜬다
               `UPDATE bot_pending_schedules
-                 SET date = ?, time = ?, category_name = ?, members = ?, venue_name = ?, description = ?, raw = ?, dedup_key = ?, source_ref = ?
+                 SET date = ?, time = ?, category_name = ?, members = ?, venue_name = ?, description = ?, raw = ?, dedup_key = ?, source_ref = ?, dup_hint = ?
                WHERE id = ? AND status = 'pending' AND created_schedule_id IS NULL`,
-              [it.date, it.time || null, it.category || '기타', members, it.venue_name || null, it.description || null, JSON.stringify(it), newKey, sourceRef, u[0].id]
+              [it.date, it.time || null, it.category || '기타', members, it.venue_name || null, it.description || null, JSON.stringify(it), newKey, sourceRef, dupHint, u[0].id]
             );
             updated += result.affectedRows;
           } catch (e) {
