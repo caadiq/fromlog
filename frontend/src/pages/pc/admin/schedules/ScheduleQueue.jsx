@@ -262,7 +262,10 @@ function ScheduleQueue() {
         </motion.div>
       </div>
 
-      {/* 등록 다이얼로그 */}
+      {/* 등록 다이얼로그.
+          뒷배경을 눌러 닫는 동작은 넣지 않는다 — 입력칸에서 글자를 드래그하다가
+          손을 배경에서 떼면 그게 배경 클릭으로 잡혀, 적어둔 내용이 통째로 날아갔다.
+          닫는 길은 X 버튼과 취소 버튼 둘로 충분하다. */}
       <AnimatePresence>
         {editing && (
           <motion.div
@@ -270,7 +273,6 @@ function ScheduleQueue() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4"
-            onClick={() => !saving && !venueDialogOpen && closeEditor()}
           >
             <motion.div
               initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -278,7 +280,6 @@ function ScheduleQueue() {
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
               transition={{ duration: 0.28, ease: EASE }}
               className="max-h-[88vh] w-full max-w-[540px] overflow-y-auto bg-paper p-8 shadow-[0_40px_90px_rgba(20,22,19,0.3)]"
-              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-[19px] font-extrabold tracking-[-0.3px] text-ink">일정 등록</h2>
