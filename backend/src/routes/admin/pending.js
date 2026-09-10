@@ -159,7 +159,7 @@ export default async function pendingRoutes(fastify) {
         scheduleId = await insertEtcSchedule(conn, { title, date, time, description, venue, postUrls });
       } else {
         scheduleId = await insertEventSchedule(conn, {
-          title, date, time, subtype: 'general', schoolName: null, venue, postUrls,
+          title, date, time, subtype: 'general', schoolName: null, venue, postUrls, description,
         });
       }
       await conn.query(

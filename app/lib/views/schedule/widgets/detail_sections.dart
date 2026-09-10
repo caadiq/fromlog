@@ -370,6 +370,19 @@ class EventSection extends StatelessWidget {
                     color: EColors.ink,
                   ),
                 ),
+                // 내용 — 멤버별 참여가 갈리는 경우 등
+                if (schedule.description != null &&
+                    schedule.description!.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    decodeHtmlEntities(schedule.description!),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.7,
+                      color: EColors.ebody,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 22),
                 // 팩트 시트
                 Container(

@@ -41,6 +41,7 @@ function EventEditForm() {
   const [subtype, setSubtype] = useState('university');
   const [title, setTitle] = useState('');
   const [schoolName, setSchoolName] = useState('');
+  const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [venue, setVenue] = useState(null);
@@ -58,6 +59,7 @@ function EventEditForm() {
       setSubtype(eventData.subtype || 'university');
       setTitle(eventData.title || '');
       setSchoolName(eventData.schoolName || '');
+      setDescription(eventData.description || '');
       setDate(eventData.date || '');
       setTime(eventData.time || '');
       setVenue(eventData.venue || null);
@@ -116,6 +118,7 @@ function EventEditForm() {
         subtype,
         title: title.trim(),
         schoolName: schoolName.trim(),
+        description: description.trim(),
         date,
         time: time || null,
         venue,
@@ -215,6 +218,18 @@ function EventEditForm() {
                 />
               </div>
             )}
+
+            {/* 내용 (선택) — 멤버별 참여가 갈릴 때 적는다 */}
+            <div>
+              <label className={F.label}>내용 (선택)</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="예: 박지원 뮤지컬 일정으로 불참"
+                className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
+              />
+            </div>
 
             <div className="grid grid-cols-2 gap-7">
               <div>

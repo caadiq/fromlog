@@ -129,6 +129,13 @@ function EventSection({ schedule }) {
           {decodeHtmlEntities(schedule.title)}
         </h1>
 
+        {/* 내용 — 멤버별 참여가 갈리는 경우 등 */}
+        {schedule.description && (
+          <p className="mt-7 whitespace-pre-wrap text-[16px] leading-[1.7] text-ebody">
+            {decodeHtmlEntities(schedule.description)}
+          </p>
+        )}
+
         {/* 팩트 시트 */}
         {facts.length > 0 && (
           <div className="mt-8 border-t-2 border-ink">

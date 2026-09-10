@@ -173,6 +173,7 @@ export async function getScheduleDetail(db, id, getXProfile = null) {
       svi.medium_url as variety_thumbnail_url,
       se.subtype as event_subtype,
       se.school_name as event_school_name,
+      se.description as event_description,
       se.post_urls as event_post_urls,
       se.poster_image_ids as event_poster_image_ids,
       ev.id as event_venue_id,
@@ -332,6 +333,7 @@ function enrichVariety(s, result) {
 async function enrichEvent(db, s, result) {
   result.subtype = s.event_subtype;
   result.schoolName = s.event_school_name || null;
+  result.description = s.event_description || null;
   result.postUrls = s.event_post_urls
     ? (typeof s.event_post_urls === 'string' ? JSON.parse(s.event_post_urls) : s.event_post_urls)
     : [];

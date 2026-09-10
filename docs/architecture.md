@@ -354,7 +354,7 @@ fromis_9/
 
 #### 행사
 - `event_venues` - 행사 장소 정보 (카카오맵 기반, 콘서트와 분리)
-- `schedule_event` - 행사 상세 (subtype, school_name, venue_id, post_urls JSON, poster_image_ids JSON)
+- `schedule_event` - 행사 추가 정보 (세부유형 · 학교명 · 내용(선택) · 장소 · 포스터 · 공지 링크)
 
 #### 봇
 - `bot_youtube` - YouTube 봇 설정 (채널 정보, 동기화 간격 또는 주간 지정 시간, 필터 등, video_id UNIQUE)

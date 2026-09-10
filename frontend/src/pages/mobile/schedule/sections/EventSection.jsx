@@ -60,6 +60,13 @@ function MobileEventSection({ schedule }) {
         </h1>
 
         {/* 팩트 시트 */}
+        {/* 내용 — 멤버별 참여가 갈리는 경우 등 */}
+        {schedule.description && (
+          <p className="mt-5 whitespace-pre-wrap border-t-2 border-ink pt-5 text-[15px] leading-[1.7] text-ebody">
+            {decodeHtmlEntities(schedule.description)}
+          </p>
+        )}
+
         <div className="mt-[22px] border-t-2 border-ink">
           <Fact k="DATE">{formatFactDate(schedule.date, schedule.time)}</Fact>
           {venue && (

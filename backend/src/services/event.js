@@ -61,7 +61,7 @@ export async function createEventSchedule(db, meilisearch, data, redis = null) {
 export async function insertEventSchedule(conn, data) {
   const {
     title, date, time, subtype = 'university', schoolName,
-    venue, postUrls = [],
+    venue, postUrls = [], description = '',
   } = data;
 
   // 1) venue upsert
@@ -76,12 +76,13 @@ export async function insertEventSchedule(conn, data) {
 
   // 3) schedule_event INSERT
   await conn.query(
-    `INSERT INTO schedule_event (schedule_id, subtype, school_name, venue_id, post_urls)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO schedule_event (schedule_id, subtype, school_name, description, venue_id, post_urls)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       sid,
       subtype,
       schoolName,
+      description?.trim() || null,
       venueId,
       postUrls.length > 0 ? JSON.stringify(postUrls) : null,
     ]

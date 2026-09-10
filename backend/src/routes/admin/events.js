@@ -62,7 +62,7 @@ export default async function eventsRoutes(fastify) {
 
     const [rows] = await db.query(`
       SELECT s.id, s.title, s.date, s.time,
-             se.subtype, se.school_name, se.venue_id, se.post_urls, se.poster_image_ids,
+             se.subtype, se.school_name, se.description, se.venue_id, se.post_urls, se.poster_image_ids,
              ev.name as venue_name, ev.address as venue_address,
              ev.road_address as venue_road_address, ev.lat as venue_lat, ev.lng as venue_lng,
              ev.kakao_id as venue_kakao_id
@@ -107,6 +107,7 @@ export default async function eventsRoutes(fastify) {
       time: r.time ? r.time.substring(0, 5) : '',
       subtype: r.subtype,
       schoolName: r.school_name || '',
+      description: r.description || '',
       venue: r.venue_id ? {
         id: r.venue_id,
         name: r.venue_name,
@@ -137,7 +138,7 @@ export default async function eventsRoutes(fastify) {
     }
 
     const {
-      title, date, time, subtype = 'university', schoolName,
+      title, date, time, subtype = 'university', schoolName, description = '',
       venue, postUrls = [],
     } = payload;
 
@@ -167,12 +168,13 @@ export default async function eventsRoutes(fastify) {
 
       // 3) schedule_event INSERT (poster는 트랜잭션 후 업로드, 그 때 UPDATE)
       await conn.query(
-        `INSERT INTO schedule_event (schedule_id, subtype, school_name, venue_id, post_urls)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO schedule_event (schedule_id, subtype, school_name, description, venue_id, post_urls)
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [
           sid,
           subtype,
           subtype === 'university' ? schoolName : null,
+          description?.trim() || null,
           venueId,
           postUrls.length > 0 ? JSON.stringify(postUrls) : null,
         ]
@@ -231,7 +233,7 @@ export default async function eventsRoutes(fastify) {
     }
 
     const {
-      title, date, time, subtype, schoolName,
+      title, date, time, subtype, schoolName, description = '',
       venue, postUrls = [], keepPosterIds = [],
     } = payload;
 
@@ -248,11 +250,12 @@ export default async function eventsRoutes(fastify) {
       // schedule_event UPDATE
       await conn.query(
         `UPDATE schedule_event
-         SET subtype = ?, school_name = ?, venue_id = ?, post_urls = ?
+         SET subtype = ?, school_name = ?, description = ?, venue_id = ?, post_urls = ?
          WHERE schedule_id = ?`,
         [
           subtype,
           subtype === 'university' ? schoolName : null,
+          description?.trim() || null,
           venueId,
           postUrls.length > 0 ? JSON.stringify(postUrls) : null,
           id,

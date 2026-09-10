@@ -823,6 +823,7 @@ X 일정 저장
   "time": "21:30",
   "subtype": "university",
   "schoolName": "인천대학교",
+  "description": "박지원 뮤지컬 일정으로 불참",
   "memberIds": [1, 2, 3, 4, 5],
   "venue": {
     "id": 1,
@@ -844,8 +845,10 @@ X 일정 저장
 행사 생성 (`multipart/form-data`)
 
 **multipart 파트:**
-- `payload` (JSON string): `{ subtype, title, schoolName, date, time, memberIds, venue, postUrls }`
+- `payload` (JSON string): `{ subtype, title, schoolName, description, date, time, memberIds, venue, postUrls }`
   - `subtype`: 현재 `'university'`만 지원
+  - `description`: **선택**. 자유 텍스트 — 대학 축제는 멤버별 참여가 갈린다
+    ("박지원 뮤지컬 일정으로 불참"). 공개 상세에 제목 아래로 그대로 나온다
   - `venue`: `{ name, address, roadAddress?, lat, lng, kakao_id? }` — kakao_id 기준으로 event_venues 테이블에 upsert
   - `title`, `schoolName`, `date`, `venue` 필수
 - `posters` (파일, 0개 이상): 포스터 이미지. 여러 장 가능
