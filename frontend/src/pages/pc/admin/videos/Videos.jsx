@@ -92,13 +92,11 @@ function AddVideoDialog({ isOpen, onClose, onSuccess }) {
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/40 p-6"
-          onClick={onClose}
         >
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.3, ease: EASE }}
             className="w-full max-w-[520px] border border-ink bg-white"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-[15px] font-black tracking-k1 text-ink">영상 수동 등록</h2>

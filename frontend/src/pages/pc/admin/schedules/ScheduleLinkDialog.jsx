@@ -48,14 +48,12 @@ function DialogBody({ item, busy, onClose, onSave }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,22,19,0.4)] p-4"
-      onClick={onClose}
     >
       <motion.form
         initial={{ opacity: 0, y: 14, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.99 }}
         transition={{ duration: 0.24, ease: EASE }}
-        onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
         className="w-full max-w-[560px] border border-ink bg-white"
       >
