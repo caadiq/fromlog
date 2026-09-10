@@ -10,6 +10,7 @@ import fp from 'fastify-plugin';
 import { fetchLatestSchedulePost } from './scraper.js';
 import { extractScheduleItems } from './gemini.js';
 import { sendOpsAlert } from '../push.js';
+import { comparableTitle, findExistingMatch } from './dedupe.js';
 
 // dedup용 기존 일정 조회 범위 (과거 N일 ~ +M일)
 // 과거도 포함해야 "오늘/최근 이미 올라온" 일정을 중복 처리할 수 있음
@@ -32,61 +33,12 @@ const BIRTHDAY_EVENT = /생카|카페|광고|서포트|전시|팝업|나눔|컵�
 // 제목 포함관계로 '확실한 중복'이라 단정할 최소 조건.
 // X 일정에는 'ME', 'MEEEEE' 같은 짧은 제목이 있어 길이 제한이 없으면 아무 데나 걸린다.
 // 실제 사례("뮤지컬헬스키친" 7자 ⊂ 12자 = 0.58, "워터뮤직풀파티" 7자 ⊂ 17자 = 0.41)를 통과시키는 값.
-const MIN_TITLE_CHARS = 7;
-const MIN_TITLE_RATIO = 0.4;
 
 /** 제목 정규화 (공백 제거 + 소문자) — 큐 dedup_key용 */
 function normalizeTitle(title) {
   return String(title || '').replace(/\s+/g, '').toLowerCase();
 }
 
-/**
- * 대조용 정규화 — 공백·구두점·괄호를 모두 걷어내고 소문자로.
- * "뮤지컬 <헬스키친> - 박지원 출연" → "뮤지컬헬스키친박지원출연"
- */
-function comparableTitle(title) {
-  return String(title || '')
-    .toLowerCase()
-    .replace(/[^0-9a-z가-힣]/g, '');
-}
-
-/**
- * 기존 일정과의 중복 여부를 코드로 판정한다.
- *
- * AI(is_duplicate)만 믿었더니 표현이 다르면 놓쳤다. 실제로 놓친 사례:
- *   "뮤지컬 헬스키친"            ↔ "뮤지컬 <헬스키친> - 박지원 출연"
- *   "워터 뮤직 풀 파티"          ↔ "2026 캐리비안 베이 워터 뮤직 풀파티"
- *   "ASIA TOUR TOMRROW GLOW. 1일차" ↔ "2026 fromis_9 ASIA TOUR TOMORROW GLOW."
- * 셋 다 날짜가 정확히 같았으므로, 날짜를 축으로 두 단계로 판정한다.
- *
- * @returns {{kind:'exact'|'suspect', match:object} | null}
- *   exact   — 제목이 서로를 포함. 확실한 중복이라 큐에 담지 않는다.
- *   suspect — 같은 날짜·같은 카테고리. 담되 "겹칠 수 있음"으로 표시해 사람이 판단한다.
- */
-function findExistingMatch(item, existing) {
-  if (!item.date) return null;
-
-  // 같은 날짜 + 같은 카테고리만 후보로 둔다.
-  // 카테고리를 안 보면 X 일정(💌 계열 1000여 건)과 엉뚱하게 엮인다.
-  const candidates = existing.filter(
-    e => e.date === item.date && e.category === item.category
-  );
-  if (candidates.length === 0) return null;
-
-  const a = comparableTitle(item.title);
-  if (a.length >= MIN_TITLE_CHARS) {
-    const contained = candidates.find(e => {
-      const b = comparableTitle(e.title);
-      if (b.length < MIN_TITLE_CHARS) return false; // 'me' 같은 짧은 제목은 아무데나 걸린다
-      if (!a.includes(b) && !b.includes(a)) return false;
-      // 짧은 쪽이 긴 쪽의 일부만 차지하면 우연일 수 있어 '의심'으로 넘긴다
-      return Math.min(a.length, b.length) / Math.max(a.length, b.length) >= MIN_TITLE_RATIO;
-    });
-    if (contained) return { kind: 'exact', match: contained };
-  }
-
-  return { kind: 'suspect', match: candidates[0] };
-}
 
 /**
  * 유튜브 봇 한 대가 담당하는 시리즈 키를 뽑는다.

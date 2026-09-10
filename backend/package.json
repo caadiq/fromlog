@@ -8,7 +8,8 @@
     "test:album": "node --test test/album-update.test.js",
     "test:media": "node --test test/album-media.test.js",
     "test:youtube": "node --test test/youtube-retry.test.js",
-    "test:pending": "node --test test/pending-register.test.js"
+    "test:pending": "node --test test/pending-register.test.js",
+    "test:dedupe": "node --test test/festival-dedupe.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.970.0",
