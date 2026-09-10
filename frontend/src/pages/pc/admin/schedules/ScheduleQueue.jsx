@@ -367,15 +367,19 @@ function ScheduleQueue() {
                   </>
                 )}
 
-                {/* 설명 (기타) */}
-                {editing.category === '기타' && (
+                {/* 내용 (기타·행사) — 행사는 멤버별 참여가 갈릴 때 적는다 */}
+                {(editing.category === '기타' || editing.category === '행사') && (
                   <div>
-                    <label className={F.label}>설명 (선택)</label>
+                    <label className={F.label}>내용 (선택)</label>
                     <textarea
                       value={editing.description}
                       onChange={(e) => setEditing((p) => ({ ...p, description: e.target.value }))}
                       rows={2}
-                      placeholder="예: 뮤지컬 <헬스키친> / 박지원 - 앨리(ALI) 역"
+                      placeholder={
+                        editing.category === '행사'
+                          ? '예: 박지원 뮤지컬 일정으로 불참'
+                          : '예: 뮤지컬 <헬스키친> / 박지원 - 앨리(ALI) 역'
+                      }
                       className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
                     />
                   </div>
