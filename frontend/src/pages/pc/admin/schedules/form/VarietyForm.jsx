@@ -106,7 +106,6 @@ function VarietyForm() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 워크돌 EP.15"
               className={`${F.underline} mt-1.5`}
             />
           </div>
@@ -163,7 +162,6 @@ function VarietyForm() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="예: 지원 게스트 출연 / 2부만 등장"
               className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
             />
           </div>

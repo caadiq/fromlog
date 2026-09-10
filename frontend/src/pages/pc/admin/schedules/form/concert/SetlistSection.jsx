@@ -318,7 +318,6 @@ function SetlistSection({ rounds, setlists, setSetlists, members, albums }) {
                       type="text"
                       value={song.songName}
                       onChange={(e) => updateSong(song.id, 'songName', e.target.value)}
-                      placeholder="예: Feel Good"
                       className="mt-1 w-full border-b-2 border-ink bg-transparent px-0.5 pb-2 pt-1.5 text-[15px] font-bold text-ink placeholder-faint outline-none"
                     />
                   </div>
@@ -328,7 +327,6 @@ function SetlistSection({ rounds, setlists, setSetlists, members, albums }) {
                       type="text"
                       value={song.albumName}
                       onChange={(e) => updateSong(song.id, 'albumName', e.target.value)}
-                      placeholder="예: Unlock My World"
                       className="mt-1 w-full border-b-2 border-ink bg-transparent px-0.5 pb-2 pt-1.5 text-[15px] font-bold text-ink placeholder-faint outline-none"
                     />
                   </div>

@@ -900,7 +900,6 @@ function AdminAlbumPhotos() {
                             value={importScheduleId}
                             onChange={(e) => setImportScheduleId(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && !importing && handleImportFromSchedule()}
-                            placeholder="예: 1-5,7,8"
                             className="w-44 border-b-2 border-ink bg-transparent px-1 pb-1.5 pt-1 text-center text-[14.5px] font-bold text-ink placeholder-faint outline-none"
                           />
                           <button
@@ -992,7 +991,6 @@ function AdminAlbumPhotos() {
                         value={importScheduleId}
                         onChange={(e) => setImportScheduleId(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && !importing && handleImportFromSchedule()}
-                        placeholder="예: 1-5,7,8"
                         className="min-w-0 flex-1 border-b-2 border-ink bg-transparent px-1 pb-1.5 pt-1 text-[14.5px] font-bold text-ink placeholder-faint outline-none"
                       />
                       <button

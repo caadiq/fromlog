@@ -168,7 +168,6 @@ function EventForm() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={subtype === 'university' ? '예: ○○대학교 대동제 초청 공연' : '예: 2026 워터밤 서울'}
               className={`${F.underline} mt-1.5`}
             />
           </div>
@@ -181,7 +180,6 @@ function EventForm() {
                 type="text"
                 value={schoolName}
                 onChange={(e) => setSchoolName(e.target.value)}
-                placeholder="예: 연세대학교"
                 className={`${F.underline} mt-1.5`}
               />
             </div>

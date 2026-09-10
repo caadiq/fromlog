@@ -64,7 +64,6 @@ function StageFields({ label, enabled, onToggle, value, onChange, endValue, onEn
               type="text"
               value={value.purchaseLimit}
               onChange={(e) => onChange({ ...value, purchaseLimit: e.target.value })}
-              placeholder="예: 1인 2매 (선예매 포함 최대 4매)"
               className={`${F.underlineSm} mt-1`}
             />
           </div>
@@ -253,7 +252,6 @@ function TicketingForm({ inline = false }) {
               type="text"
               value={eventName}
               onChange={(e) => setEventName(e.target.value)}
-              placeholder="예: 2025 fromis_9 WORLD TOUR [NOW TOMORROW.] IN SEOUL 티켓 오픈"
               className={`${F.underline} mt-1.5`}
               required
             />
@@ -305,7 +303,6 @@ function TicketingForm({ inline = false }) {
                 type="text"
                 value={vendor}
                 onChange={(e) => setVendor(e.target.value)}
-                placeholder="예: 멜론티켓"
                 className={`${F.underlineSm} mt-1`}
               />
             </div>
@@ -340,7 +337,6 @@ function TicketingForm({ inline = false }) {
                 type="text"
                 value={purchaseLimit}
                 onChange={(e) => setPurchaseLimit(e.target.value)}
-                placeholder="예: 1인 2매 (선예매 포함 최대 4매)"
                 className={`${F.underlineSm} mt-1`}
               />
             </div>
@@ -401,7 +397,6 @@ function TicketingForm({ inline = false }) {
                   type="text"
                   value={authNote}
                   onChange={(e) => setAuthNote(e.target.value)}
-                  placeholder="예: flover 2025 MEMBERSHIP"
                   className={`${F.underlineSm} mt-1`}
                 />
               </div>

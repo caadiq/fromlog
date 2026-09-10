@@ -79,7 +79,6 @@ const BulkEditPanel = memo(function BulkEditPanel({
           type="text"
           value={bulkEdit.range}
           onChange={(e) => setBulkEdit((prev) => ({ ...prev, range: e.target.value }))}
-          placeholder={`예: ${startNumber}-${startNumber + 4}, ${startNumber + 7}`}
           className={`${underline} mt-1.5`}
         />
         <p className="mt-1.5 text-[12.5px] text-mute">

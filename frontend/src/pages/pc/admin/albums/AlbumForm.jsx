@@ -286,7 +286,6 @@ function AdminAlbumForm() {
                     value={formData.title}
                     onChange={handleInputChange}
                     className={`${underline} mt-1.5`}
-                    placeholder="예: Glow ME"
                   />
                 </div>
                 <div>
@@ -330,7 +329,6 @@ function AdminAlbumForm() {
                     value={formData.album_type}
                     onChange={handleInputChange}
                     className={`${underline} mt-1.5`}
-                    placeholder="예: 미니 6집"
                   />
                 </div>
                 <div>

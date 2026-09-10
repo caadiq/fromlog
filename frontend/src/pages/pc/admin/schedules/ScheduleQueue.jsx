@@ -350,7 +350,6 @@ function ScheduleQueue() {
                         type="text"
                         value={editing.broadcaster || ''}
                         onChange={(e) => setEditing((p) => ({ ...p, broadcaster: e.target.value }))}
-                        placeholder="예: JTBC, TVING"
                         className={`${F.underline} mt-1.5`}
                       />
                     </div>
@@ -360,7 +359,6 @@ function ScheduleQueue() {
                         value={editing.description}
                         onChange={(e) => setEditing((p) => ({ ...p, description: e.target.value }))}
                         rows={2}
-                        placeholder="예: 지원 게스트 출연 / 2부만 등장"
                         className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
                       />
                     </div>
@@ -375,11 +373,6 @@ function ScheduleQueue() {
                       value={editing.description}
                       onChange={(e) => setEditing((p) => ({ ...p, description: e.target.value }))}
                       rows={2}
-                      placeholder={
-                        editing.category === '행사'
-                          ? ''
-                          : '예: 뮤지컬 <헬스키친> / 박지원 - 앨리(ALI) 역'
-                      }
                       className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
                     />
                   </div>

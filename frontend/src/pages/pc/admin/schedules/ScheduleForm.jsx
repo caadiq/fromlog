@@ -181,7 +181,7 @@ function ScheduleForm({ inline = false, categoryId = null }) {
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="일정 제목을 입력하세요 (예: 9월 컴백)"
+              placeholder="일정 제목을 입력하세요"
               className={`${F.underline} mt-1.5`}
               required
             />

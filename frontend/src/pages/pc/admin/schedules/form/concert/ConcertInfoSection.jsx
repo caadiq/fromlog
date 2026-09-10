@@ -28,7 +28,6 @@ function ConcertInfoSection({ title, setTitle, posterPreview, onPosterChange, on
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="예: fromis_9 WORLD TOUR NOW TOMORROW."
             className={`${F.underline} mt-1.5`}
           />
         </div>

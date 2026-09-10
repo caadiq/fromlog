@@ -158,7 +158,6 @@ function FansignForm({ inline = false }) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 미니 8집 발매 기념 팬사인회"
               className={`${F.underline} mt-1.5`}
               required
             />
@@ -187,7 +186,6 @@ function FansignForm({ inline = false }) {
               type="text"
               value={host}
               onChange={(e) => setHost(e.target.value)}
-              placeholder="예: 후즈팬스토어, 애플뮤직"
               className={`${F.underline} mt-1.5`}
             />
           </div>

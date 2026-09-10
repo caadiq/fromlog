@@ -126,7 +126,6 @@ function EtcForm() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 뮤지컬 <헬스키친> - 박지원 출연 / 라디오 게스트 출연"
               className={`${F.underline} mt-1.5`}
             />
           </div>
@@ -154,7 +153,6 @@ function EtcForm() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="예: 뮤지컬 <헬스키친> / 박지원 - 앨리(ALI) 역"
               className={`${F.underline} mt-1.5 resize-none leading-relaxed`}
             />
           </div>
