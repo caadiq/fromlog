@@ -21,6 +21,20 @@ import { getPending, registerPending, dismissPending } from '@/api/admin/pending
 const REGISTERABLE = ['기타', '행사', '유튜브', '예능'];
 const CATEGORY_OPTIONS = ['유튜브', '예능', '콘서트', '행사', '팬사인회', '티켓팅', '기타'].map((c) => ({ value: c, label: c }));
 
+/**
+ * 행사 제목에서 학교명을 뽑는다 — "가천대학교 무한전야 : UTOPIA" → "가천대학교".
+ *
+ * 큐로 들어오는 대학 축제는 제목이 늘 학교명으로 시작한다. 캠퍼스가 따로 있으면
+ * 같이 담는다("명지대학교 자연캠퍼스"). 관리자가 화면에서 고칠 수 있으니 어림짐작이면 충분하다.
+ * 대학 축제가 아니면 빈 문자열이라 유형 기본값도 이걸로 정한다.
+ */
+const SCHOOL_RE = /^(\S*(?:전문대학교|전문대학|대학교|대학))(?:\s+(\S*캠퍼스))?/;
+function detectSchool(title) {
+  const m = SCHOOL_RE.exec(String(title || '').trim());
+  if (!m) return '';
+  return m[2] ? `${m[1]} ${m[2]}` : m[1];
+}
+
 function ScheduleQueue() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -57,6 +71,9 @@ function ScheduleQueue() {
       time: it.time,
       // 봇이 뽑은 장소명은 이름만 있으므로 name만 가진 임시 venue로 (등록 시 서버가 지오코딩)
       venue: it.venueName ? { name: it.venueName } : null,
+      // 제목이 학교명으로 시작하면 대학 축제로 본다 (화면에서 바꿀 수 있다)
+      schoolName: detectSchool(it.title),
+      subtype: detectSchool(it.title) ? 'university' : 'general',
       description: it.description,
       members: it.members,
     });
@@ -117,6 +134,8 @@ function ScheduleQueue() {
         venueName: editing.venue?.lat ? '' : editing.venue?.name || '',
         description: (editing.description || '').trim(),
         broadcaster: (editing.broadcaster || '').trim(),
+        subtype: editing.subtype,
+        schoolName: (editing.schoolName || '').trim(),
         postUrls,
       };
       const formData = new FormData();
@@ -363,6 +382,40 @@ function ScheduleQueue() {
                       />
                     </div>
                   </>
+                )}
+
+                {/* 행사 유형 — 대학 축제면 학교명을 받는다 (목록에서 제목 아래 부제로 쓰인다) */}
+                {editing.category === '행사' && (
+                  <div>
+                    <label className={F.label}>행사 유형</label>
+                    <div className="mt-2 flex gap-1.5">
+                      {[
+                        { v: 'university', label: '대학 축제' },
+                        { v: 'general', label: '일반 행사' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.v}
+                          type="button"
+                          onClick={() => setEditing((p) => ({ ...p, subtype: opt.v }))}
+                          className={`border px-[18px] py-[9px] text-[13px] font-extrabold tracking-k1 transition-colors ${
+                            editing.subtype === opt.v
+                              ? 'border-ink bg-ink text-white'
+                              : 'border-hairline bg-white text-esub hover:border-ink'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    {editing.subtype === 'university' && (
+                      <input
+                        type="text"
+                        value={editing.schoolName || ''}
+                        onChange={(e) => setEditing((p) => ({ ...p, schoolName: e.target.value }))}
+                        className={`${F.underline} mt-3`}
+                      />
+                    )}
+                  </div>
                 )}
 
                 {/* 내용 (기타·행사) — 행사는 멤버별 참여가 갈릴 때 적는다 */}

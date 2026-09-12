@@ -103,7 +103,7 @@ export default async function pendingRoutes(fastify) {
 
   /**
    * POST /admin/pending/:id/register — 검토 후 등록 (multipart: payload + poster 파일들)
-   * payload: { category, title, date, time?, description?, venue?, venueName?, postUrls?, broadcaster?, replayUrl? }
+   * payload: { category, title, date, time?, description?, venue?, venueName?, postUrls?, broadcaster?, replayUrl?, subtype?, schoolName? }
    * - venue: 장소 검색으로 고른 객체(좌표 포함). 없고 venueName만 있으면 서버가 지오코딩
    */
   fastify.post('/:id/register', { preHandler: [fastify.authenticate] }, async (request, reply) => {
@@ -158,8 +158,14 @@ export default async function pendingRoutes(fastify) {
       } else if (category === '기타') {
         scheduleId = await insertEtcSchedule(conn, { title, date, time, description, venue, postUrls });
       } else {
+        // 대학 축제인지 일반 행사인지는 화면에서 고른 값을 따른다.
+        // 종전에는 'general'로 박아 넣어, 큐로 등록한 대학 축제는 학교명이 늘 비었다
+        // (학교명은 목록에서 제목 아래 부제로 쓰인다).
         scheduleId = await insertEventSchedule(conn, {
-          title, date, time, subtype: 'general', schoolName: null, venue, postUrls, description,
+          title, date, time,
+          subtype: b.subtype === 'university' ? 'university' : 'general',
+          schoolName: b.subtype === 'university' ? (b.schoolName || null) : null,
+          venue, postUrls, description,
         });
       }
       await conn.query(
