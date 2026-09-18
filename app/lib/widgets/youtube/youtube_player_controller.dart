@@ -16,6 +16,8 @@ import 'package:flutter/foundation.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
+import 'youtube_links.dart';
+
 /// 재생 상태 (유튜브 IFrame API 값 그대로)
 enum YtState { unstarted, ended, playing, paused, buffering, cued }
 
@@ -75,7 +77,9 @@ class YoutubeController extends ChangeNotifier {
     return _lastPos + _since.elapsed;
   }
 
-  void _init() {
+  bool _openingExternal = false;
+
+  Future<void> _init() async {
     webview = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF000000))
@@ -91,7 +95,39 @@ class YoutubeController extends ChangeNotifier {
       );
     }
 
-    webview.loadHtmlString(_html, baseUrl: _host);
+    // Register before loading the player, including target=_blank title links
+    // forwarded by Android's WebChromeClient to the navigation delegate.
+    await webview.setNavigationDelegate(
+      NavigationDelegate(onNavigationRequest: _onNavigationRequest),
+    );
+    await webview.loadHtmlString(_html, baseUrl: _host);
+  }
+
+  NavigationDecision _onNavigationRequest(NavigationRequest request) {
+    final link = youtubeViewerLink(request.url);
+    if (link == null) return NavigationDecision.navigate;
+    // Prevent navigation immediately so the embedded player remains intact.
+    unawaited(_openExternal(link));
+    return NavigationDecision.prevent;
+  }
+
+  Future<void> _openExternal(Uri link) async {
+    if (_openingExternal) return;
+    _openingExternal = true;
+    try {
+      if (_ready) {
+        try {
+          await pause();
+        } catch (_) {
+          // A player that is closing must not prevent opening the requested link.
+        }
+      }
+      if (!await openYoutubeViewerLink(link)) {
+        debugPrint('[youtube] 외부 앱에서 링크를 열지 못했습니다.');
+      }
+    } finally {
+      _openingExternal = false;
+    }
   }
 
   void _onMessage(JavaScriptMessage msg) {
@@ -148,7 +184,8 @@ class YoutubeController extends ChangeNotifier {
   Future<void> toggle() => isPlaying ? pause() : play();
 
   /// 재생 위치를 유지한 채 다시 띄운다 (화면을 돌려 웹뷰가 새로 만들어질 때)
-  String get _html => '''
+  String get _html =>
+      '''
 <!doctype html>
 <html>
 <head>

@@ -771,3 +771,14 @@ invalidateSchedules(queryClient);
 (`services/meilisearch/index.js`의 `invalidateMonthlyCache`). redis를 빼먹으면 프론트가 다시
 요청해도 서버가 낡은 JSON을 그대로 돌려준다 — 실제로 수집 큐 등록 경로가 그랬다.
 새 생성 경로를 만들 때 **redis를 반드시 넘길 것**.
+
+### 앱 YouTube 플레이어 외부 링크 처리 (2026-09-19)
+
+공통 `YoutubeController`에서 HTML을 로드하기 전에 `NavigationDelegate`를 등록한다. 플레이어의 제목·YouTube에서 보기·채널 링크는 웹뷰 이동을 막고 `url_launcher`의 `externalNonBrowserApplication`으로 연다. 앱 실행 실패 시 `externalApplication`으로 외부 브라우저를 사용한다. 임베드(`/embed/`), IFrame API, 재생 리소스 및 초기 문서는 그대로 허용한다. 외부 이동 전 플레이어를 일시정지하며 중복 실행 요청을 방지한다.
+
+- 적용 범위: 일정 상세, 앨범 트랙, 응원법 등 공통 플레이어 사용 화면.
+- 검증: `flutter test --no-pub test/youtube_links_test.dart`(6개), `flutter analyze --no-pub lib/widgets/youtube test/youtube_links_test.dart`.
+- Android 확인 항목: 제목/채널/YouTube 로고 탭 → 외부 앱, 앱 미설치 시 외부 브라우저, 복귀 후 플레이어 유지, 재생·탐색·전체화면 정상 동작. 실기기 탭 검증은 별도 필요하다.
+- APK 빌드: `flutter build apk --release --no-pub --target-platform android-arm64 --build-name=2.0.0 --build-number=2131`. 앱 코드 변경이므로 기존 설치본에는 APK 업데이트가 필요하다.
+
+2026-09-19 Otto 발행 완료: `2.0.0+131`(Android versionCode `2131`). `otto-publish`로 arm64 split APK를 빌드·등록했고, 이전 버전 조회 200/현재 버전 조회 204 및 다운로드 APK의 SHA-256 일치를 확인했다. 휴대폰에서 앱을 다시 실행하면 업데이트 안내가 표시된다.
