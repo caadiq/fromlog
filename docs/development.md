@@ -772,6 +772,18 @@ invalidateSchedules(queryClient);
 요청해도 서버가 낡은 JSON을 그대로 돌려준다 — 실제로 수집 큐 등록 경로가 그랬다.
 새 생성 경로를 만들 때 **redis를 반드시 넘길 것**.
 
+### YouTube 필터·중복 처리 정책 (2026-09-18)
+
+- 배포 전 `backend/sql/youtube-filter-policy.sql`을 MariaDB에 적용한다(재실행 가능). 새 필드는 `description_filters`, `filter_mode`, `min_duration_seconds`이며 `youtube_bot_processed`는 일정 존재 여부와 별도로 봇의 후속 처리 완료를 기록한다.
+- 새 봇은 `split`: 제목 키워드는 제목만, 설명 키워드는 설명만 검사한다. 한 필드 안은 OR, 두 필드 사이는 AND. 기존 봇은 `legacy`로 제목+설명 OR 및 연결 본편 폴백을 유지한다. 관리자 화면에서 제목/설명 필터를 변경하거나 전환 버튼을 누르면 `split`으로 바뀐다.
+- 최소 길이는 일반 영상에만 적용한다. 쇼츠 설정은 독립적이며, 길이 0/미조회는 제외 캐시에 넣지 않고 재시도한다. 필터/길이 미달 영상은 X 링크 경로에서 별도 수집될 수 있다.
+- X는 관리 채널도 일정·아카이브를 수집한다. 구 `exclude_managed_channels`는 더 이상 수집을 막지 않는다. 이미 저장된 트윗도 미완료 YouTube 링크를 다시 확인한다.
+- 채널별 MariaDB advisory lock으로 X/YouTube 동시 쓰기를 직렬화한다. 잠금 대기 작업은 프로세스 내 3개로 제한하여 DB 풀을 고갈시키지 않는다. 영상 ID UNIQUE와 예정 존재 확인을 함께 사용한다.
+- 봇은 X가 먼저 등록한 영상도 아카이브 저장, 중복 예정 정리, 다음 예정 생성, 검색 갱신을 수행한 뒤 완료를 기록한다. 필터와 길이를 통과한 당일 일반 영상만 주간 수집 종료 조건이다. 설정 변경 시 제외·완료 기록을 비워 재평가한다.
+- 회차는 저장된 본편 제목의 EP.1/EP1/Episode 1/1화/제1화/1회 등을 읽는다. `episodeMatch`와 제목 필터·최소 길이로 범위를 좁히고 명시된 시즌을 분리한다. 영상 수 및 `episodeOffset`은 사용하지 않는다. 최신 대상 회차가 모호하면 번호 없는 `(예정)` 제목을 만든다.
+- 회귀 검증: `cd backend && npm run test:youtube`.
+- 이번 방판소녀들 보정: `node scripts/repair-bangpan-20260917.mjs`로 미리보기, `--apply`로 적용. 변경 전 스냅샷은 `backend/backups/`에 보관한다. 제목 `방판소녀들 시즌2`, 최소 300초, 본편 `Am4EJN0uF3Q`(EP.02), 9/24 예정 EP.3. 예고편 일정은 별도 유지한다.
+
 ### 앱 YouTube 플레이어 외부 링크 처리 (2026-09-19)
 
 공통 `YoutubeController`에서 HTML을 로드하기 전에 `NavigationDelegate`를 등록한다. 플레이어의 제목·YouTube에서 보기·채널 링크는 웹뷰 이동을 막고 `url_launcher`의 `externalNonBrowserApplication`으로 연다. 앱 실행 실패 시 `externalApplication`으로 외부 브라우저를 사용한다. 임베드(`/embed/`), IFrame API, 재생 리소스 및 초기 문서는 그대로 허용한다. 외부 이동 전 플레이어를 일시정지하며 중복 실행 요청을 방지한다.

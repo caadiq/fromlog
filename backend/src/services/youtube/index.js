@@ -1,3 +1,5 @@
+import { matchesVideoFilters as matchesTitleFilters, meetsDuration, nextEpisodeTitle } from '../../utils/youtubePolicy.js';
+import { withYoutubeChannelLock } from '../../utils/youtubeLock.js';
 import fp from 'fastify-plugin';
 import { fetchRecentUploads, getVideoDurations, fetchVideoInfo, fetchAllVideos, fetchShortsLinkedVideo } from './api.js';
 import { CATEGORY_IDS } from '../../config/index.js';
@@ -7,7 +9,7 @@ import { logActivity } from '../../utils/log.js';
 import { archiveVideo } from '../videos.js';
 import { refineCategory } from '../videoCategory.js';
 import { toKST, formatDateTime, todayKST, weekdayOf, nextWeekday } from '../../utils/date.js';
-import { promoteTempSchedule } from '../../utils/tempSchedule.js';
+import { promoteTempSchedule, comparableTitle } from '../../utils/tempSchedule.js';
 
 const YOUTUBE_CATEGORY_ID = CATEGORY_IDS.YOUTUBE;
 
@@ -27,43 +29,14 @@ async function youtubeBotPlugin(fastify) {
     return rows[0] || null;
   }
 
-  /**
-   * 채널의 일반 영상 개수 조회 (쇼츠 제외)
-   *
-   * titleMatch를 주면 제목에 그 문자열이 든 것만 센다. 한 채널이 프로그램 외
-   * 영상(광고 등)도 올리는 경우, 그게 개수에 섞여 회차 번호가 밀리는 걸 막는다.
-   */
-  async function getVideoCount(channelId, titleMatch = null) {
-    const params = [channelId];
-    let sql = `SELECT COUNT(*) as cnt FROM schedule_youtube sy
-       WHERE sy.channel_id = ? AND sy.video_type = 'video' AND sy.video_id IS NOT NULL`;
-    if (titleMatch) {
-      sql += ` AND EXISTS (
-        SELECT 1 FROM schedules s WHERE s.id = sy.schedule_id AND s.title LIKE ?
-      )`;
-      params.push(`%${titleMatch}%`);
-    }
-    const [rows] = await fastify.db.query(sql, params);
-    return rows[0].cnt;
-  }
-
-  /**
-   * 예정 일정 제목 생성
-   */
   async function generateScheduledTitle(bot) {
-    const { autoScheduleNext } = bot;
-
-    if (autoScheduleNext.titleTemplate) {
-      const videoCount = await getVideoCount(bot.channelId, autoScheduleNext.episodeMatch);
-      // episodeOffset — 정규 회차에 안 들어가는 영상(예고편 등)이 개수에 섞일 때의 보정값
-      const nextEpisode = videoCount + 1 + (autoScheduleNext.episodeOffset || 0);
-
-      return autoScheduleNext.titleTemplate
-        .replace('{channelName}', bot.channelName)
-        .replace('{episode}', nextEpisode);
-    }
-
-    return autoScheduleNext.title || `${bot.channelName} (예정)`;
+    const [rows] = await fastify.db.query(
+      `SELECT s.title, sy.video_type AS videoType, v.duration
+       FROM schedule_youtube sy JOIN schedules s ON s.id = sy.schedule_id
+       LEFT JOIN videos v ON v.video_id = sy.video_id
+       WHERE sy.channel_id = ? AND sy.video_type = 'video' AND sy.video_id IS NOT NULL
+       ORDER BY s.date DESC, s.time DESC`, [bot.channelId]);
+    return nextEpisodeTitle(bot, rows);
   }
 
   /**
@@ -158,26 +131,6 @@ async function youtubeBotPlugin(fastify) {
   }
 
   /**
-   * 문자열 비교용 정규화
-   * YouTube API는 한글을 NFD(자모 분해형)로 반환하는 반면 DB에 저장된 제목 필터는
-   * 보통 NFC(조합형)라, 정규화 없이 includes로 비교하면 눈으로 같아 보여도 매칭에 실패한다.
-   */
-  function normText(s) {
-    return String(s || '').normalize('NFC').toLowerCase();
-  }
-
-  /**
-   * 제목 필터 매칭 — 제목 + 설명란을 함께 본다.
-   * 워크돌 쇼츠처럼 제목에는 아무 키워드가 없고 설명란 해시태그
-   * (#프로미스나인 #박지원 …)에만 출연자가 표기되는 채널이 있다.
-   */
-  function matchesTitleFilters(bot, video) {
-    if (!bot.titleFilters || bot.titleFilters.length === 0) return true;
-    const haystack = normText(`${video.title}\n${video.description || ''}`);
-    return bot.titleFilters.some((filter) => haystack.includes(normText(filter)));
-  }
-
-  /**
    * 예정 일정 deadline 체크 (금요일 00시)
    */
   async function checkScheduledDeadline(bot) {
@@ -231,32 +184,50 @@ async function youtubeBotPlugin(fastify) {
     await createScheduledEntry(bot);
   }
 
+  async function reconcilePending(video, bot, existingId) {
+    const [pending] = await fastify.db.query(
+      `SELECT s.id, s.title, sy.channel_id, s.date FROM schedules s
+       JOIN schedule_youtube sy ON sy.schedule_id = s.id
+       WHERE s.is_temp = 1 AND sy.video_id IS NULL
+       AND s.date BETWEEN DATE_SUB(?, INTERVAL 7 DAY) AND DATE_ADD(?, INTERVAL 7 DAY)`, [video.date, video.date]);
+    for (const row of pending) {
+      const key = comparableTitle(row.title);
+      const own = bot.autoScheduleNext && video.videoType === 'video' && row.channel_id === bot.channelId &&
+        formatDateTime(row.date).slice(0, 10) === video.date;
+      if (row.id === existingId || (!own && !(key.length >= 6 && comparableTitle(video.title).includes(key)))) continue;
+      const [deleted] = await fastify.db.query(
+        `DELETE s FROM schedules s JOIN schedule_youtube sy ON sy.schedule_id = s.id
+         WHERE s.id = ? AND s.is_temp = 1 AND sy.video_id IS NULL`, [row.id]);
+      if (deleted.affectedRows) {
+        await deleteSchedule(fastify.meilisearch, row.id, fastify.redis);
+        await logActivity(fastify.db, { actor: bot.id, action: 'delete', category: 'schedule',
+          targetType: 'youtube_schedule', targetId: row.id, summary: `실제 영상과 중복된 예정 정리: ${video.title}` });
+      }
+    }
+  }
+
   /**
    * 영상을 DB에 저장
    */
   async function saveVideo(video, bot) {
     // 중복 체크 (video_id로) - 트랜잭션 전에 수행
     const [existing] = await fastify.db.query(
-      'SELECT id FROM schedule_youtube WHERE video_id = ?',
+      'SELECT id, schedule_id FROM schedule_youtube WHERE video_id = ?',
       [video.videoId]
     );
+    // All callers, including manual full sync, obey the same policy.
+    if (!matchesTitleFilters(bot, video) || meetsDuration(bot, video) !== true ||
+        (bot.excludeShorts && video.videoType === 'shorts')) return null;
     if (existing.length > 0) {
-      return null;
-    }
-
-    // 커스텀 설정 적용
-    // 제목 필터: 하나라도 포함되어야 통과 (제목 + 설명란)
-    if (!matchesTitleFilters(bot, video)) {
-      return null;
+      await reconcilePending(video, bot, existing[0].schedule_id);
+      if (bot.autoScheduleNext && video.videoType === 'video') {
+        if (video.date === todayKST()) await createScheduledEntry(bot);
+      }
+      return existing[0].schedule_id;
     }
 
     const { autoScheduleNext } = bot;
-    const isVideoType = video.videoType === 'video'; // 쇼츠가 아닌 일반 영상
-
-    // 쇼츠 제외 옵션이 켜진 봇은 쇼츠를 아예 무시
-    if (bot.excludeShorts && !isVideoType) {
-      return null;
-    }
+    const isVideoType = video.videoType === 'video';
 
     // 예정 일정 처리 (쇼츠 제외 옵션이 있으면 쇼츠는 무시)
     if (autoScheduleNext && isVideoType) {
@@ -321,7 +292,7 @@ async function youtubeBotPlugin(fastify) {
       autoScheduleNext &&
       isVideoType &&
       scheduleId &&
-      weekdayOf(video.date) === autoScheduleNext.dayOfWeek
+      video.date === todayKST() && weekdayOf(video.date) === autoScheduleNext.dayOfWeek
     ) {
       await createScheduledEntry(bot);
     }
@@ -347,6 +318,11 @@ async function youtubeBotPlugin(fastify) {
 
   async function promoteArchivedVideo(bot, candidate, videoType) {
     const publishedAt = formatDateTime(candidate.publishedAt);
+    const [existing] = await fastify.db.query('SELECT id, schedule_id FROM schedule_youtube WHERE video_id = ?', [candidate.videoId]);
+    if (existing.length) {
+      await reconcilePending({ ...candidate, date: publishedAt.slice(0, 10), videoType }, bot, existing[0].schedule_id);
+      return null;
+    }
     const scheduleId = await promoteTempSchedule(fastify.db, {
       videoId: candidate.videoId,
       videoType,
@@ -368,7 +344,7 @@ async function youtubeBotPlugin(fastify) {
     return scheduleId;
   }
 
-  async function syncNewVideos(bot) {
+  async function syncNewVideos(bot, uploadsOverride = null) {
     // 예정 일정 deadline 체크 (금요일 00시)
     if (bot.autoScheduleNext) {
       await checkScheduledDeadline(bot);
@@ -377,7 +353,7 @@ async function youtubeBotPlugin(fastify) {
     // 1. 최근 업로드 조회 — activities.list 1 unit (제목·설명 스니펫 포함, 추가 비용 0)
     //    50개를 받아도 비용은 동일하므로, 폴링 간격이 길거나 업로드가 몰리는
     //    채널(음방 등)에서 누락되지 않도록 최대치로 조회한다.
-    const uploads = await fetchRecentUploads(bot.channelId, 50);
+    const uploads = uploadsOverride || await fetchRecentUploads(bot.channelId, 50);
     if (uploads.length === 0) {
       return { addedCount: 0, total: 0, foundTarget: false };
     }
@@ -394,44 +370,36 @@ async function youtubeBotPlugin(fastify) {
       [ids]
     );
     const [archived] = await fastify.db.query(
-      'SELECT video_id, video_type FROM videos WHERE video_id IN (?)',
+      'SELECT video_id, video_type, duration FROM videos WHERE video_id IN (?)',
       [ids]
     );
+    const [processed] = await fastify.db.query(
+      'SELECT video_id, is_target, video_date FROM youtube_bot_processed WHERE channel_id = ? AND video_id IN (?)',
+      [bot.channelId, ids]);
+    const alreadyFound = processed.some(r => r.is_target && formatDateTime(r.video_date).slice(0, 10) === todayKST());
     const seen = new Set([
-      ...saved.map((r) => r.video_id),
+      ...processed.map((r) => r.video_id),
       ...skipped.map((r) => r.video_id),
     ]);
-    let promotedCount = 0;
-    if (bot.addToSchedule === false) {
-      const archivedTypes = new Map(archived.map(r => [r.video_id, r.video_type]));
-      // Retry pending promotion using stored metadata, without another YouTube API call.
-      // A successful promotion appears in schedule_youtube on the next poll.
-      for (const upload of uploads) {
-        if (!seen.has(upload.videoId) && archivedTypes.has(upload.videoId)) {
-          if (await promoteArchivedVideo(bot, upload, archivedTypes.get(upload.videoId))) promotedCount++;
-        }
-      }
-      for (const row of archived) seen.add(row.video_id);
-    }
     let candidates = uploads.filter((u) => !seen.has(u.videoId));
 
     // 평상시(새 영상 없음)엔 여기서 종료 → sync 1회 = activities.list 1 unit
     if (candidates.length === 0) {
-      return { addedCount: promotedCount, total, foundTarget: false };
+      return { addedCount: 0, total, foundTarget: alreadyFound };
     }
 
-    let addedCount = promotedCount;
-    let foundTarget = false; // 오늘 게시된 일반 영상(그날의 본편)을 저장했는지
+    let addedCount = 0;
+    let foundTarget = alreadyFound; // 오늘 게시된 일반 영상(그날의 본편)을 저장했는지
     const today = todayKST();
 
     // 3. 제목 필터 — 스니펫 title+description으로 판별 (videos.list 호출 없이 무료)
-    if (bot.titleFilters && bot.titleFilters.length > 0) {
+    if (bot.titleFilters?.length || bot.descriptionFilters?.length) {
       const pass = candidates.filter((u) => matchesTitleFilters(bot, u));
       let rejected = candidates.filter((u) => !pass.includes(u));
 
       // 제목·설명란이 모두 비어 판별 불가한 쇼츠 — 연결된 본편 제목으로 폴백 판별
       // (예: 워크돌 쇼츠 "박지원도 못 이기는 박지원"은 설명이 없지만 본편 제목에 그룹명이 있다)
-      for (const u of rejected.filter((r) => !r.description)) {
+      for (const u of rejected.filter((r) => bot.filterMode === 'legacy' && !r.description)) {
         const linked = await fetchShortsLinkedVideo(u.videoId);
         if (linked && matchesTitleFilters(bot, linked)) {
           pass.push(u);
@@ -446,7 +414,25 @@ async function youtubeBotPlugin(fastify) {
 
     // 4. 쇼츠 판별 — videos.list 1 unit으로 최대 50개 배치
     //    (아카이브 video_type에도 필요하므로 excludeShorts와 무관하게 항상 수행)
-    const durationMap = await getVideoDurations(candidates.map((u) => u.videoId));
+    const archivedById = new Map(archived.map(r => [r.video_id, r]));
+    const missing = candidates.filter(c => !archivedById.has(c.videoId) ||
+      (bot.minDurationSeconds > 0 && !(archivedById.get(c.videoId).duration > 0)));
+    const durationMap = missing.length ? await getVideoDurations(missing.map(c => c.videoId)) : {};
+    for (const c of candidates) {
+      const old = archivedById.get(c.videoId);
+      if (!durationMap[c.videoId] && old) durationMap[c.videoId] = { isShorts: old.video_type === 'shorts', seconds: old.duration };
+    }
+
+    // Newly published/live metadata can report zero duration. Never cache that as an exclusion.
+    candidates = candidates.filter(c => durationMap[c.videoId]?.seconds > 0 ||
+      (archivedById.has(c.videoId) && !bot.minDurationSeconds && durationMap[c.videoId]?.seconds == null));
+    const tooShort = candidates.filter(c => meetsDuration(bot, {
+      videoType: durationMap[c.videoId]?.isShorts ? 'shorts' : 'video', duration: durationMap[c.videoId]?.seconds,
+    }) === false);
+    await recordSkipped(tooShort.map(c => c.videoId), bot.channelId, 'duration');
+    candidates = candidates.filter(c => meetsDuration(bot, {
+      videoType: durationMap[c.videoId]?.isShorts ? 'shorts' : 'video', duration: durationMap[c.videoId]?.seconds,
+    }) === true);
 
     // 4.5. 영상 아카이브 적재 — 제목 필터를 통과한 영상은 기본적으로 쇼츠까지 전부 적재
     //      (excludeShorts는 "일정" 정책일 뿐, 영상 페이지에는 쇼츠도 표시)
@@ -475,9 +461,13 @@ async function youtubeBotPlugin(fastify) {
     // 이 봇은 일정을 안 만들고 X봇은 '관리 중인 채널'이라 건너뛰어, 안 채우면 아무도 안 채운다)
     if (bot.addToSchedule === false) {
       for (const cand of candidates) {
-        await promoteArchivedVideo(bot, cand, durationMap[cand.videoId]?.isShorts ? 'shorts' : 'video');
+        const promoted = await promoteArchivedVideo(bot, cand, durationMap[cand.videoId]?.isShorts ? 'shorts' : 'video');
+        await fastify.db.query(
+          'INSERT IGNORE INTO youtube_bot_processed (channel_id, video_id, is_target, video_date) VALUES (?, ?, ?, ?)',
+          [bot.channelId, cand.videoId, 0, formatDateTime(cand.publishedAt).slice(0, 10)]);
+        if (promoted || !archivedById.has(cand.videoId)) addedCount++;
       }
-      return { addedCount: addedCount + candidates.length, total, foundTarget };
+      return { addedCount, total, foundTarget };
     }
 
     if (bot.excludeShorts) {
@@ -490,7 +480,7 @@ async function youtubeBotPlugin(fastify) {
     // 5. 필터를 통과한 영상만 상세 조회 (videos.list - 영상당 1 unit)
     for (const cand of candidates) {
       const video = await fetchVideoInfo(cand.videoId);
-      if (!video) continue;
+      if (!video || meetsDuration(bot, video) === null) continue;
 
       const scheduleId = await saveVideo(video, bot);
       if (scheduleId) {
@@ -500,13 +490,16 @@ async function youtubeBotPlugin(fastify) {
         await syncScheduleById(fastify.meilisearch, fastify.db, scheduleId, fastify.redis);
         logActivity(fastify.db, {
           actor: bot.id,
-          action: 'create',
+          action: saved.some(r => r.video_id === video.videoId) ? 'update' : 'create',
           category: 'schedule',
           targetType: 'youtube_schedule',
           targetId: scheduleId,
           summary: `YouTube 영상 추가: ${video.title}`,
         });
-        addedCount++;
+        await fastify.db.query(
+          'INSERT IGNORE INTO youtube_bot_processed (channel_id, video_id, is_target, video_date) VALUES (?, ?, ?, ?)',
+          [bot.channelId, video.videoId, video.videoType === 'video' ? 1 : 0, video.date]);
+        if (!saved.some(r => r.video_id === video.videoId)) addedCount++;
       } else {
         // saveVideo가 거부 → 재조회 방지
         await recordSkipped([cand.videoId], bot.channelId, 'other');
@@ -522,24 +515,21 @@ async function youtubeBotPlugin(fastify) {
   async function syncAllVideos(bot) {
     const videos = await fetchAllVideos(bot.channelId);
     let addedCount = 0;
-
-    for (const video of videos) {
-      const scheduleId = await saveVideo(video, bot);
-      if (scheduleId) {
-        // Meilisearch 동기화
-        await syncScheduleById(fastify.meilisearch, fastify.db, scheduleId, fastify.redis);
-        addedCount++;
-      }
+    let foundTarget = false;
+    for (let i = 0; i < videos.length; i += 50) {
+      const result = await syncNewVideos(bot, videos.slice(i, i + 50));
+      addedCount += result.addedCount;
+      foundTarget ||= result.foundTarget;
     }
-
-    return { addedCount, total: videos.length };
+    return { addedCount, total: videos.length, foundTarget };
   }
 
   fastify.decorate('youtubeBot', {
-    syncNewVideos,
-    syncAllVideos,
+    syncNewVideos: bot => withYoutubeChannelLock(fastify.db, bot.channelId, () => syncNewVideos(bot)),
+    syncAllVideos: bot => withYoutubeChannelLock(fastify.db, bot.channelId, () => syncAllVideos(bot)),
+    generateScheduledTitle,
     saveVideo,
-    checkScheduledDeadline,
+    checkScheduledDeadline: bot => withYoutubeChannelLock(fastify.db, bot.channelId, () => checkScheduledDeadline(bot)),
   });
 }
 

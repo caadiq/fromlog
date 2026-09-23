@@ -34,7 +34,7 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
   const [filterInput, setFilterInput] = useState('');
   const [includeRetweets, setIncludeRetweets] = useState(false);
   const [extractYoutube, setExtractYoutube] = useState(false);
-  const [excludeManagedChannels, setExcludeManagedChannels] = useState(true);
+
 
   // X 봇 상세 조회 (수정 모드)
   const { data: bot, isLoading: botLoading } = useQuery({
@@ -60,7 +60,6 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
       setTextFilters(bot.text_filters || []);
       setIncludeRetweets(bot.include_retweets || false);
       setExtractYoutube(bot.extract_youtube || false);
-      setExcludeManagedChannels(bot.exclude_managed_channels ?? true);
       setShowAdvanced((bot.text_filters && bot.text_filters.length > 0) || bot.include_retweets || bot.extract_youtube || false);
     } else if (!botId) {
       // 추가 모드
@@ -108,7 +107,6 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
         textFilters,
         includeRetweets,
         extractYoutube,
-        excludeManagedChannels,
         interval,
       });
 
@@ -302,28 +300,7 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
                         </button>
                       </div>
 
-                      {/* 관리 중인 채널 제외 (extractYoutube 활성 시만) */}
-                      {extractYoutube && (
-                        <div className="flex items-center justify-between border-l-2 border-hairline pl-4">
-                          <div>
-                            <label className="block text-[13px] font-extrabold tracking-k1 text-ink">관리 채널 영상 제외</label>
-                            <p className="text-[12.5px] text-mute">등록된 YouTube 봇 채널의 영상은 트윗에서 중복 추가하지 않습니다</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setExcludeManagedChannels(!excludeManagedChannels)}
-                            className={`relative h-6 w-11 rounded-full transition-colors ${
-                              excludeManagedChannels ? 'bg-ink' : 'bg-[#D8D8D2]'
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                                excludeManagedChannels ? 'translate-x-5' : ''
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      )}
+                      {extractYoutube && <p className="text-[12.5px] text-mute">YouTube 봇 관리 채널도 수집합니다. 같은 영상의 일정과 아카이브는 중복 추가하지 않습니다.</p>}
 
                       {/* 텍스트 필터 */}
                       <div>

@@ -19,6 +19,9 @@ const youtubeBotResponse = {
     cron_interval: { type: ['integer', 'null'] },
     enabled: { type: 'boolean' },
     title_filters: { type: 'array', items: { type: 'string' } },
+    description_filters: { type: 'array', items: { type: 'string' } },
+    filter_mode: { type: 'string', enum: ['legacy', 'split'] },
+    min_duration_seconds: { type: 'integer', minimum: 0, maximum: 86400 },
     exclude_shorts: { type: 'boolean' },
     archive_shorts: { type: 'boolean' },
     auto_schedule_config: { type: ['object', 'null'], additionalProperties: true },
@@ -48,7 +51,10 @@ function formatBotResponse(row) {
     banner_url: row.banner_url,
     cron_interval: row.cron_interval,
     enabled: row.enabled === 1,
-    title_filters: parseJsonColumn(row.title_filters, []),
+    title_filters: parseJsonColumn(row.title_filters, []) || [],
+    description_filters: parseJsonColumn(row.description_filters, []) || [],
+    filter_mode: row.filter_mode || 'legacy',
+    min_duration_seconds: row.min_duration_seconds || 0,
     exclude_shorts: row.exclude_shorts === 1,
     archive_shorts: row.archive_shorts !== 0,
     video_category: row.video_category || 'variety',
@@ -174,6 +180,9 @@ export default async function youtubeBotsRoutes(fastify) {
           banner_url: { type: ['string', 'null'] },
           cron_interval: { type: ['integer', 'null'] },
           title_filters: { type: ['array', 'null'], items: { type: 'string' } },
+          description_filters: { type: ['array', 'null'], items: { type: 'string' } },
+          filter_mode: { type: 'string', enum: ['legacy', 'split'] },
+          min_duration_seconds: { type: 'integer', minimum: 0, maximum: 86400 },
           exclude_shorts: { type: 'boolean', default: false },
           archive_shorts: { type: 'boolean', default: true },
           auto_schedule_config: { type: ['object', 'null'], additionalProperties: true },
@@ -197,6 +206,7 @@ export default async function youtubeBotsRoutes(fastify) {
       banner_url,
       cron_interval,
       title_filters,
+      description_filters = [], filter_mode = 'split', min_duration_seconds = 0,
       exclude_shorts = false,
       archive_shorts = true,
       auto_schedule_config,
@@ -220,9 +230,9 @@ export default async function youtubeBotsRoutes(fastify) {
     const [result] = await db.query(
       `INSERT INTO bot_youtube
         (channel_id, channel_handle, channel_name, banner_url, cron_interval,
-         title_filters, exclude_shorts, archive_shorts, auto_schedule_config, weekly_schedule_config,
+         title_filters, description_filters, filter_mode, min_duration_seconds, exclude_shorts, archive_shorts, auto_schedule_config, weekly_schedule_config,
          video_category, add_to_schedule, enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         channel_id,
         channel_handle || null,
@@ -230,6 +240,7 @@ export default async function youtubeBotsRoutes(fastify) {
         banner_url || null,
         finalCronInterval,
         title_filters ? JSON.stringify(title_filters) : null,
+        JSON.stringify(description_filters), filter_mode, min_duration_seconds,
         exclude_shorts ? 1 : 0,
         archive_shorts ? 1 : 0,
         auto_schedule_config ? JSON.stringify(auto_schedule_config) : null,
@@ -272,6 +283,9 @@ export default async function youtubeBotsRoutes(fastify) {
           banner_url: { type: ['string', 'null'] },
           cron_interval: { type: ['integer', 'null'] },
           title_filters: { type: ['array', 'null'], items: { type: 'string' } },
+          description_filters: { type: ['array', 'null'], items: { type: 'string' } },
+          filter_mode: { type: 'string', enum: ['legacy', 'split'] },
+          min_duration_seconds: { type: 'integer', minimum: 0, maximum: 86400 },
           exclude_shorts: { type: 'boolean' },
     archive_shorts: { type: 'boolean' },
           auto_schedule_config: { type: ['object', 'null'], additionalProperties: true },
@@ -321,6 +335,12 @@ export default async function youtubeBotsRoutes(fastify) {
       fields.push('title_filters = ?');
       values.push(JSON.stringify(updates.title_filters));
     }
+    for (const field of ['description_filters', 'filter_mode', 'min_duration_seconds']) {
+      if (updates[field] !== undefined) {
+        fields.push(`${field} = ?`);
+        values.push(field === 'description_filters' ? JSON.stringify(updates[field]) : updates[field]);
+      }
+    }
     if (updates.exclude_shorts !== undefined) {
       fields.push('exclude_shorts = ?');
       values.push(updates.exclude_shorts ? 1 : 0);
@@ -363,7 +383,8 @@ export default async function youtubeBotsRoutes(fastify) {
       );
 
       // 필터 설정이 바뀌면 스킵 캐시 초기화 — 이전에 거부된 영상을 새 기준으로 재평가
-      if (updates.title_filters !== undefined || updates.exclude_shorts !== undefined) {
+      if (['title_filters', 'description_filters', 'filter_mode', 'min_duration_seconds', 'exclude_shorts', 'auto_schedule_config', 'add_to_schedule'].some(k => updates[k] !== undefined)) {
+        await db.query('DELETE FROM youtube_bot_processed WHERE channel_id = ?', [existing[0].channel_id]);
         await db.query('DELETE FROM youtube_skipped_videos WHERE channel_id = ?', [
           existing[0].channel_id,
         ]);

@@ -1131,3 +1131,17 @@ URL로 영상 정보 미리보기. 추천 카테고리(`suggestedCategory`), 중
 - **봇 자동 정지**: 연속 10회 실패로 정지될 때 (`scheduler.js`) — 원인을 분류해
   사유·조치와 함께 발송 (X 세션 만료 / 할당량 초과 / 네트워크 실패 등)
 - **X 세션 갱신 실패**: `/docker/nitter/renew_sessions.py`가 매시 점검 후 실패 시
+
+### YouTube 봇 필터 확장 (2026-09-18)
+
+`GET/POST/PUT /api/admin/youtube-bots`의 봇 설정에 다음 필드를 추가한다.
+
+| 필드 | 형식 | 의미 |
+| --- | --- | --- |
+| `description_filters` | string[] 또는 null(입력) | 설명 키워드. 응답은 배열 |
+| `filter_mode` | `split` / `legacy` | 신규 기본값 split, 기존 통합 필터 호환용 legacy |
+| `min_duration_seconds` | 정수 0–86400 | 일반 영상 최소 길이(이상), 0은 제한 없음. 쇼츠에는 미적용 |
+
+split에서는 `title_filters`가 제목에만 적용된다. 제목/설명 각각은 OR, 두 필드 사이는 AND이며 빈 필드는 통과한다. 기존 legacy 봇의 unrelated 설정 수정은 필터 모드를 유지한다. `auto_schedule_config.episodeMatch`는 회차 계산에 포함할 제목 문구이며 관리자 폼에서도 보존/수정한다.
+
+X 봇의 기존 `exclude_managed_channels` 값은 호환성을 위해 DB에 남지만 수집에는 사용하지 않는다. `extract_youtube=true`이면 모든 채널의 링크를 처리하고 영상 ID로 중복을 방지한다.

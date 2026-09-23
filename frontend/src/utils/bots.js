@@ -20,12 +20,17 @@ export function buildYouTubeBotPayload(s) {
     channel_name: s.channelName,
     cron_interval: s.pollingMode === 'interval' ? s.interval : null,
     title_filters: s.titleFilters.length > 0 ? s.titleFilters : null,
+    description_filters: s.descriptionFilters || [],
+    filter_mode: s.filterMode || 'split',
+    min_duration_seconds: (Number(s.minMinutes) || 0) * 60 + (Number(s.minSeconds) || 0),
     exclude_shorts: s.excludeShorts,
     archive_shorts: s.archiveShorts !== false,
     video_category: s.videoCategory || 'variety',
     add_to_schedule: s.addToSchedule !== false,
     auto_schedule_config: s.autoScheduleEnabled
       ? {
+          ...s.existingAutoConfig,
+          episodeMatch: s.episodeMatch || null,
           dayOfWeek: s.scheduleDayOfWeek,
           weeksAhead: s.weeksAhead,
           time: `${s.scheduleTime}:00`,
@@ -56,7 +61,7 @@ export function buildXBotPayload(s) {
     text_filters: s.textFilters.length > 0 ? s.textFilters : null,
     include_retweets: s.includeRetweets,
     extract_youtube: s.extractYoutube,
-    exclude_managed_channels: s.excludeManagedChannels,
+    exclude_managed_channels: false,
     cron_interval: s.interval,
   };
 }

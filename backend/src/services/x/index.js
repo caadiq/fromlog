@@ -1,9 +1,9 @@
+import { withYoutubeChannelLock } from '../../utils/youtubeLock.js';
 import fp from 'fastify-plugin';
 import { fetchTweets, fetchAllTweets, fetchProfile as fetchNitterProfile, extractTitle, extractYoutubeVideoIds } from './scraper.js';
 import { fetchOgCard, extractFirstUrl } from './og.js';
 import { fetchVideoInfo } from '../youtube/api.js';
-import { archiveVideo } from '../videos.js';
-import { loadSongTitles, classifyMusicTitle } from '../videoCategory.js';
+import { archiveVideo, inferCategory } from '../videos.js';
 import { formatDate, formatTime, nowKST } from '../../utils/date.js';
 import { withTransaction } from '../../utils/transaction.js';
 import { syncScheduleById } from '../meilisearch/index.js';
@@ -197,7 +197,7 @@ async function xBotPlugin(fastify, opts) {
   /**
    * YouTube 영상을 DB에 저장 (트윗에서 감지된 링크)
    */
-  async function saveYoutubeFromTweet(video) {
+  async function saveYoutubeFromTweet(video, managed = false) {
     // 중복 체크 - 트랜잭션 전에 수행
     const [existing] = await fastify.db.query(
       'SELECT id FROM schedule_youtube WHERE video_id = ?',
@@ -209,7 +209,7 @@ async function xBotPlugin(fastify, opts) {
 
     // 큐에서 등록한 예정 일정이 이 영상을 기다리고 있으면 새로 만들지 않고 채운다.
     // (예정 일정은 video_id가 비어 있어 위의 중복 체크로는 안 걸린다 — 그냥 두면 같은 회차가 두 개 생긴다)
-    const promoted = await promoteTempSchedule(fastify.db, {
+    const promoted = !managed && await promoteTempSchedule(fastify.db, {
       videoId: video.videoId,
       videoType: video.videoType,
       channelId: video.channelId,
@@ -251,40 +251,44 @@ async function xBotPlugin(fastify, opts) {
   /**
    * 트윗에서 YouTube 링크 처리
    */
-  async function processYoutubeLinks(tweet, { excludeManagedChannels = true } = {}) {
+  async function processYoutubeLinks(tweet) {
     const videoIds = extractYoutubeVideoIds(tweet.text);
     if (videoIds.length === 0) return 0;
 
-    const managedChannels = excludeManagedChannels ? await getManagedChannelIds(fastify.db) : [];
+    const managedChannels = await getManagedChannelIds(fastify.db);
     let addedCount = 0;
 
     for (const videoId of videoIds) {
       try {
+        const [done] = await fastify.db.query(
+          'SELECT sy.id FROM schedule_youtube sy JOIN videos v ON v.video_id = sy.video_id WHERE sy.video_id = ?', [videoId]);
+        if (done.length) continue;
         const video = await fetchVideoInfo(videoId);
         if (!video) continue;
 
-        // 옵션에 따라 관리 중인 채널 영상은 스킵
-        if (excludeManagedChannels && managedChannels.includes(video.channelId)) continue;
 
-        // 영상 아카이브 적재 — 봇 미등록 채널이므로 제목 판별로 무대/기타를 가른다
-        // (무대·직캠 영상이 트윗으로 발견되는 경우가 있어 전부 '기타'로 넣으면 안 됨)
-        const songs = await loadSongTitles(fastify.db);
-        await archiveVideo(fastify.db, {
-          videoId: video.videoId,
-          channelId: video.channelId,
-          channelName: video.channelTitle,
-          title: video.title,
-          category: classifyMusicTitle(video.title, songs),
-          videoType: video.videoType,
-          publishedAt: `${video.date} ${video.time}`, // formatDate/formatTime — KST YYYY-MM-DD HH:mm:ss
+        // X and channel bots share category policy and serialize writes.
+        await withYoutubeChannelLock(fastify.db, video.channelId, async () => {
+          await archiveVideo(fastify.db, {
+            videoId: video.videoId,
+            channelId: video.channelId,
+            channelName: video.channelTitle,
+            title: video.title,
+            category: await inferCategory(fastify.db, video.channelId, video.title),
+            videoType: video.videoType,
+            duration: video.duration,
+            publishedAt: `${video.date} ${video.time}`, // formatDate/formatTime — KST YYYY-MM-DD HH:mm:ss
+          });
+
+          const scheduleId = await saveYoutubeFromTweet(video, managedChannels.includes(video.channelId));
+          if (scheduleId) {
+            // Meilisearch 동기화
+            await syncScheduleById(fastify.meilisearch, fastify.db, scheduleId, fastify.redis);
+            addedCount++;
+            await logActivity(fastify.db, { actor: 'x', action: 'create', category: 'schedule',
+              targetType: 'youtube_schedule', targetId: scheduleId, summary: `X 링크 영상 추가: ${video.title}` });
+          }
         });
-
-        const scheduleId = await saveYoutubeFromTweet(video);
-        if (scheduleId) {
-          // Meilisearch 동기화
-          await syncScheduleById(fastify.meilisearch, fastify.db, scheduleId, fastify.redis);
-          addedCount++;
-        }
       } catch (err) {
         fastify.log.error(`YouTube 영상 처리 오류 (${videoId}): ${err.message}`);
       }
@@ -337,13 +341,9 @@ async function xBotPlugin(fastify, opts) {
           summary: `X 트윗 추가: ${title}`,
         });
         addedCount++;
-        // YouTube 링크 처리 (옵션이 켜져 있을 때만)
-        if (bot.extractYoutube === true) {
-          ytAddedCount += await processYoutubeLinks(tweet, {
-            excludeManagedChannels: bot.excludeManagedChannels !== false,
-          });
-        }
       }
+      // Retry failed link ingestion even if the X schedule already exists.
+      if (bot.extractYoutube === true) ytAddedCount += await processYoutubeLinks(tweet);
     }
 
     return { addedCount: addedCount + ytAddedCount, total: tweets.length, tweetCount: addedCount, ytCount: ytAddedCount };
@@ -371,13 +371,9 @@ async function xBotPlugin(fastify, opts) {
         // Meilisearch 동기화
         await syncScheduleById(fastify.meilisearch, fastify.db, scheduleId, fastify.redis);
         addedCount++;
-        // YouTube 링크 처리 (옵션이 켜져 있을 때만)
-        if (bot.extractYoutube === true) {
-          ytAddedCount += await processYoutubeLinks(tweet, {
-            excludeManagedChannels: bot.excludeManagedChannels !== false,
-          });
-        }
       }
+      // Retry failed link ingestion even if the X schedule already exists.
+      if (bot.extractYoutube === true) ytAddedCount += await processYoutubeLinks(tweet);
     }
 
     return { addedCount: addedCount + ytAddedCount, total: tweets.length, tweetCount: addedCount, ytCount: ytAddedCount };

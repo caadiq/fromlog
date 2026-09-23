@@ -66,6 +66,11 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [titleFilters, setTitleFilters] = useState([]);
   const [filterInput, setFilterInput] = useState('');
+  const [descriptionInput, setDescriptionInput] = useState('');
+  const [filterMode, setFilterMode] = useState('split');
+  const [minMinutes, setMinMinutes] = useState(0);
+  const [minSeconds, setMinSeconds] = useState(0);
+  const [episodeMatch, setEpisodeMatch] = useState('');
   const [excludeShorts, setExcludeShorts] = useState(false);
   const [archiveShorts, setArchiveShorts] = useState(true);
   const [videoCategory, setVideoCategory] = useState('variety');
@@ -196,13 +201,19 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
       }
 
       setTitleFilters(bot.title_filters || []);
+      setFilterInput('');
+      setDescriptionInput((bot.description_filters || []).join(', '));
+      setFilterMode(bot.filter_mode || 'legacy');
+      setMinMinutes(Math.floor((bot.min_duration_seconds || 0) / 60));
+      setMinSeconds((bot.min_duration_seconds || 0) % 60);
+      setEpisodeMatch(config?.episodeMatch || '');
       setExcludeShorts(bot.exclude_shorts || false);
       setArchiveShorts(bot.archive_shorts !== false);
       setVideoCategory(bot.video_category || 'variety');
       setAddToSchedule(bot.add_to_schedule !== false);
 
       // 고급 설정이 있으면 펼침
-      if (bot.title_filters && bot.title_filters.length > 0) {
+      if (bot.title_filters?.length || bot.description_filters?.length || bot.min_duration_seconds) {
         setShowAdvanced(true);
       } else {
         setShowAdvanced(false);
@@ -225,6 +236,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
       setDeadlineDayOfWeek(AUTO_SCHEDULE_DEFAULTS.deadlineDayOfWeek);
       setShowAdvanced(false);
       setTitleFilters([]);
+      setDescriptionInput(''); setFilterMode('split'); setMinMinutes(0); setMinSeconds(0); setEpisodeMatch('');
       setFilterInput('');
       setExcludeShorts(false);
       setArchiveShorts(true);
@@ -272,6 +284,10 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
         pollingMode,
         interval,
         titleFilters: finalTitleFilters,
+        descriptionFilters: descriptionInput.split(',').map(s => s.trim()).filter(Boolean),
+        filterMode: pendingFilter ? 'split' : filterMode,
+        minMinutes, minSeconds, episodeMatch,
+        existingAutoConfig: parseBotJsonConfig(bot?.auto_schedule_config),
         excludeShorts,
         archiveShorts,
         videoCategory,
@@ -681,7 +697,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
                             {filter}
                             <button
                               type="button"
-                              onClick={() => setTitleFilters(titleFilters.filter((_, i) => i !== idx))}
+                              onClick={() => { setFilterMode('split'); setTitleFilters(titleFilters.filter((_, i) => i !== idx)); }}
                               className="text-white/60 transition-colors hover:text-white"
                             >
                               <X size={14} />
@@ -696,6 +712,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
                             if (e.key === 'Enter' && filterInput.trim()) {
                               e.preventDefault();
                               if (!titleFilters.includes(filterInput.trim())) {
+                                setFilterMode('split');
                                 setTitleFilters([...titleFilters, filterInput.trim()]);
                               }
                               setFilterInput('');
@@ -706,9 +723,36 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
                         />
                       </div>
                       <p className="mt-1.5 text-[12.5px] text-mute">
-                        키워드 중 하나라도 포함된 영상만 추가됩니다
+                        제목에 키워드 중 하나라도 포함되면 통과합니다. 제목과 설명 필터를 모두 입력하면 두 조건을 모두 만족해야 합니다.
                       </p>
                     </div>
+
+                    {filterMode === 'legacy' && titleFilters.length > 0 && (
+                      <div className="text-[12.5px] text-mute">
+                        기존 설정은 제목 또는 설명에서 키워드를 찾습니다. 제목·설명 필터를 수정하면 분리 방식으로 전환됩니다.
+                        <button type="button" className="ml-2 underline" onClick={() => setFilterMode('split')}>현재 키워드를 제목에만 적용</button>
+                      </div>
+                    )}
+                    <div>
+                      <label className="mb-1 block text-[12px] font-extrabold text-mute">설명 필터</label>
+                      <input value={descriptionInput} onChange={e => { setDescriptionInput(e.target.value); setFilterMode('split'); }} placeholder="키워드를 쉼표로 구분" className="w-full border border-hairline p-2 text-sm" />
+                      <p className="mt-1 text-xs text-mute">설명에 키워드 중 하나라도 포함되면 통과합니다. 비워두면 설명을 검사하지 않습니다.</p>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[12px] font-extrabold text-mute">일반 영상 최소 길이</label>
+                      <div className="flex items-center gap-2 text-sm">
+                        <input type="number" min="0" max="1440" value={minMinutes} onChange={e => setMinMinutes(e.target.value)} className="w-20 border border-hairline p-2" aria-label="최소 길이 분" />분
+                        <input type="number" min="0" max="59" value={minSeconds} onChange={e => setMinSeconds(e.target.value)} className="w-20 border border-hairline p-2" aria-label="최소 길이 초" />초 이상
+                      </div>
+                      <p className="mt-1 text-xs text-mute">0분 0초는 제한 없음. 쇼츠에는 적용하지 않습니다. 짧은 영상도 X 링크를 통해 등록될 수 있습니다.</p>
+                    </div>
+                    {autoScheduleEnabled && titleTemplate.includes('{episode}') && (
+                      <div>
+                        <label className="mb-1 block text-[12px] font-extrabold text-mute">회차 계산 대상 제목</label>
+                        <input value={episodeMatch} onChange={e => setEpisodeMatch(e.target.value)} placeholder="예: 방판소녀들 시즌2" className="w-full border border-hairline p-2 text-sm" />
+                        <p className="mt-1 text-xs text-mute">해당 문구를 포함한 본편의 실제 회차 다음 번호를 사용합니다. 회차가 불명확하면 번호 없이 예정으로 표시합니다.</p>
+                      </div>
+                    )}
 
                     {/* 영상 카테고리 */}
                     <div>
