@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, X, Inbox, AlertCircle } from 'lucide-react';
+import { Search, X, Inbox, AlertCircle, ArrowUpDown } from 'lucide-react';
 import { useDocumentTitle } from '@/hooks/common';
 import { getPending, dismissPending } from '@/api/admin/pending';
 import CustomSelect from '@/components/pc/admin/common/CustomSelect';
@@ -75,19 +75,18 @@ function QueueList() {
   return <>
     <h1 className="text-[26px] font-extrabold tracking-tight">수집 큐</h1>
     <p className="mt-1 text-sm text-mute">{query.isSuccess ? `검토 대기 ${items.length}건` : '수집된 일정을 확인하세요.'}</p>
-    <div className="mt-6 flex min-h-12 items-center gap-2 border border-hairline rounded-[4px] bg-white pl-3 focus-within:border-ink">
+    <div className="mt-6 flex items-start gap-2">
+    <div className="flex min-w-0 flex-1 min-h-12 items-center gap-2 border border-hairline rounded-[4px] bg-white pl-3 focus-within:border-ink">
       <Search size={19} className="shrink-0 text-mute" aria-hidden="true" />
       <input type="search" aria-label="수집 큐 검색" placeholder="학교명 또는 일정 검색" value={search} onChange={e => setSearch(e.target.value)} className="min-w-0 flex-1 bg-transparent py-3 text-base outline-none [&::-webkit-search-cancel-button]:hidden" />
       {search ? <button onClick={() => setSearch('')} aria-label="검색어 지우기" className="flex h-12 w-12 shrink-0 items-center justify-center"><X size={18} /></button> : <span className="w-3" />}
     </div>
 
-    <div className="mt-4 flex items-center justify-end gap-2">
-      <span className="text-[13px] text-mute">정렬</span>
       <CustomSelect value={sortOrder} onChange={setSortOrder} options={[
         { value: 'registered', label: '등록순' },
         { value: 'date', label: '날짜순' },
         { value: 'name', label: '이름순' },
-      ]} className="w-32 [&_button]:min-h-11" />
+      ]} triggerIcon={<ArrowUpDown size={20} />} ariaLabel="큐 정렬" className="w-12 shrink-0 [&_button]:min-h-11" />
     </div>
     {notice && <p role="status" className="mt-4 break-words text-sm text-green-deep">{notice}</p>}
     {query.isPending ? <p role="status" className="py-16 text-center text-sm text-mute">수집 큐를 불러오는 중...</p> : query.isError ? <div role="alert" className="mt-5 border border-[#E5B8B3] bg-[#F9E9E7] p-5 text-sm text-[#A93226]">수집 큐를 불러오지 못했습니다.<button onClick={() => query.refetch()} disabled={query.isFetching} className="mt-3 block min-h-11 border border-current px-4 font-bold disabled:opacity-50">{query.isFetching ? '불러오는 중...' : '다시 시도'}</button></div> : items.length === 0 ? <div className="mt-6 flex flex-col items-center gap-3 border border-dashed border-hairline px-5 py-16 text-mute"><Inbox size={30} /><p className="text-base font-bold">검토할 일정이 없습니다.</p><p className="text-sm">새로 수집된 일정이 여기에 표시됩니다.</p></div> : <>

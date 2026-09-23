@@ -15,7 +15,7 @@ import { useClickOutside } from '@/hooks/common';
  * @param {string} props.className - 추가 클래스명
  * @param {string} props.size - 크기 ('sm' | 'md')
  */
-function CustomSelect({ value, onChange, options, placeholder, className = '', size = 'md' }) {
+function CustomSelect({ value, onChange, options, placeholder, className = '', size = 'md', triggerIcon, ariaLabel }) {
   const [isOpen, setIsOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
   const ref = useRef(null);
@@ -48,17 +48,21 @@ function CustomSelect({ value, onChange, options, placeholder, className = '', s
       <button
         type="button"
         onClick={toggleOpen}
-        className={`flex w-full items-center justify-between border bg-white font-bold transition-colors ${sizeClasses} ${
+        aria-label={ariaLabel ? `${ariaLabel}: ${selectedLabel || placeholder}` : undefined}
+        title={ariaLabel ? `${ariaLabel}: ${selectedLabel || placeholder}` : undefined}
+        aria-expanded={isOpen}
+        onKeyDown={event => { if (event.key === 'Escape') setIsOpen(false); }}
+        className={`flex w-full items-center justify-between border bg-white font-bold transition-colors ${triggerIcon ? 'h-12 !justify-center p-0' : sizeClasses} ${
           isOpen ? 'border-ink' : 'border-hairline hover:border-ink'
         }`}
       >
-        <span className={selectedLabel ? 'text-ink' : 'text-faint'}>
+        {triggerIcon || <><span className={selectedLabel ? 'text-ink' : 'text-faint'}>
           {selectedLabel || placeholder}
         </span>
         <ChevronDown
           size={size === 'sm' ? 14 : 15}
           className={`ml-2 flex-shrink-0 text-mute transition-transform ${isOpen ? 'rotate-180' : ''}`}
-        />
+        /></>}
       </button>
 
       <AnimatePresence>
@@ -68,7 +72,7 @@ function CustomSelect({ value, onChange, options, placeholder, className = '', s
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: dropUp ? 8 : -8 }}
             transition={{ duration: 0.15 }}
-            className={`absolute z-50 max-h-60 w-full overflow-y-auto border border-ink bg-white py-1 ${
+            className={`absolute z-50 max-h-60 ${triggerIcon ? 'right-0 w-36' : 'w-full'} overflow-y-auto border border-ink bg-white py-1 ${
               dropUp ? 'bottom-full mb-1.5' : 'mt-1.5'
             }`}
           >
