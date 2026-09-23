@@ -27,4 +27,5 @@ export function invalidateSchedules(queryClient) {
 export function invalidatePending(queryClient) {
   queryClient.invalidateQueries({ queryKey: ['pending-schedules'] });
   queryClient.invalidateQueries({ queryKey: ['pending-count'] });
+  queryClient.invalidateQueries({ queryKey: ['admin', 'mobile', 'pending-count'] });
 }
