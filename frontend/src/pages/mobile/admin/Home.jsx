@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Menu, X, Inbox, CalendarDays, ChevronRight, Plus, Link2, ScrollText, Palette, Video, Bot, Home as HomeIcon, LogOut, ArrowUpRight, RefreshCw } from 'lucide-react';
+import { Menu, X, Inbox, CalendarDays, ChevronRight, Plus, Link2, ScrollText, Palette, Video, Bot, Home as HomeIcon, LogOut, ArrowUpRight } from 'lucide-react';
 import { useAuthStore } from '@/stores';
 import { useAdminAuth } from '@/hooks/pc/admin';
 import { useDocumentTitle, useDialogBackClose } from '@/hooks/common';
@@ -40,25 +40,49 @@ export default function MobileAdminHome() {
   const [menuOpen, setMenuOpen] = useState(false);
   const drawer = useRef(null);
   const menuButton = useRef(null);
+  const closingMenu = useRef(false);
   const enabled = Boolean(token && !auth.isLoading && !auth.isError);
   const pending = useQuery({ queryKey: ['admin', 'mobile', 'pending-count'], queryFn: getPendingCount, enabled });
   const stats = useQuery({ queryKey: ['admin', 'stats'], queryFn: getStats, enabled });
   const logs = useQuery({ queryKey: ['admin', 'mobile', 'recent-logs'], queryFn: () => getLogs({ limit: 4 }), enabled });
   const queries = [pending, stats, logs];
-  const refreshing = queries.some(q => q.isFetching);
   const count = pending.isSuccess ? pending.data.count : null;
 
   useEffect(() => () => { document.body.style.overflow = ''; }, []);
   const closeMenu = () => {
+    const panel = drawer.current;
+    if (!panel?.open || closingMenu.current) return;
+    closingMenu.current = true;
     setMenuOpen(false);
-    drawer.current?.close();
-    document.body.style.overflow = '';
-    menuButton.current?.focus();
+    const finish = () => {
+      closingMenu.current = false;
+      if (!panel.isConnected) return;
+      panel.close();
+      document.body.style.overflow = '';
+      menuButton.current?.focus();
+    };
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      finish();
+      return;
+    }
+    const from = getComputedStyle(panel).transform;
+    panel.getAnimations().forEach(animation => animation.cancel());
+    panel.animate([{ transform: from }, { transform: 'translateX(-100%)' }], {
+      duration: 180, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards',
+    }).finished.then(finish, finish);
   };
   const openMenu = () => {
+    const panel = drawer.current;
+    if (!panel || panel.open) return;
+    panel.getAnimations().forEach(animation => animation.cancel());
     setMenuOpen(true);
-    drawer.current?.showModal();
+    panel.showModal();
     document.body.style.overflow = 'hidden';
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      panel.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(0)' }], {
+        duration: 240, easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      });
+    }
   };
   useDialogBackClose(menuOpen, closeMenu);
   const signOut = () => {
@@ -77,7 +101,6 @@ export default function MobileAdminHome() {
         <div className="mx-auto flex h-16 max-w-[680px] items-center gap-2 px-4">
           <button ref={menuButton} onClick={openMenu} aria-label="관리 메뉴 열기" aria-haspopup="dialog" className={`flex h-11 w-11 items-center justify-center ${focus}`}><Menu size={24} /></button>
           <Link to="/admin/dashboard" className={`text-xl font-black tracking-tight ${focus}`}>fromlog <span className="ml-1 text-xs font-semibold text-mute">관리자</span></Link>
-          <button onClick={() => queries.forEach(q => q.refetch())} disabled={refreshing} aria-label="홈 새로고침" className={`ml-auto flex h-11 w-11 items-center justify-center disabled:opacity-40 ${focus}`}><RefreshCw size={19} className={refreshing ? 'animate-spin' : ''} /></button>
         </div>
       </header>
 
@@ -85,7 +108,7 @@ export default function MobileAdminHome() {
         <h1 className="text-[26px] font-extrabold tracking-tight">오늘의 관리</h1>
         <p className="mt-1 text-sm text-mute">{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date())}</p>
 
-        {queries.some(q => q.isError) && <div role="alert" className="mt-5 border border-[#E5B8B3] bg-[#F9E9E7] p-4 text-sm text-[#A93226]">일부 정보를 불러오지 못했습니다. 상단 새로고침으로 다시 시도해주세요.</div>}
+        {queries.some(q => q.isError) && <div role="alert" className="mt-5 border border-[#E5B8B3] bg-[#F9E9E7] p-4 text-sm text-[#A93226]">일부 정보를 불러오지 못했습니다. 잠시 후 다시 접속해주세요.</div>}
 
         <Link to="/admin/schedule/queue" className={`mt-6 flex min-h-28 items-center gap-4 border border-ink bg-white p-5 ${focus}`}>
           <Inbox size={28} className="shrink-0" />
@@ -108,10 +131,9 @@ export default function MobileAdminHome() {
             {logs.isPending ? <p className="p-5 text-sm text-mute">최근 활동을 불러오는 중...</p> : logs.isError ? <p className="p-5 text-sm text-mute">최근 활동을 불러오지 못했습니다.</p> : !logs.data.logs?.length ? <p className="p-5 text-sm text-mute">아직 기록된 활동이 없습니다.</p> : logs.data.logs.map(log => <div key={log.id} className="flex gap-3 border-b border-hairline p-4 last:border-b-0"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${log.action === 'error' ? 'bg-[#C0392B]' : 'bg-primary'}`} /><div className="min-w-0"><p className="break-words text-sm font-semibold leading-relaxed">{log.summary}</p><p className="mt-1 text-xs text-mute">{log.action === 'error' ? '오류 · ' : ''}{dateLabel(log.created_at)}</p></div></div>)}
           </div>
         </section>
-        <Link to="/" className={`mt-7 inline-flex min-h-11 items-center gap-2 text-sm text-mute ${focus}`}>사이트로 이동<ArrowUpRight size={16} /></Link>
       </main>
 
-      <dialog ref={drawer} aria-labelledby="admin-menu-title" onCancel={closeMenu} onClick={e => { if (e.target === drawer.current) closeMenu(); }} className="fixed inset-y-0 left-0 right-auto m-0 h-dvh max-h-none w-[min(320px,88vw)] max-w-none bg-paper p-0 text-ink backdrop:bg-black/40">
+      <dialog ref={drawer} aria-labelledby="admin-menu-title" onCancel={event => { event.preventDefault(); closeMenu(); }} onClick={e => { if (e.target === drawer.current) closeMenu(); }} className="fixed inset-y-0 left-0 right-auto m-0 h-dvh max-h-none w-[min(320px,88vw)] max-w-none bg-paper p-0 text-ink backdrop:bg-black/40">
         <div className="flex min-h-full flex-col p-5 pt-[max(20px,env(safe-area-inset-top))]">
           <div className="flex items-center justify-between"><h2 id="admin-menu-title" className="text-xl font-extrabold">관리 메뉴</h2><button onClick={closeMenu} aria-label="관리 메뉴 닫기" className={`flex h-11 w-11 items-center justify-center ${focus}`}><X size={23} /></button></div>
           <p className="mt-2 break-words text-sm text-mute">{auth.user?.username || '관리자'} 님</p>
@@ -120,7 +142,7 @@ export default function MobileAdminHome() {
             <p className="px-3 pb-1 pt-5 text-xs text-mute">기존 관리 화면</p>
             {links.map(([label, to, Icon]) => <Link key={to} to={to} onClick={closeMenu} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-semibold hover:bg-white ${focus}`}><Icon size={19} />{label}{label === '일정 큐' && count > 0 && <span className="ml-auto bg-ink px-2 py-0.5 text-xs text-white">{count}</span>}</Link>)}
           </nav>
-          <div className="mt-auto border-t border-hairline pt-5"><button onClick={signOut} className={`flex min-h-12 w-full items-center gap-3 px-3 text-sm ${focus}`}><LogOut size={19} />로그아웃</button></div>
+          <div className="mt-auto border-t border-hairline pt-5"><Link to="/" onClick={closeMenu} className={`flex min-h-12 items-center gap-3 px-3 text-sm ${focus}`}><ArrowUpRight size={19} />사이트로 이동</Link><button onClick={signOut} className={`flex min-h-12 w-full items-center gap-3 px-3 text-sm ${focus}`}><LogOut size={19} />로그아웃</button></div>
         </div>
       </dialog>
     </div>
