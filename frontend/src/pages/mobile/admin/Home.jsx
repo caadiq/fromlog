@@ -1,27 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Menu, X, Inbox, CalendarDays, ChevronRight, Plus, Link2, ScrollText, Palette, Video, Bot, Home as HomeIcon, LogOut, ArrowUpRight } from 'lucide-react';
-import { useAuthStore } from '@/stores';
-import { useAdminAuth } from '@/hooks/pc/admin';
-import { useDocumentTitle, useDialogBackClose } from '@/hooks/common';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Inbox, CalendarDays, ChevronRight, Plus, Link2, ScrollText, Palette } from 'lucide-react';
+import { useDocumentTitle } from '@/hooks/common';
 import { getPendingCount } from '@/api/admin/pending';
 import { getStats } from '@/api/admin/stats';
 import { getLogs } from '@/api/admin/logs';
-import './admin.css';
+import MobileAdminLayout from './Layout';
 
-const links = [
-  ['일정 관리', '/admin/schedule', CalendarDays],
-  ['일정 큐', '/admin/schedule/queue', Inbox],
+const quickLinks = [
+  ['일정 추가', '/admin/schedule/new', Plus],
   ['고정 링크', '/admin/schedule/links', Link2],
   ['활동 로그', '/admin/logs', ScrollText],
   ['테마', '/admin/theme', Palette],
-  ['영상 관리', '/admin/videos', Video],
-  ['봇 관리', '/admin/schedule/bots', Bot],
-];
-const quickLinks = [
-  ['일정 추가', '/admin/schedule/new', Plus],
-  links[2], links[3], links[4],
 ];
 const focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
@@ -33,64 +23,17 @@ function dateLabel(value) {
 
 export default function MobileAdminHome() {
   useDocumentTitle('관리자 홈');
-  const token = useAuthStore(s => s.token);
-  const logout = useAuthStore(s => s.logout);
-  const auth = useAdminAuth();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const drawer = useRef(null);
-  const menuButton = useRef(null);
-  const closingMenu = useRef(false);
-  const enabled = Boolean(token && !auth.isLoading && !auth.isError);
-  const pending = useQuery({ queryKey: ['admin', 'mobile', 'pending-count'], queryFn: getPendingCount, enabled });
-  const stats = useQuery({ queryKey: ['admin', 'stats'], queryFn: getStats, enabled });
-  const logs = useQuery({ queryKey: ['admin', 'mobile', 'recent-logs'], queryFn: () => getLogs({ limit: 4 }), enabled });
+  return <MobileAdminLayout><HomeContent /></MobileAdminLayout>;
+}
+
+function HomeContent() {
+  const pending = useQuery({ queryKey: ['admin', 'mobile', 'pending-count'], queryFn: getPendingCount });
+  const stats = useQuery({ queryKey: ['admin', 'stats'], queryFn: getStats });
+  const logs = useQuery({ queryKey: ['admin', 'mobile', 'recent-logs'], queryFn: () => getLogs({ limit: 4 }) });
   const queries = [pending, stats, logs];
   const count = pending.isSuccess ? pending.data.count : null;
 
-  useEffect(() => {
-    document.documentElement.classList.add('mobile-admin-layout');
-    return () => document.documentElement.classList.remove('mobile-admin-layout');
-  }, []);
-  const finishClose = () => {
-    closingMenu.current = false;
-    drawer.current?.close();
-    menuButton.current?.focus();
-  };
-  const closeMenu = () => {
-    if (!drawer.current?.open || closingMenu.current) return;
-    closingMenu.current = true;
-    setMenuOpen(false);
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) finishClose();
-  };
-  const openMenu = () => {
-    if (!drawer.current || drawer.current.open) return;
-    closingMenu.current = false;
-    setMenuOpen(true);
-    drawer.current.showModal();
-  };
-  useDialogBackClose(menuOpen, closeMenu);
-  const signOut = () => {
-    closeMenu();
-    queryClient.removeQueries({ queryKey: ['admin'] });
-    queryClient.removeQueries({ queryKey: ['pending-schedules'] });
-    logout();
-    navigate('/admin', { replace: true });
-  };
-  if (!token) return <Navigate to="/admin" replace />;
-  if (auth.isLoading || auth.isError) return <div className="flex min-h-dvh items-center justify-center bg-paper text-sm text-mute" role="status">로그인 확인 중...</div>;
-
-  return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-paper text-ink">
-      <header className="z-20 shrink-0 touch-none border-b border-hairline bg-paper pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-16 max-w-[680px] items-center gap-2 px-4">
-          <button ref={menuButton} onClick={openMenu} aria-label="관리 메뉴 열기" aria-haspopup="dialog" className={`flex h-11 w-11 items-center justify-center ${focus}`}><Menu size={24} /></button>
-          <Link to="/admin/dashboard" className={`text-xl font-black tracking-tight ${focus}`}>fromlog <span className="ml-1 text-xs font-semibold text-mute">관리자</span></Link>
-        </div>
-      </header>
-
-      <main className="mx-auto min-h-0 w-full max-w-[680px] flex-1 overflow-y-auto overscroll-none px-5 pb-12 pt-7">
+  return <>
         <h1 className="text-[26px] font-extrabold tracking-tight">오늘의 관리</h1>
         <p className="mt-1 text-sm text-mute">{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date())}</p>
 
@@ -117,25 +60,5 @@ export default function MobileAdminHome() {
             {logs.isPending ? <p className="p-5 text-sm text-mute">최근 활동을 불러오는 중...</p> : logs.isError ? <p className="p-5 text-sm text-mute">최근 활동을 불러오지 못했습니다.</p> : !logs.data.logs?.length ? <p className="p-5 text-sm text-mute">아직 기록된 활동이 없습니다.</p> : logs.data.logs.map(log => <div key={log.id} className="flex gap-3 border-b border-hairline p-4 last:border-b-0"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${log.action === 'error' ? 'bg-[#C0392B]' : 'bg-primary'}`} /><div className="min-w-0"><p className="break-words text-sm font-semibold leading-relaxed">{log.summary}</p><p className="mt-1 text-xs text-mute">{log.action === 'error' ? '오류 · ' : ''}{dateLabel(log.created_at)}</p></div></div>)}
           </div>
         </section>
-      </main>
-
-      <dialog ref={drawer} aria-labelledby="admin-menu-title" data-state={menuOpen ? 'open' : 'closing'} onCancel={event => { event.preventDefault(); closeMenu(); }} className="mobile-admin-menu">
-        <div className="mobile-admin-menu-backdrop" aria-hidden="true" onClick={closeMenu} />
-        <div className="mobile-admin-menu-panel bg-paper text-ink" onAnimationEnd={event => {
-          if (event.target === event.currentTarget && event.animationName === 'admin-menu-exit' && closingMenu.current) finishClose();
-        }}>
-        <div className="flex min-h-full flex-col p-5 pt-[max(20px,env(safe-area-inset-top))]">
-          <div className="flex items-center justify-between"><h2 id="admin-menu-title" className="text-xl font-extrabold">관리 메뉴</h2><button onClick={closeMenu} aria-label="관리 메뉴 닫기" className={`flex h-11 w-11 items-center justify-center ${focus}`}><X size={23} /></button></div>
-          <p className="mt-2 break-words text-sm text-mute">{auth.user?.username || '관리자'} 님</p>
-          <nav aria-label="관리자" className="mt-6 space-y-1">
-            <Link to="/admin/dashboard" onClick={closeMenu} aria-current="page" className={`flex min-h-12 items-center gap-3 bg-ink px-3 text-sm font-bold text-white ${focus}`}><HomeIcon size={19} />홈</Link>
-            <p className="px-3 pb-1 pt-5 text-xs text-mute">기존 관리 화면</p>
-            {links.map(([label, to, Icon]) => <Link key={to} to={to} onClick={closeMenu} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-semibold hover:bg-white ${focus}`}><Icon size={19} />{label}{label === '일정 큐' && count > 0 && <span className="ml-auto bg-ink px-2 py-0.5 text-xs text-white">{count}</span>}</Link>)}
-          </nav>
-          <div className="mt-auto border-t border-hairline pt-5"><Link to="/" onClick={closeMenu} className={`flex min-h-12 items-center gap-3 px-3 text-sm ${focus}`}><ArrowUpRight size={19} />사이트로 이동</Link><button onClick={signOut} className={`flex min-h-12 w-full items-center gap-3 px-3 text-sm ${focus}`}><LogOut size={19} />로그아웃</button></div>
-        </div>
-        </div>
-      </dialog>
-    </div>
-  );
+  </>;
 }

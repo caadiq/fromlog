@@ -11,6 +11,7 @@ import { PCPublicRoutes, PCAdminRoutes, MobileRoutes } from '@/routes';
 import { useAuthStore } from '@/stores';
 import AdminLogin from '@/pages/pc/admin/login/Login';
 import MobileAdminHome from '@/pages/mobile/admin/Home';
+import MobileAdminQueue from '@/pages/mobile/admin/Queue';
 
 /**
  * PC/모바일은 **뷰포트 폭(matchMedia)** 하나로 판정한다. UA는 보지 않는다.
@@ -87,6 +88,7 @@ function MobileRoutesEntry() {
 
   if (location.pathname.replace(/\/$/, '') === '/admin') return <AdminLogin mobile />;
   if (location.pathname.replace(/\/$/, '') === '/admin/dashboard') return <MobileAdminHome />;
+  if (location.pathname.replace(/\/$/, '') === '/admin/schedule/queue') return <MobileAdminQueue />;
   if (isAdminPath) {
     return (
       <PCWrapper>
