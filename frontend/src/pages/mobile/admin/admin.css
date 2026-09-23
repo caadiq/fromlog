@@ -1,0 +1,63 @@
+/* Keep the header outside the only scrolling area, as on public mobile pages. */
+html.mobile-admin-layout,
+html.mobile-admin-layout body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.mobile-admin-menu {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+}
+.mobile-admin-menu::backdrop { background: transparent; }
+.mobile-admin-menu-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 40%);
+}
+.mobile-admin-menu-panel {
+  position: relative;
+  width: min(320px, 88vw);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mobile-admin-menu[open][data-state='open'] .mobile-admin-menu-panel {
+  animation: admin-menu-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.mobile-admin-menu[open][data-state='open'] .mobile-admin-menu-backdrop {
+  animation: admin-backdrop-enter 240ms ease-out both;
+}
+.mobile-admin-menu[open][data-state='closing'] .mobile-admin-menu-panel {
+  animation: admin-menu-exit 180ms ease-in both;
+}
+.mobile-admin-menu[open][data-state='closing'] .mobile-admin-menu-backdrop {
+  animation: admin-backdrop-exit 180ms ease-in both;
+}
+@keyframes admin-menu-enter {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+@keyframes admin-menu-exit {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@keyframes admin-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes admin-backdrop-exit { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .mobile-admin-menu[open] .mobile-admin-menu-panel,
+  .mobile-admin-menu[open] .mobile-admin-menu-backdrop {
+    animation-duration: 1ms;
+  }
+}

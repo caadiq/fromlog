@@ -8,6 +8,7 @@ import { useDocumentTitle, useDialogBackClose } from '@/hooks/common';
 import { getPendingCount } from '@/api/admin/pending';
 import { getStats } from '@/api/admin/stats';
 import { getLogs } from '@/api/admin/logs';
+import './admin.css';
 
 const links = [
   ['일정 관리', '/admin/schedule', CalendarDays],
@@ -48,41 +49,26 @@ export default function MobileAdminHome() {
   const queries = [pending, stats, logs];
   const count = pending.isSuccess ? pending.data.count : null;
 
-  useEffect(() => () => { document.body.style.overflow = ''; }, []);
+  useEffect(() => {
+    document.documentElement.classList.add('mobile-admin-layout');
+    return () => document.documentElement.classList.remove('mobile-admin-layout');
+  }, []);
+  const finishClose = () => {
+    closingMenu.current = false;
+    drawer.current?.close();
+    menuButton.current?.focus();
+  };
   const closeMenu = () => {
-    const panel = drawer.current;
-    if (!panel?.open || closingMenu.current) return;
+    if (!drawer.current?.open || closingMenu.current) return;
     closingMenu.current = true;
     setMenuOpen(false);
-    const finish = () => {
-      closingMenu.current = false;
-      if (!panel.isConnected) return;
-      panel.close();
-      document.body.style.overflow = '';
-      menuButton.current?.focus();
-    };
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      finish();
-      return;
-    }
-    const from = getComputedStyle(panel).transform;
-    panel.getAnimations().forEach(animation => animation.cancel());
-    panel.animate([{ transform: from }, { transform: 'translateX(-100%)' }], {
-      duration: 180, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards',
-    }).finished.then(finish, finish);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) finishClose();
   };
   const openMenu = () => {
-    const panel = drawer.current;
-    if (!panel || panel.open) return;
-    panel.getAnimations().forEach(animation => animation.cancel());
+    if (!drawer.current || drawer.current.open) return;
+    closingMenu.current = false;
     setMenuOpen(true);
-    panel.showModal();
-    document.body.style.overflow = 'hidden';
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      panel.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(0)' }], {
-        duration: 240, easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
-      });
-    }
+    drawer.current.showModal();
   };
   useDialogBackClose(menuOpen, closeMenu);
   const signOut = () => {
@@ -96,15 +82,15 @@ export default function MobileAdminHome() {
   if (auth.isLoading || auth.isError) return <div className="flex min-h-dvh items-center justify-center bg-paper text-sm text-mute" role="status">로그인 확인 중...</div>;
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <header className="sticky top-0 z-20 border-b border-hairline bg-paper pt-[env(safe-area-inset-top)]">
+    <div className="flex h-dvh flex-col overflow-hidden bg-paper text-ink">
+      <header className="z-20 shrink-0 touch-none border-b border-hairline bg-paper pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-16 max-w-[680px] items-center gap-2 px-4">
           <button ref={menuButton} onClick={openMenu} aria-label="관리 메뉴 열기" aria-haspopup="dialog" className={`flex h-11 w-11 items-center justify-center ${focus}`}><Menu size={24} /></button>
           <Link to="/admin/dashboard" className={`text-xl font-black tracking-tight ${focus}`}>fromlog <span className="ml-1 text-xs font-semibold text-mute">관리자</span></Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[680px] px-5 pb-12 pt-7">
+      <main className="mx-auto min-h-0 w-full max-w-[680px] flex-1 overflow-y-auto overscroll-none px-5 pb-12 pt-7">
         <h1 className="text-[26px] font-extrabold tracking-tight">오늘의 관리</h1>
         <p className="mt-1 text-sm text-mute">{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date())}</p>
 
@@ -133,7 +119,11 @@ export default function MobileAdminHome() {
         </section>
       </main>
 
-      <dialog ref={drawer} aria-labelledby="admin-menu-title" onCancel={event => { event.preventDefault(); closeMenu(); }} onClick={e => { if (e.target === drawer.current) closeMenu(); }} className="fixed inset-y-0 left-0 right-auto m-0 h-dvh max-h-none w-[min(320px,88vw)] max-w-none bg-paper p-0 text-ink backdrop:bg-black/40">
+      <dialog ref={drawer} aria-labelledby="admin-menu-title" data-state={menuOpen ? 'open' : 'closing'} onCancel={event => { event.preventDefault(); closeMenu(); }} className="mobile-admin-menu">
+        <div className="mobile-admin-menu-backdrop" aria-hidden="true" onClick={closeMenu} />
+        <div className="mobile-admin-menu-panel bg-paper text-ink" onAnimationEnd={event => {
+          if (event.target === event.currentTarget && event.animationName === 'admin-menu-exit' && closingMenu.current) finishClose();
+        }}>
         <div className="flex min-h-full flex-col p-5 pt-[max(20px,env(safe-area-inset-top))]">
           <div className="flex items-center justify-between"><h2 id="admin-menu-title" className="text-xl font-extrabold">관리 메뉴</h2><button onClick={closeMenu} aria-label="관리 메뉴 닫기" className={`flex h-11 w-11 items-center justify-center ${focus}`}><X size={23} /></button></div>
           <p className="mt-2 break-words text-sm text-mute">{auth.user?.username || '관리자'} 님</p>
@@ -143,6 +133,7 @@ export default function MobileAdminHome() {
             {links.map(([label, to, Icon]) => <Link key={to} to={to} onClick={closeMenu} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-semibold hover:bg-white ${focus}`}><Icon size={19} />{label}{label === '일정 큐' && count > 0 && <span className="ml-auto bg-ink px-2 py-0.5 text-xs text-white">{count}</span>}</Link>)}
           </nav>
           <div className="mt-auto border-t border-hairline pt-5"><Link to="/" onClick={closeMenu} className={`flex min-h-12 items-center gap-3 px-3 text-sm ${focus}`}><ArrowUpRight size={19} />사이트로 이동</Link><button onClick={signOut} className={`flex min-h-12 w-full items-center gap-3 px-3 text-sm ${focus}`}><LogOut size={19} />로그아웃</button></div>
+        </div>
         </div>
       </dialog>
     </div>
