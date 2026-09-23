@@ -12,7 +12,7 @@ import { useDocumentTitle } from '@/hooks/common';
 import { EASE } from '@/components/editorial';
 import * as authApi from '@/api/admin/auth';
 
-function AdminLogin() {
+function AdminLogin({ mobile = false }) {
   useDocumentTitle('관리자 로그인');
   const navigate = useNavigate();
   const loginStore = useAuthStore((state) => state.login);
@@ -34,7 +34,7 @@ function AdminLogin() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    loginMutation.mutate();
+    if (!loginMutation.isPending && !google.pending) loginMutation.mutate();
   };
 
   // 구글 로그인 성공 시에도 비밀번호 로그인과 똑같이 처리한다
@@ -45,7 +45,7 @@ function AdminLogin() {
     },
     [loginStore, navigate]
   );
-  const google = useGoogleSignIn({ onSuccess: handleGoogleSuccess });
+  const google = useGoogleSignIn({ onSuccess: handleGoogleSuccess, responsive: mobile });
 
   // 인증 확인 중 로딩 화면
   if (checkingAuth) {
@@ -66,23 +66,23 @@ function AdminLogin() {
       >
         {/* 워드마크 */}
         <h1 className="text-[34px] font-black tracking-[-1.5px]">
-          fromis
-          <em className="not-italic text-transparent" style={{ WebkitTextStroke: '1.6px #141613' }}>
+          {mobile ? 'fromlog' : 'fromis'}
+          {!mobile && <em className="not-italic text-transparent" style={{ WebkitTextStroke: '1.6px #141613' }}>
             _9
-          </em>
+          </em>}
         </h1>
         <span className="mt-3 inline-block bg-ink px-3 py-[5px] text-[12px] font-extrabold tracking-k3 text-white">
           ADMIN
         </span>
 
         {/* 로그인 카드 */}
-        <div className="mt-9 border border-ink bg-white px-[38px] pb-9 pt-10 text-left">
+        <div className={`mt-9 border border-ink bg-white ${mobile ? 'px-5 py-7' : 'px-[38px] pb-9 pt-10'} text-left`}>
           {/* 에러 메시지 */}
           {loginMutation.isError && (
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 flex items-center gap-2 border border-[#E5B8B3] bg-[#F9E9E7] px-4 py-3 text-[#C0392B]"
+              role="alert" className="mb-6 flex items-center gap-2 border border-[#E5B8B3] bg-[#F9E9E7] px-4 py-3 text-[#C0392B]"
             >
               <AlertCircle size={15} />
               <span className="text-[14px] font-semibold">
@@ -92,10 +92,14 @@ function AdminLogin() {
           )}
 
           <form onSubmit={handleSubmit}>
-            <label className="text-[12px] font-extrabold tracking-k25 text-mute">ID</label>
+            <label htmlFor="admin-username" className="text-[13px] font-extrabold tracking-k25 text-mute">아이디</label>
             <div className="mb-[26px] mt-2 flex items-center gap-2.5 border-b-2 border-ink px-0.5 pb-2.5 pt-1">
               <User size={15} className="shrink-0 text-mute" />
               <input
+                id="admin-username"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -105,10 +109,12 @@ function AdminLogin() {
               />
             </div>
 
-            <label className="text-[12px] font-extrabold tracking-k25 text-mute">PASSWORD</label>
+            <label htmlFor="admin-password" className="text-[13px] font-extrabold tracking-k25 text-mute">비밀번호</label>
             <div className="mt-2 flex items-center gap-2.5 border-b-2 border-ink px-0.5 pb-2.5 pt-1">
               <Lock size={15} className="shrink-0 text-mute" />
               <input
+                id="admin-password"
+                autoComplete="current-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -118,9 +124,9 @@ function AdminLogin() {
               />
               <button
                 type="button"
-                aria-label="비밀번호 표시"
+                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 표시'} aria-pressed={showPassword}
                 onClick={() => setShowPassword(!showPassword)}
-                className="shrink-0 text-faint transition-colors hover:text-ink"
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-faint transition-colors hover:text-ink"
               >
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
@@ -128,7 +134,7 @@ function AdminLogin() {
 
             <button
               type="submit"
-              disabled={loginMutation.isPending}
+              disabled={loginMutation.isPending || google.pending}
               className="mt-9 w-full bg-ink py-[15px] text-[13.5px] font-extrabold tracking-k2 text-white transition-colors hover:bg-ebody disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loginMutation.isPending ? '로그인 중...' : '로그인'}

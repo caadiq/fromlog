@@ -9,6 +9,8 @@ import { PCPublicRoutes, PCAdminRoutes, MobileRoutes } from '@/routes';
 
 // 스토어
 import { useAuthStore } from '@/stores';
+import AdminLogin from '@/pages/pc/admin/login/Login';
+import MobileAdminHome from '@/pages/mobile/admin/Home';
 
 /**
  * PC/모바일은 **뷰포트 폭(matchMedia)** 하나로 판정한다. UA는 보지 않는다.
@@ -71,7 +73,7 @@ function PCRoutes() {
 }
 
 /**
- * Mobile 라우트 - admin 경로는 PC 관리자 페이지를 그대로 사용 (모바일 전용 관리자 삭제됨)
+ * Mobile admin login/home use touch layouts; other admin routes retain existing pages.
  */
 function MobileRoutesEntry() {
   const location = useLocation();
@@ -83,6 +85,8 @@ function MobileRoutesEntry() {
     return null;
   }
 
+  if (location.pathname.replace(/\/$/, '') === '/admin') return <AdminLogin mobile />;
+  if (location.pathname.replace(/\/$/, '') === '/admin/dashboard') return <MobileAdminHome />;
   if (isAdminPath) {
     return (
       <PCWrapper>

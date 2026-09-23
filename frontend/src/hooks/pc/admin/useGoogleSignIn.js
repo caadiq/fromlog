@@ -35,7 +35,7 @@ function loadGis() {
   });
 }
 
-export function useGoogleSignIn({ onSuccess }) {
+export function useGoogleSignIn({ onSuccess, responsive = false }) {
   const buttonRef = useRef(null);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
@@ -77,7 +77,7 @@ export function useGoogleSignIn({ onSuccess }) {
           size: 'large',
           text: 'signin_with',
           shape: 'rectangular',
-          width: 380,
+          width: responsive ? Math.min(380, buttonRef.current.clientWidth) : 380,
         });
       })
       .catch(() => {
@@ -87,7 +87,7 @@ export function useGoogleSignIn({ onSuccess }) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, config?.googleClientId, onSuccess]);
+  }, [enabled, config?.googleClientId, onSuccess, responsive]);
 
   return { buttonRef, enabled, error, pending };
 }
