@@ -366,6 +366,12 @@ function PCSchedule() {
     return counts;
   }, [schedules, searchResults, isSearchMode, searchTerm]);
 
+  const sortedCategories = useMemo(() => [...categories].sort((a, b) => {
+    if (a.name === '기타') return 1;
+    if (b.name === '기타') return -1;
+    return (categoryCounts.get(b.id) || 0) - (categoryCounts.get(a.id) || 0);
+  }), [categories, categoryCounts]);
+
   // 카테고리 색상/이름 가져오기
   const getCategoryColor = useCallback(
     (categoryId, schedule = null) => {
@@ -948,7 +954,7 @@ function PCSchedule() {
           >
             전체 {categoryCounts.get('total') || 0}
           </button>
-          {categories.map((c) => {
+          {sortedCategories.map((c) => {
             const on = selectedCategories.includes(c.id);
             return (
               <button
