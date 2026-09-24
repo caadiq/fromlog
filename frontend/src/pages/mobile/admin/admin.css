@@ -61,3 +61,30 @@ html.mobile-admin-layout body {
     animation-duration: 1ms;
   }
 }
+
+.mobile-queue-review {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.mobile-queue-review::backdrop { background: rgb(0 0 0 / 40%); }
+.mobile-queue-review .queue-review-date .w-80 { width: min(320px, calc(100vw - 40px)); }
+.mobile-queue-review input { min-width: 0; }
+.mobile-queue-review .fixed .max-w-lg { max-height: 85dvh; overflow-y: auto; overscroll-behavior: none; }
+/* Expand the calendar in the form so it cannot open behind the fixed header. */
+.mobile-queue-review .queue-review-date .absolute.z-50 {
+  position: relative;
+  inset: auto;
+  margin-top: 6px;
+  margin-bottom: 0;
+  width: 100%;
+}
+.mobile-queue-review .fixed .relative.flex-1 { min-width: 0; }

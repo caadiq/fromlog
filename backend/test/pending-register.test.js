@@ -23,7 +23,7 @@ before(async () => {
     `CREATE TABLE IF NOT EXISTS schedule_x (schedule_id INT PRIMARY KEY, username VARCHAR(100)) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS event_venues (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(200), address TEXT, road_address TEXT, lat DOUBLE, lng DOUBLE, kakao_id VARCHAR(100)) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS schedule_etc (schedule_id INT PRIMARY KEY, venue_id INT, description TEXT, post_urls JSON, poster_image_ids JSON, FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
-    `CREATE TABLE IF NOT EXISTS schedule_event (schedule_id INT PRIMARY KEY, subtype VARCHAR(30) NOT NULL, school_name VARCHAR(100), venue_id INT, post_urls JSON, poster_image_ids JSON, FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
+    `CREATE TABLE IF NOT EXISTS schedule_event (schedule_id INT PRIMARY KEY, subtype VARCHAR(30) NOT NULL, school_name VARCHAR(100), description TEXT, venue_id INT, post_urls JSON, poster_image_ids JSON, FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS schedule_variety (schedule_id INT PRIMARY KEY, broadcaster VARCHAR(100) NOT NULL, description TEXT, replay_url VARCHAR(500), FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS schedule_youtube (id INT AUTO_INCREMENT PRIMARY KEY, schedule_id INT NOT NULL UNIQUE, video_id VARCHAR(20) UNIQUE, video_type ENUM('video','shorts') NOT NULL DEFAULT 'video', channel_id VARCHAR(30), channel_name VARCHAR(100), FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS images (id INT AUTO_INCREMENT PRIMARY KEY, original_url VARCHAR(500) NOT NULL, medium_url VARCHAR(500), thumb_url VARCHAR(500)) ENGINE=InnoDB`,
@@ -216,4 +216,21 @@ test('existing standalone creation services still commit their schedule details'
   }
   assert.equal(await count('schedules'), 4);
   for (const table of ['schedule_etc', 'schedule_event', 'schedule_variety', 'schedule_youtube']) assert.equal(await count(table), 1);
+});
+
+test('explicit unknown time clears the collected time', async () => {
+  await db.query("UPDATE bot_pending_schedules SET time = '19:00:00' WHERE id = 1");
+  const response = await register({ category: '기타', time: null });
+  assert.equal(response.statusCode, 201);
+  const [[schedule]] = await db.query('SELECT time FROM schedules WHERE id = ?', [response.json().id]);
+  assert.equal(schedule.time, null);
+});
+
+
+test('omitting time preserves the collected time', async () => {
+  await db.query("UPDATE bot_pending_schedules SET time = '19:00:00' WHERE id = 1");
+  const response = await register({ category: '기타' });
+  assert.equal(response.statusCode, 201);
+  const [[schedule]] = await db.query('SELECT time FROM schedules WHERE id = ?', [response.json().id]);
+  assert.equal(schedule.time, '19:00:00');
 });

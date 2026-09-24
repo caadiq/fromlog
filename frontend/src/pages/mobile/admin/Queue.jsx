@@ -6,7 +6,8 @@ import { getPending, dismissPending } from '@/api/admin/pending';
 import { Toast } from '@/components/common';
 import CustomSelect from '@/components/pc/admin/common/CustomSelect';
 import ConfirmDialog from '@/components/pc/admin/common/ConfirmDialog';
-import { invalidatePending } from '@/utils';
+import { invalidatePending, invalidateSchedules } from '@/utils';
+import QueueReview from './QueueReview';
 import MobileAdminLayout from './Layout';
 
 const normalize = value => String(value || '').normalize('NFC').toLowerCase().replace(/\s+/g, '');
@@ -23,12 +24,14 @@ export default function MobileAdminQueue() {
 }
 
 function QueueList() {
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [registering, setRegistering] = useState(false);
   const [search, setSearch] = useState('');
   const [sortOrder, setSortOrder] = useState('registered');
   const [dismissTarget, setDismissTarget] = useState(null);
   const [dismissing, setDismissing] = useState(false);
   const [dismissError, setDismissError] = useState('');
-  const { toast, showSuccess, hideToast } = useToast();
+  const { toast, showSuccess, showError, hideToast } = useToast();
   const busy = useRef(false);
   const queryClient = useQueryClient();
   const closeDismiss = () => {
@@ -114,13 +117,28 @@ function QueueList() {
             {item.createdScheduleId && <p className="text-[#8A6D1B]">일정은 저장됐지만 등록 처리가 완료되지 않았습니다.</p>}
           </div>}
           <div className="mt-3 grid grid-cols-[2fr_3fr] gap-2">
-            <button type="button" disabled={Boolean(item.createdScheduleId)} onClick={() => { setDismissError(''); hideToast(); setDismissTarget(item); }} title={item.createdScheduleId ? '이미 일정이 생성된 항목은 무시할 수 없습니다.' : undefined} className="min-h-11 rounded-[2px] border border-ink bg-white px-3 text-[14px] font-medium text-ink disabled:cursor-not-allowed disabled:opacity-40">무시</button>
-            <button type="button" disabled title="등록 기능은 다음 단계에서 연결됩니다" className="min-h-11 rounded-[2px] bg-ink px-3 text-[14px] font-bold text-white disabled:cursor-not-allowed">검토 후 등록</button>
+            <button type="button" disabled={registering || Boolean(item.createdScheduleId)} onClick={() => { setDismissError(''); hideToast(); setDismissTarget(item); }} title={item.createdScheduleId ? '이미 일정이 생성된 항목은 무시할 수 없습니다.' : undefined} className="min-h-11 rounded-[2px] border border-ink bg-white px-3 text-[14px] font-medium text-ink disabled:cursor-not-allowed disabled:opacity-40">무시</button>
+            <button type="button" disabled={registering} onClick={() => { hideToast(); setReviewTarget(item); }} className="min-h-11 rounded-[2px] bg-ink px-3 text-[14px] font-bold text-white disabled:cursor-not-allowed">검토 후 등록</button>
           </div>
         </li>;
         })}
       </ul>}
     </>}
+    <QueueReview item={reviewTarget} onClose={() => setReviewTarget(null)} onBusyChange={setRegistering}
+      onFailure={message => showError(message)}
+      onLinked={(id, createdScheduleId) => {
+        queryClient.setQueryData(['pending-schedules'], old => old ? { ...old, items: old.items.map(item => item.id === id ? { ...item, createdScheduleId } : item) } : old);
+      }}
+      onSuccess={async id => {
+        setReviewTarget(null);
+        await queryClient.cancelQueries({ queryKey: ['pending-schedules'] });
+        queryClient.setQueryData(['pending-schedules'], old => old ? { ...old, items: old.items.filter(item => item.id !== id) } : old);
+        invalidatePending(queryClient);
+        invalidateSchedules(queryClient);
+        queryClient.invalidateQueries({ queryKey: ['admin', 'mobile'] });
+        queryClient.invalidateQueries({ queryKey: ['admin', 'logs'] });
+        showSuccess('일정으로 등록했습니다.');
+      }} />
     <ConfirmDialog
       isOpen={Boolean(dismissTarget)}
       onClose={closeDismiss}

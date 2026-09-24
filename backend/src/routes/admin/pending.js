@@ -118,7 +118,7 @@ export default async function pendingRoutes(fastify) {
     const category = b.category || rows[0].category_name;
     const title = (b.title ?? rows[0].title)?.trim();
     const date = b.date ?? (rows[0].date instanceof Date ? rows[0].date.toISOString().slice(0, 10) : rows[0].date);
-    const time = b.time || (rows[0].time ? String(rows[0].time).slice(0, 5) : null);
+    const time = b.time === undefined ? (rows[0].time ? String(rows[0].time).slice(0, 5) : null) : (b.time || null);
     const description = b.description ?? rows[0].description ?? '';
     const postUrls = Array.isArray(b.postUrls) ? b.postUrls : [];
 
