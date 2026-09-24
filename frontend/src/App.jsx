@@ -13,6 +13,7 @@ import AdminLogin from '@/pages/pc/admin/login/Login';
 import MobileAdminHome from '@/pages/mobile/admin/Home';
 import MobileAdminQueue from '@/pages/mobile/admin/Queue';
 import MobileAdminSchedules from '@/pages/mobile/admin/Schedules';
+import MobileAdminScheduleCreate from '@/pages/mobile/admin/ScheduleCreate';
 
 /**
  * PC/모바일은 **뷰포트 폭(matchMedia)** 하나로 판정한다. UA는 보지 않는다.
@@ -90,6 +91,7 @@ function MobileRoutesEntry() {
   if (location.pathname.replace(/\/$/, '') === '/admin') return <AdminLogin mobile />;
   if (location.pathname.replace(/\/$/, '') === '/admin/dashboard') return <MobileAdminHome />;
   if (location.pathname.replace(/\/$/, '') === '/admin/schedule/queue') return <MobileAdminQueue />;
+  if (location.pathname.replace(/\/$/, '') === '/admin/schedule/new') return <MobileAdminScheduleCreate />;
   if (location.pathname.replace(/\/$/, '') === '/admin/schedule') return <MobileAdminSchedules />;
   if (isAdminPath) {
     return (

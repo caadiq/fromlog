@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { EASE } from '@/components/editorial';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -30,7 +30,9 @@ function dateLabel(item) {
 export default function MobileAdminSchedules() {
   useDocumentTitle('일정 관리');
   const auth = useAdminAuth();
-  const [selectedDate, setSelectedDate] = useState(getTodayKST);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [selectedDate, setSelectedDate] = useState(() => location.state?.createdDate || getTodayKST());
   const month = selectedDate.slice(0, 7);
   const selectedDay = new Date(`${selectedDate}T12:00:00`);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -52,6 +54,11 @@ export default function MobileAdminSchedules() {
   const busy = useRef(false);
   const client = useQueryClient();
   const { toast, showSuccess, hideToast } = useToast();
+  useEffect(() => {
+    if (!location.state?.scheduleCreated) return;
+    showSuccess('일정이 추가되었습니다.');
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state?.scheduleCreated]);
   const query = useQuery({ queryKey: ['adminSchedules', year, monthNumber], queryFn: () => getSchedules(year, monthNumber), enabled: auth.isAuthenticated && !auth.isLoading && !auth.isError });
   const items = query.data || [];
   const categories = useMemo(() => getMonthCategories(items), [items]);
