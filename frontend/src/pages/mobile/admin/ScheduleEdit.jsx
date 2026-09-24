@@ -42,10 +42,10 @@ const validUrl = value => {
 export default function ScheduleEdit({ item, creating = false, initialDate, onClose, onSuccess, onBusyChange }) {
   const dialog = useRef(null);
   const busy = useRef(false);
-  const [newCategory, setNewCategory] = useState('행사');
-  const category = creating ? newCategory : getCategoryInfo(item).name;
+  const [newCategory, setNewCategory] = useState(null);
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: getCategories, enabled: creating, staleTime: 10 * 60 * 1000 });
   const categoryOptions = Array.isArray(categories) ? categories.filter(c => creators[c.name]).map(c => ({ value: c.name, label: c.name })) : ['유튜브', 'X', '예능', '행사', '기타'].map(value => ({ value, label: value }));
+  const category = creating ? (newCategory ?? categoryOptions[0]?.value ?? '유튜브') : getCategoryInfo(item).name;
   const [sourceUrl, setSourceUrl] = useState('');
   const [sourceLoading, setSourceLoading] = useState(false);
   const sourceRequest = useRef(0);
