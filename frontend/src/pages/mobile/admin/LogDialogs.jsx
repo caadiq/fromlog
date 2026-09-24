@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useDialogBackClose } from '@/hooks/common';
 import { decodeHtmlEntities, getTodayKST } from '@/utils';
 import DatePicker from '@/components/pc/admin/common/DatePicker';
@@ -26,7 +26,7 @@ function LogDialog({ open, title, onClose, children, footer, dialogRef }) {
   return createPortal(<dialog ref={dialogRef} className="mobile-queue-review" aria-label={title} onCancel={event => { event.preventDefault(); onClose(); }}>
     <div className="flex h-full flex-col bg-paper text-ink">
       <header className="flex shrink-0 items-center justify-between border-b border-hairline px-3 pt-[env(safe-area-inset-top)]">
-        <button aria-label={`${title} 돌아가기`} onClick={onClose} className="flex h-16 w-11 items-center justify-center"><ArrowLeft size={21} /></button><h2 className="text-lg font-extrabold">{title}</h2><button aria-label={`${title} 닫기`} onClick={onClose} className="flex h-16 w-11 items-center justify-center"><X size={21} /></button>
+        <span aria-hidden="true" className="w-11 shrink-0" /><h2 className="text-lg font-extrabold">{title}</h2><button aria-label={`${title} 닫기`} onClick={onClose} className="flex h-16 w-11 items-center justify-center"><X size={21} /></button>
       </header>
       <div data-review-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-none p-5">{children}</div>
       <footer className="shrink-0 border-t border-hairline p-4 pb-[max(16px,env(safe-area-inset-bottom))]">{footer}</footer>

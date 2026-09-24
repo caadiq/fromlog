@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, X, ImagePlus, MapPin } from 'lucide-react';
+import { X, ImagePlus, MapPin } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { decodeHtmlEntities, getTodayKST, invalidateSchedules } from '@/utils';
 import { getCategoryInfo } from '@/utils/schedule';
@@ -175,7 +175,7 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
   return createPortal(<dialog ref={dialog} aria-labelledby="schedule-edit-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (locationOpen) setLocationOpen(false); else close(); }}>
     <div className="flex h-full flex-col bg-white text-ink">
       <header className="flex shrink-0 items-center justify-between border-b border-hairline px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
-        <button type="button" aria-label="일정 목록으로 돌아가기" disabled={saving} onClick={close} className="flex h-12 w-12 items-center justify-center disabled:opacity-40"><ArrowLeft size={21} /></button>
+        <span aria-hidden="true" className="w-12 shrink-0" />
         <h2 id="schedule-edit-title" className="text-lg font-extrabold">{creating ? '일정 추가' : '일정 수정'}</h2>
         <button type="button" aria-label={creating ? "추가 닫기" : "수정 닫기"} disabled={saving} onClick={close} className="flex h-12 w-12 items-center justify-center disabled:opacity-40"><X size={21} /></button>
       </header>

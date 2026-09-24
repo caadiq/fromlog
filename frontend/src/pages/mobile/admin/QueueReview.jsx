@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import useReviewViewport from './useReviewViewport';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, X, ImagePlus, MapPin } from 'lucide-react';
+import { X, ImagePlus, MapPin } from 'lucide-react';
 import { useDialogBackClose } from '@/hooks/common';
 import { registerPending } from '@/api/admin/pending';
 import CustomSelect from '@/components/pc/admin/common/CustomSelect';
@@ -87,7 +87,7 @@ export default function QueueReview({ item, onClose, onSuccess, onFailure, onBus
   return createPortal(<dialog ref={dialog} aria-labelledby="queue-review-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (!locationOpen) onClose(); else setLocationOpen(false); }}>
     <div className="flex h-full flex-col bg-white text-ink">
       <header className="flex shrink-0 items-center justify-between border-b border-hairline px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
-        <button type="button" aria-label="큐 목록으로 돌아가기" onClick={onClose} className="flex h-12 w-12 items-center justify-center"><ArrowLeft size={21} /></button>
+        <span aria-hidden="true" className="w-12 shrink-0" />
         <h2 id="queue-review-title" className="text-lg font-extrabold">일정 등록</h2>
         <button type="button" aria-label="등록 닫기" onClick={onClose} className="flex h-12 w-12 items-center justify-center"><X size={21} /></button>
       </header>
