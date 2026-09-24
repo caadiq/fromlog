@@ -14,6 +14,7 @@ import MobileAdminHome from '@/pages/mobile/admin/Home';
 import MobileAdminQueue from '@/pages/mobile/admin/Queue';
 import MobileAdminSchedules from '@/pages/mobile/admin/Schedules';
 import MobileAdminScheduleLinks from '@/pages/mobile/admin/ScheduleLinks';
+import MobileAdminBots from '@/pages/mobile/admin/Bots';
 import MobileAdminVideos from '@/pages/mobile/admin/Videos';
 import MobileAdminTheme from '@/pages/mobile/admin/Theme';
 import MobileAdminLogs from '@/pages/mobile/admin/Logs';
@@ -96,6 +97,7 @@ function MobileRoutesEntry() {
   if (location.pathname.replace(/\/$/, '') === '/admin/dashboard') return <MobileAdminHome />;
   if (location.pathname.replace(/\/$/, '') === '/admin/schedule/queue') return <MobileAdminQueue />;
   if (location.pathname.replace(/\/$/, '') === '/admin/schedule/links') return <MobileAdminScheduleLinks />;
+  if (location.pathname.replace(/\/$/, '') === '/admin/schedule/bots') return <MobileAdminBots />;
   if (location.pathname.replace(/\/$/, '') === '/admin/videos') return <MobileAdminVideos />;
   if (location.pathname.replace(/\/$/, '') === '/admin/theme') return <MobileAdminTheme />;
   if (location.pathname.replace(/\/$/, '') === '/admin/logs') return <MobileAdminLogs />;
