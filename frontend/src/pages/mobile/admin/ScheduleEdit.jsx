@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, X, ImagePlus, MapPin } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { decodeHtmlEntities, getTodayKST, invalidateSchedules } from '@/utils';
 import { getCategoryInfo } from '@/utils/schedule';
 import { fetchAuthApi } from '@/api/client';
+import { getCategories } from '@/api/admin/categories';
 import { getSchedule } from '@/api/admin/schedules';
 import { getEvent, updateEvent, createEvent } from '@/api/admin/events';
 import { getEtc, updateEtc, createEtc } from '@/api/admin/etc';
@@ -28,7 +29,7 @@ const editors = {
 export function canEditSchedule(item) {
   return Boolean(editors[getCategoryInfo(item).name]) && /^\d+$/.test(String(item.id)) && !item.is_birthday && !item.is_debut && !item.is_anniversary;
 }
-const creators = { 행사: createEvent, 기타: createEtc, 예능: createVarietySchedule, 유튜브: body => fetchAuthApi('/admin/youtube/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) };
+const creators = { X: body => fetchAuthApi('/admin/x/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), 행사: createEvent, 기타: createEtc, 예능: createVarietySchedule, 유튜브: body => fetchAuthApi('/admin/youtube/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) };
 const inputClass = 'mt-2 w-full border border-hairline bg-white px-3 py-3 text-base outline-none focus:border-ink';
 const buttonClass = 'min-h-11 border border-hairline px-3 text-sm font-semibold disabled:opacity-40';
 const validUrl = value => {
@@ -43,16 +44,21 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
   const busy = useRef(false);
   const [newCategory, setNewCategory] = useState('행사');
   const category = creating ? newCategory : getCategoryInfo(item).name;
-  const [videoUrl, setVideoUrl] = useState('');
-  const [videoLoading, setVideoLoading] = useState(false);
-  const videoRequest = useRef(0);
+  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: getCategories, enabled: creating, staleTime: 10 * 60 * 1000 });
+  const categoryOptions = Array.isArray(categories) ? categories.filter(c => creators[c.name]).map(c => ({ value: c.name, label: c.name })) : ['유튜브', 'X', '예능', '행사', '기타'].map(value => ({ value, label: value }));
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const sourceRequest = useRef(0);
   const editor = editors[category];
   const detail = category === '행사' || category === '기타';
   const youtube = category === '유튜브';
+  const xPost = creating && category === 'X';
+  const remote = youtube || xPost;
   const monthOnly = !creating && item.datePrecision === 'month';
   const client = useQueryClient();
   const revealPicker = useReviewViewport(dialog, true);
   const [form, setForm] = useState(null);
+  const hasSource = xPost ? Boolean(form?.postId) : Boolean(form?.videoId);
   const [existing, setExisting] = useState([]);
   const [posters, setPosters] = useState([]);
   const [thumbnail, setThumbnail] = useState([]);
@@ -74,8 +80,8 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
     setLoading(true); setLoadError('');
     if (creating) {
       setForm({ title: '', date: initialDate || getTodayKST(), time: '', description: '', broadcaster: '', schoolName: '', subtype: 'university', replayUrl: '', venue: null, videoType: 'video' });
-      setExisting([]); setPosters([]); setThumbnail([]); setLinks([]); setUrl(''); setError(''); setVideoUrl(''); setLoading(false);
-      return () => { videoRequest.current += 1; };
+      setExisting([]); setPosters([]); setThumbnail([]); setLinks([]); setUrl(''); setError(''); setSourceUrl(''); setLoading(false);
+      return () => { sourceRequest.current += 1; };
     }
     if (!canEditSchedule(item)) { setLoading(false); setLoadError('모바일 수정이 지원되지 않는 일정입니다.'); return; }
     editor.load(item.id).then(data => {
@@ -95,28 +101,45 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
     try { const link = validUrl(url); setLinks(previous => [...new Set([...previous, link])]); setUrl(''); setError(''); }
     catch { setError('올바른 게시글 링크를 입력해주세요.'); }
   };
-  const lookupVideo = async () => {
-    if (videoLoading || !videoUrl.trim()) return;
-    const request = ++videoRequest.current;
-    const raw = videoUrl.trim();
+  const lookupSource = async () => {
+    if (sourceLoading || !sourceUrl.trim()) return;
+    const request = ++sourceRequest.current;
+    const raw = sourceUrl.trim();
     const normalized = /^[A-Za-z0-9_-]{11}$/.test(raw) ? `https://www.youtube.com/watch?v=${raw}` : raw;
-    setVideoLoading(true); setError('');
+    let endpoint = `/admin/youtube/video-info?url=${encodeURIComponent(normalized)}`;
+    if (xPost) {
+      let postId = /^\d+$/.test(raw) ? raw : null;
+      let username;
+      if (!postId) {
+        try {
+          const parsed = new URL(raw);
+          const match = parsed.pathname.match(/^\/([A-Za-z0-9_]+)\/status\/(\d+)(?:\/|$)/);
+          if (['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com', 'mobile.twitter.com'].includes(parsed.hostname) && ['https:', 'http:'].includes(parsed.protocol) && match) { postId = match[2]; username = match[1]; }
+        } catch { /* Invalid input is reported below. */ }
+      }
+      if (!postId) { setError('X 게시글 URL 또는 숫자로 된 게시글 ID를 입력해주세요.'); return; }
+      const query = new URLSearchParams({ postId });
+      if (username) query.set('username', username);
+      endpoint = `/admin/x/post-info?${query}`;
+    }
+    setSourceLoading(true); setError('');
     try {
-      const data = await fetchAuthApi(`/admin/youtube/video-info?url=${encodeURIComponent(normalized)}`);
-      if (request === videoRequest.current) setForm(previous => ({ ...previous, ...data }));
-    } catch (err) { if (request === videoRequest.current) setError(err.message || '영상 정보를 가져오지 못했습니다.'); }
-    finally { if (request === videoRequest.current) setVideoLoading(false); }
+      const data = await fetchAuthApi(endpoint);
+      if (request === sourceRequest.current) setForm(previous => ({ ...previous, ...data }));
+    } catch (err) { if (request === sourceRequest.current) setError(err.message || '게시물 정보를 가져오지 못했습니다.'); }
+    finally { if (request === sourceRequest.current) setSourceLoading(false); }
   };
   const submit = async () => {
     if (busy.current || loading || !form || loadError) return;
     setError('');
-    if (creating && youtube && !form.videoId) { setError('먼저 영상 정보를 조회해주세요.'); return; }
-    if (!youtube && (!form.title.trim() || !form.date)) { setError('제목과 날짜를 입력해주세요.'); return; }
+    if (creating && remote && (!hasSource || !form.date)) { setError('먼저 게시물 정보와 게시 날짜를 확인해주세요.'); return; }
+    if (!remote && (!form.title.trim() || !form.date)) { setError('제목과 날짜를 입력해주세요.'); return; }
     if (category === '행사' && form.subtype === 'university' && !form.schoolName.trim()) { setError('학교명을 입력해주세요.'); return; }
     if (category === '예능' && !form.broadcaster.trim()) { setError('방송사 / 플랫폼을 입력해주세요.'); return; }
     let body;
     try {
-      if (youtube) body = creating ? Object.fromEntries(['videoId', 'title', 'channelId', 'channelName', 'date', 'time', 'videoType'].map(key => [key, form[key]])) : { videoType: form.videoType };
+      if (xPost) body = { postId: form.postId, username: form.username, title: form.title, content: form.text, imageUrls: form.imageUrls, date: form.date, time: form.time };
+      else if (youtube) body = creating ? Object.fromEntries(['videoId', 'title', 'channelId', 'channelName', 'date', 'time', 'videoType'].map(key => [key, form[key]])) : { videoType: form.videoType };
       else {
         body = new FormData();
         if (detail) {
@@ -157,16 +180,17 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
         <button type="button" aria-label={creating ? "추가 닫기" : "수정 닫기"} disabled={saving} onClick={close} className="flex h-12 w-12 items-center justify-center disabled:opacity-40"><X size={21} /></button>
       </header>
       <div data-review-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-none p-5">
-        {loading ? <p role="status" className="py-12 text-center text-sm text-mute">일정을 불러오는 중...</p> : loadError ? <div role="alert" className="text-sm text-[#A93226]">{loadError}<button className={`${buttonClass} mt-3 block`} onClick={() => setAttempt(value => value + 1)}>다시 시도</button></div> : form && <fieldset disabled={saving || videoLoading} className="min-w-0 space-y-5">
-          {creating ? <div><span className="mb-2 block text-sm font-bold">카테고리</span><CustomSelect value={category} onChange={setNewCategory} options={Object.keys(creators).map(value => ({ value, label: value }))} /></div> : <p className="text-sm font-bold text-mute">{category}{category === '행사' && form.subtype === 'university' ? ' · 대학 축제' : ''}</p>}
-          {youtube ? <>
-            {creating && <div><label htmlFor="create-video-url" className="block text-sm font-bold">YouTube URL / 영상 ID *</label><div className="mt-2 flex gap-2"><input id="create-video-url" value={videoUrl} disabled={Boolean(form.videoId)} onChange={event => setVideoUrl(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); lookupVideo(); } }} className={`${inputClass.replace('mt-2 ', '')} min-w-0 flex-1`} placeholder="YouTube 링크 또는 영상 ID" /><button type="button" disabled={videoLoading || (!form.videoId && !videoUrl.trim())} className={buttonClass} onClick={form.videoId ? () => { setForm(previous => ({ ...previous, videoId: null, title: '', channelName: '', date: '', time: '' })); setVideoUrl(''); setError(''); } : lookupVideo}>{videoLoading ? '조회 중...' : form.videoId ? '다시 입력' : '조회'}</button></div></div>}
-            {(!creating || form.videoId) && <>
-            {creating && <img src={`https://img.youtube.com/vi/${form.videoId}/mqdefault.jpg`} alt="영상 썸네일" className="aspect-video w-full object-cover" />}
-            <h3 className="break-words text-lg font-extrabold">{form.title}</h3>
+        {loading ? <p role="status" className="py-12 text-center text-sm text-mute">일정을 불러오는 중...</p> : loadError ? <div role="alert" className="text-sm text-[#A93226]">{loadError}<button className={`${buttonClass} mt-3 block`} onClick={() => setAttempt(value => value + 1)}>다시 시도</button></div> : form && <fieldset disabled={saving || sourceLoading} className="min-w-0 space-y-5">
+          {creating ? <div><span className="mb-2 block text-sm font-bold">카테고리</span><CustomSelect value={category} onChange={setNewCategory} options={categoryOptions} /></div> : <p className="text-sm font-bold text-mute">{category}{category === '행사' && form.subtype === 'university' ? ' · 대학 축제' : ''}</p>}
+          {remote ? <>
+            {creating && <div><label htmlFor="create-video-url" className="block text-sm font-bold">{xPost ? 'X 게시글 URL / ID *' : 'YouTube URL / 영상 ID *'}</label><div className="mt-2 flex gap-2"><input id="create-video-url" value={sourceUrl} disabled={hasSource} onChange={event => setSourceUrl(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); lookupSource(); } }} className={`${inputClass.replace('mt-2 ', '')} min-w-0 flex-1`} placeholder={xPost ? 'X 링크 또는 게시글 ID' : 'YouTube 링크 또는 영상 ID'} /><button type="button" disabled={sourceLoading || (!hasSource && !sourceUrl.trim())} className={buttonClass} onClick={hasSource ? () => { setForm(previous => ({ ...previous, videoId: null, postId: null, title: '', channelName: '', date: '', time: '' })); setSourceUrl(''); setError(''); } : lookupSource}>{sourceLoading ? '조회 중...' : hasSource ? '다시 입력' : '조회'}</button></div></div>}
+            {(!creating || hasSource) && <>
+            {creating && youtube && <img src={`https://img.youtube.com/vi/${form.videoId}/mqdefault.jpg`} alt="영상 썸네일" className="aspect-video w-full object-cover" />}
+            <h3 className="break-words text-lg font-extrabold">{form.title || (xPost ? '[게시글]' : '')}</h3>
+            {xPost && <div className="space-y-3"><p className="text-sm font-bold">{form.profile?.displayName} <span className="text-mute">@{form.username}</span></p><p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{form.text}</p>{form.imageUrls?.length > 0 && <div className="grid grid-cols-2 gap-2">{form.imageUrls.map((url, index) => <img key={`${url}-${index}`} src={url} alt={`게시글 이미지 ${index + 1}`} className="aspect-square w-full object-cover" />)}</div>}</div>}
             <p className="text-sm text-mute">{form.channelName}<br />{form.date} {form.time}</p>
-            <p className="text-sm leading-relaxed text-mute">{creating ? '조회한 영상 정보로 일정을 등록합니다.' : '영상 유형을 수정할 수 있습니다. 제목과 업로드 날짜는 영상 정보를 따릅니다.'}</p>
-            <div><span className="mb-2 block text-sm font-bold">영상 유형</span><CustomSelect value={form.videoType} onChange={value => update('videoType', value)} options={[{ value: 'video', label: '일반 영상' }, { value: 'shorts', label: '쇼츠' }]} /></div>
+            <p className="text-sm leading-relaxed text-mute">{creating ? (xPost ? '조회한 게시글 정보와 게시 날짜로 등록합니다.' : '조회한 영상 정보로 일정을 등록합니다.') : '영상 유형을 수정할 수 있습니다. 제목과 업로드 날짜는 영상 정보를 따릅니다.'}</p>
+            {youtube && <div><span className="mb-2 block text-sm font-bold">영상 유형</span><CustomSelect value={form.videoType} onChange={value => update('videoType', value)} options={[{ value: 'video', label: '일반 영상' }, { value: 'shorts', label: '쇼츠' }]} /></div>}
             </>}
           </> : <>
             <div><label htmlFor="edit-title" className="block text-sm font-bold">일정 제목 *</label><div className="mt-2 flex items-start gap-2"><input id="edit-title" maxLength={500} value={form.title} onChange={event => update('title', event.target.value)} className={`${inputClass.replace('mt-2 ', '')} min-w-0 flex-1`} />{category === '행사' && <InstagramTitleButton iconOnly sourceUrls={[...links, url]} disabled={saving} onApply={title => update('title', title)} />}</div></div>
@@ -192,7 +216,7 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
       </div>
       <footer className="shrink-0 border-t border-hairline bg-white px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         {error && <p role="alert" className="mb-3 max-h-24 overflow-y-auto text-sm leading-relaxed text-[#A93226]">{error}</p>}
-        <div className="grid grid-cols-[1fr_2fr] gap-2"><button type="button" disabled={saving} onClick={close} className={buttonClass}>취소</button><button type="button" disabled={saving || loading || videoLoading || Boolean(loadError) || !form || (creating && youtube && !form.videoId)} onClick={submit} className="min-h-12 bg-ink px-3 text-sm font-bold text-white disabled:opacity-40">{saving ? (creating ? '등록 중...' : '저장 중...') : creating ? '일정 등록' : '저장하기'}</button></div>
+        <div className="grid grid-cols-[1fr_2fr] gap-2"><button type="button" disabled={saving} onClick={close} className={buttonClass}>취소</button><button type="button" disabled={saving || loading || sourceLoading || Boolean(loadError) || !form || (creating && remote && (!hasSource || !form.date))} onClick={submit} className="min-h-12 bg-ink px-3 text-sm font-bold text-white disabled:opacity-40">{saving ? (creating ? '등록 중...' : '저장 중...') : creating ? '일정 등록' : '저장하기'}</button></div>
       </footer>
       <LocationSearchDialog isOpen={locationOpen} onClose={() => setLocationOpen(false)} onSelect={venue => update('venue', venue)} />
     </div>
