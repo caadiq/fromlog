@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, ArrowUp, ArrowDown, ExternalLink, Link2 } from 'lucide-react';
 import { useDocumentTitle, useToast } from '@/hooks/common';
@@ -23,6 +24,7 @@ export default function MobileAdminScheduleLinks() {
 }
 function LinksContent() {
   const client = useQueryClient();
+  const reducedMotion = useReducedMotion();
   const query = useQuery({ queryKey: ['admin', 'schedule-links'], queryFn: api.getScheduleLinks });
   const [editor, setEditor] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -64,13 +66,13 @@ function LinksContent() {
     <p className="mb-5 mt-4 text-xs text-mute">위·아래 버튼으로 표시 순서를 변경할 수 있습니다.</p>
     {query.isPending ? <p role="status" className="py-16 text-center text-sm text-mute">링크를 불러오는 중...</p> : query.isError ? <div role="alert" className="text-sm text-[#A93226]">링크를 불러오지 못했습니다.<button onClick={() => query.refetch()} className={`${button} mt-3`}>다시 시도</button></div> : !items.length ? <div className="flex flex-col items-center gap-3 border border-dashed border-hairline py-16 text-mute"><Link2 size={28} /><p className="text-sm">등록된 링크가 없습니다.</p></div> : <ul aria-label="고정 링크 목록" className="space-y-4 pb-24">{items.map((item, index) => {
       const [label, color] = status(item, now);
-      return <li key={item.id} className="rounded border border-hairline bg-white p-3.5">
+      return <motion.li key={item.id} layout="position" transition={{ layout: { duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] } }} className="rounded border border-hairline bg-white p-3.5">
         <div className="flex items-center justify-between gap-3"><span className={`rounded px-2 py-1 text-xs font-bold ${color}`}>{label}</span><div className="flex gap-1"><button disabled={busy || index === 0} aria-label={`${item.title} 위로`} onClick={() => move(index, -1)} className={`${button} w-11 !px-0`}><ArrowUp size={17} /></button><button disabled={busy || index === items.length - 1} aria-label={`${item.title} 아래로`} onClick={() => move(index, 1)} className={`${button} w-11 !px-0`}><ArrowDown size={17} /></button></div></div>
         <h2 className="mt-3 break-words text-base font-extrabold leading-relaxed">{item.title}</h2><a href={/^https?:\/\//i.test(item.url) ? item.url : undefined} target="_blank" rel="noopener noreferrer" className="mt-1 flex min-h-11 items-center gap-2 text-sm text-mute"><span className="min-w-0 flex-1 truncate">{item.url.replace(/^https?:\/\//, '')}</span><ExternalLink size={15} className="shrink-0" /></a>
         <p className="mt-1 break-words text-xs leading-relaxed text-mute">{period(item)}</p>
         <div className="mt-3 flex items-center justify-between border-t border-hairline pt-3"><span className="text-sm font-semibold">공개 여부</span><button role="switch" aria-label={`${item.title} 공개 여부`} aria-checked={item.enabled !== false} disabled={busy} onClick={() => mutate(() => api.setScheduleLinkVisibility(item.id, item.enabled === false), item.enabled === false ? '공개로 변경했습니다.' : '숨김으로 변경했습니다.')} className={`${button} ${item.enabled === false ? 'text-mute' : '!border-ink !bg-ink text-white'}`}>{item.enabled === false ? '숨김' : '공개'}</button></div>
         <div className="mt-3 grid grid-cols-[1fr_72px] gap-2"><button disabled={busy} onClick={() => { setError(''); setEditor(item); }} className="min-h-11 bg-ink text-sm font-bold text-white disabled:opacity-40">수정</button><button disabled={busy} onClick={() => { setError(''); setDeleting(item); }} className={button}>삭제</button></div>
-      </li>;
+      </motion.li>;
     })}</ul>}
     <button disabled={busy} aria-label="링크 추가" onClick={() => { setError(''); setEditor({}); }} className="mobile-schedule-add flex h-14 w-14 items-center justify-center rounded-full bg-ink text-white disabled:opacity-40"><Plus size={27} /></button>
     <LinkEditor item={editor} busy={busy} saveError={error} onClose={closeEditor} onSave={form => mutate(() => editor.id ? api.updateScheduleLink(editor.id, form) : api.createScheduleLink(form), editor.id ? '수정했습니다.' : '추가했습니다.', () => setEditor(null))} />

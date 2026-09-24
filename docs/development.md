@@ -979,3 +979,4 @@ invalidateSchedules(queryClient);
 - DB: `backend/sql/20260924_schedule_links_visibility.sql`을 API 코드 반영 전에 수동 적용한다. `is_enabled` 기본값 1로 기존 표시 상태를 유지한다. 이번 환경에서는 기존 2건을 백업하고 적용했으며 콘텐츠·기간·순서는 변경하지 않았다.
 - PC 목록에도 숨김 배지를 표시하며 기존 PC 편집 요청은 공개 여부를 보존한다.
 - 검증: 프런트 빌드, `node --test test/schedule-links.test.js`, Playwright 모의 API로 추가/수정/삭제/순서/공개 전환/저장 실패 복구/한국 시간 보존/뒤로가기 및 390px·320px 화면 확인. 테스트용 링크를 실제 DB에 등록하지 않는다.
+- 고정 링크 위·아래 순서 변경 시 카드 위치를 280ms 동안 부드럽게 이동한다(`motion.li`, `layout="position"`). OS 동작 줄이기 설정이면 즉시 이동한다. 빌드 및 브라우저에서 이동 중간 좌표/최종 순서 확인 완료.
