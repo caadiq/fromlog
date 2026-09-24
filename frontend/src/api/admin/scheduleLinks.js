@@ -36,3 +36,8 @@ export async function reorderScheduleLinks(ids) {
     body: JSON.stringify({ ids }),
   });
 }
+
+/** 공개 여부만 변경 (기존 기간 유지) */
+export function setScheduleLinkVisibility(id, enabled) {
+  return fetchAuthApi(`/admin/schedule-links/${id}/visibility`, { method: 'PATCH', body: JSON.stringify({ enabled }) });
+}

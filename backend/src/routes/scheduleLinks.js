@@ -32,7 +32,8 @@ export default async function scheduleLinkRoutes(fastify) {
       `SELECT id, title, url,
               DATE_FORMAT(ends_at, '%Y-%m-%dT%H:%i') AS ends_at
          FROM schedule_links
-        WHERE (starts_at IS NULL OR starts_at <= NOW())
+        WHERE is_enabled = 1
+          AND (starts_at IS NULL OR starts_at <= NOW())
           AND (ends_at   IS NULL OR ends_at   >= NOW())
         ORDER BY sort_order, id`
     );

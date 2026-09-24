@@ -31,6 +31,7 @@ import ScheduleLinkDialog from './ScheduleLinkDialog';
 
 /** 표시 기간으로 지금 상태를 판단 */
 function getStatus(item) {
+  if (item.enabled === false) return 'hidden';
   const now = Date.now();
   if (item.startsAt && new Date(item.startsAt).getTime() > now) return 'wait';
   if (item.endsAt && new Date(item.endsAt).getTime() < now) return 'over';
@@ -38,6 +39,7 @@ function getStatus(item) {
 }
 
 const STATUS_META = {
+  hidden: { label: '숨김', cls: 'bg-canvas text-mute' },
   live: { label: '표시 중', cls: 'bg-green-soft text-green-deep' },
   wait: { label: '예정', cls: 'bg-canvas text-mute' },
   over: { label: '기간 지남', cls: 'bg-[#FBF6E4] text-[#8A6D1B]' },

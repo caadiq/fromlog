@@ -147,3 +147,7 @@ logActivity(db, { actor, action, category, targetType, targetId, summary, detail
 ### 모바일 조회
 
 모바일 `/admin/logs`는 오늘 기본, 기간·검색·분류·주체·오류 필터와 20건 페이지 이동을 제공한다. `action=error`는 목록과 총 건수에 함께 적용한다. 날짜는 기존 DB의 KST 벽시계를 유지해 표시한다. 페이지 번호를 눌러 직접 입력할 수 있고 조건 변경 시 1페이지로 돌아간다. 홈 최근 활동을 누르면 해당 기록 상세가 열리며 원본 details는 접어서 표시한다. 조회는 새 활동 로그를 만들지 않는다.
+
+### 고정 링크 공개 및 순서 변경 (2026-09-24)
+
+`PATCH /admin/schedule-links/:id/visibility`와 `PUT /admin/schedule-links/order`는 `actor=admin`, `action=update`, `category=schedule`, `target_type=schedule_link`로 기록한다. 공개 변경은 대상 ID 및 `details.enabled`, 순서 변경은 `details.ids`를 기록한다. 기존 추가·수정·삭제 기록은 유지한다.

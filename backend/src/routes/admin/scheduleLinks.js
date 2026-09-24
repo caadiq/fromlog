@@ -5,6 +5,7 @@
  * 순서는 관리자가 드래그로 정한 sort_order를 그대로 쓴다(마감 임박순 자동정렬 안 함).
  */
 import { badRequest, notFound } from '../../utils/error.js';
+import { withTransaction } from '../../utils/transaction.js';
 import { logActivity } from '../../utils/log.js';
 
 function rowToItem(r) {
@@ -16,6 +17,7 @@ function rowToItem(r) {
     startsAt: r.starts_at || null,
     endsAt: r.ends_at || null,
     sortOrder: r.sort_order,
+    enabled: Boolean(r.is_enabled),
   };
 }
 
@@ -32,7 +34,8 @@ function toDateTime(v) {
 }
 
 /** 입력 검증 — 통과하면 null, 아니면 에러 메시지 */
-function validate({ title, url, startsAt, endsAt }) {
+function validate({ title, url, startsAt, endsAt, enabled }) {
+  if (enabled !== undefined && typeof enabled !== 'boolean') return '공개 여부를 확인해주세요.';
   if (!title?.trim()) return '제목을 입력해주세요.';
   if (title.trim().length > 120) return '제목은 120자를 넘을 수 없습니다.';
   if (!url?.trim()) return 'URL을 입력해주세요.';
@@ -50,7 +53,7 @@ export default async function adminScheduleLinkRoutes(fastify) {
   /** GET / — 전체 목록 (만료·예정 포함, 관리자는 다 봐야 함) */
   fastify.get('/', { preHandler: [fastify.authenticate] }, async () => {
     const [rows] = await db.query(
-      `SELECT id, title, url, sort_order,
+      `SELECT id, title, url, sort_order, is_enabled,
               DATE_FORMAT(starts_at, '%Y-%m-%dT%H:%i') AS starts_at,
               DATE_FORMAT(ends_at,   '%Y-%m-%dT%H:%i') AS ends_at
          FROM schedule_links ORDER BY sort_order, id`
@@ -68,14 +71,15 @@ export default async function adminScheduleLinkRoutes(fastify) {
       'SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM schedule_links'
     );
     const [res] = await db.query(
-      `INSERT INTO schedule_links (title, url, starts_at, ends_at, sort_order)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO schedule_links (title, url, starts_at, ends_at, sort_order, is_enabled)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         body.title.trim(),
         body.url.trim(),
         toDateTime(body.startsAt),
         toDateTime(body.endsAt),
         nextOrder,
+        body.enabled === false ? 0 : 1,
       ]
     );
     logActivity(db, {
@@ -98,13 +102,14 @@ export default async function adminScheduleLinkRoutes(fastify) {
 
     await db.query(
       `UPDATE schedule_links
-          SET title = ?, url = ?, starts_at = ?, ends_at = ?
+          SET title = ?, url = ?, starts_at = ?, ends_at = ?, is_enabled = COALESCE(?, is_enabled)
         WHERE id = ?`,
       [
         body.title.trim(),
         body.url.trim(),
         toDateTime(body.startsAt),
         toDateTime(body.endsAt),
+        body.enabled === undefined ? null : Number(body.enabled),
         id,
       ]
     );
@@ -113,6 +118,19 @@ export default async function adminScheduleLinkRoutes(fastify) {
       targetType: 'schedule_link', targetId: parseInt(id),
       summary: `고정 링크 수정: ${body.title.trim()}`,
     });
+    return { ok: true };
+  });
+
+  /** PATCH /:id/visibility — toggle without overwriting title, period, or order. */
+  fastify.patch('/:id/visibility', {
+    preHandler: [fastify.authenticate],
+    schema: { body: { type: 'object', required: ['enabled'], properties: { enabled: { type: 'boolean' } } } },
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const [rows] = await db.query('SELECT title FROM schedule_links WHERE id = ?', [id]);
+    if (!rows.length) return notFound(reply, '링크를 찾을 수 없습니다.');
+    await db.query('UPDATE schedule_links SET is_enabled = ? WHERE id = ?', [Number(request.body.enabled), id]);
+    logActivity(db, { actor: 'admin', action: 'update', category: 'schedule', targetType: 'schedule_link', targetId: Number(id), summary: `고정 링크 ${request.body.enabled ? '공개' : '숨김'}: ${rows[0].title}`, details: { enabled: request.body.enabled } });
     return { ok: true };
   });
 
@@ -137,12 +155,15 @@ export default async function adminScheduleLinkRoutes(fastify) {
     if (!Array.isArray(ids) || ids.length === 0) {
       return badRequest(reply, '순서 목록이 비어 있습니다.');
     }
-    // 배열 순서를 그대로 sort_order 로 저장
-    await Promise.all(
-      ids.map((id, i) =>
-        db.query('UPDATE schedule_links SET sort_order = ? WHERE id = ?', [i + 1, id])
-      )
-    );
+    if (ids.some(id => !Number.isSafeInteger(id) || id <= 0) || new Set(ids).size !== ids.length) return badRequest(reply, '순서 목록을 확인해주세요.');
+    const saved = await withTransaction(db, async conn => {
+      const [rows] = await conn.query('SELECT id FROM schedule_links ORDER BY id FOR UPDATE');
+      if (rows.length !== ids.length || rows.some(row => !ids.includes(row.id))) return false;
+      for (let i = 0; i < ids.length; i++) await conn.query('UPDATE schedule_links SET sort_order = ? WHERE id = ?', [i + 1, ids[i]]);
+      return true;
+    });
+    if (!saved) return badRequest(reply, '목록이 변경되었습니다. 새로 불러온 후 다시 시도해주세요.');
+    logActivity(db, { actor: 'admin', action: 'update', category: 'schedule', targetType: 'schedule_link', summary: '고정 링크 순서 변경', details: { ids } });
     return { ok: true };
   });
 }
