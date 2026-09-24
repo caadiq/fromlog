@@ -91,7 +91,7 @@ function VideosContent() {
           </div>
           <div className="min-w-0 flex-1"><h2 className="line-clamp-2 break-words text-sm font-bold leading-snug">{decodeHtmlEntities(video.title)}</h2><p className="mt-1 truncate text-xs text-mute">{video.channelName}</p></div>
         </a>
-        <div className="mt-2 flex items-center justify-between gap-2"><time className="text-xs text-mute">{video.publishedAt?.slice(0, 10).replaceAll('-', '. ')}</time><span className="rounded bg-green-soft px-1.5 py-1 text-xs font-bold text-green-deep">{video.videoType === 'shorts' ? 'SHORTS' : categoryName(video.category)}</span></div>
+        <div className="mt-2 flex items-center justify-between gap-2"><time className="rounded bg-[#F3F4F3] px-1.5 py-1 text-xs font-bold text-esub">{video.publishedAt?.slice(0, 10).replaceAll('-', '. ')}</time><span className="rounded bg-green-soft px-1.5 py-1 text-xs font-bold text-green-deep">{video.videoType === 'shorts' ? 'SHORTS' : categoryName(video.category)}</span></div>
         <div className="mt-2 grid grid-cols-[1fr_72px] gap-2"><button onClick={() => setEditor(video)} className={`${button} bg-white`}>수정</button><button onClick={() => { setError(''); setDeleting(video); }} className={`${button} bg-white`}>삭제</button></div>
       </li>)}</ul>}
     </div><button aria-label="영상 추가" onClick={() => setEditor({})} className="absolute bottom-4 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-ink text-white shadow-[0_6px_18px_rgba(0,0,0,0.3),0_2px_6px_rgba(0,0,0,0.2)]"><Plus size={27} /></button></div>
