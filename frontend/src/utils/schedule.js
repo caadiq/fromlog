@@ -91,3 +91,20 @@ export function groupSchedulesByDate(schedules) {
   return groups;
 }
 
+
+/** Monthly category chips shared by public and admin mobile calendars. */
+export function getMonthCategories(schedules) {
+  const categories = new Map();
+  schedules.forEach(schedule => {
+    const info = getCategoryInfo(schedule);
+    if (!info.id) return;
+    const existing = categories.get(info.id);
+    if (existing) existing.count += 1;
+    else categories.set(info.id, { ...info, count: 1 });
+  });
+  return [...categories.values()].sort((a, b) => {
+    if (a.name === '기타') return 1;
+    if (b.name === '기타') return -1;
+    return b.count - a.count;
+  });
+}

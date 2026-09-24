@@ -11,7 +11,7 @@ import { CalendarPanel, YearMonthPanel } from '@/components/mobile/schedule/Cale
 import { MIN_YEAR, WEEKDAYS, WEEKDAYS_LONG } from '@/constants';
 import { getSchedules, deleteSchedule } from '@/api/admin/schedules';
 import { decodeHtmlEntities, getTodayKST, invalidateSchedules } from '@/utils';
-import { getCategoryInfo, getScheduleDate, getScheduleTime } from '@/utils/schedule';
+import { getCategoryInfo, getScheduleDate, getScheduleTime, getMonthCategories } from '@/utils/schedule';
 import MobileAdminLayout from './Layout';
 import ScheduleEdit, { canEditSchedule } from './ScheduleEdit';
 import { useAdminAuth } from '@/hooks/pc/admin';
@@ -41,7 +41,7 @@ export default function MobileAdminSchedules() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(year);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [target, setTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const editBusy = useRef(false);
@@ -53,10 +53,12 @@ export default function MobileAdminSchedules() {
   const { toast, showSuccess, hideToast } = useToast();
   const query = useQuery({ queryKey: ['adminSchedules', year, monthNumber], queryFn: () => getSchedules(year, monthNumber), enabled: auth.isAuthenticated && !auth.isLoading && !auth.isError });
   const items = query.data || [];
-  const categories = [...new Set([...items.map(item => getCategoryInfo(item).name), ...(category === 'all' ? [] : [category])])];
+  const categories = useMemo(() => getMonthCategories(items), [items]);
+  const totalCount = categories.reduce((sum, item) => sum + item.count, 0);
+  const toggleCategory = id => setSelectedCategories(previous => previous.includes(id) ? previous.filter(value => value !== id) : [...previous, id]);
   const days = Array.from({ length: new Date(year, monthNumber, 0).getDate() }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`);
   const searching = Boolean(search.trim());
-  const dots = items.filter(item => item.datePrecision !== 'month' && (category === 'all' || getCategoryInfo(item).name === category));
+  const dots = items.filter(item => item.datePrecision !== 'month' && (selectedCategories.length === 0 || selectedCategories.includes(getCategoryInfo(item).id)));
   useEffect(() => {
     const container = strip.current;
     const active = container?.querySelector('[aria-pressed="true"]');
@@ -64,14 +66,14 @@ export default function MobileAdminSchedules() {
     const timer = setTimeout(() => container.scrollTo({ left: active.offsetLeft - container.offsetLeft - (container.clientWidth - active.clientWidth) / 2, behavior: reduceMotion ? 'instant' : 'smooth' }), 50);
     return () => clearTimeout(timer);
   }, [selectedDate, calendarOpen, pickerOpen, auth.isLoading, reduceMotion]);
-  useEffect(() => { if (content.current) content.current.scrollTop = 0; }, [selectedDate, search, category]);
-  const filtered = useMemo(() => items.filter(item => (category === 'all' || getCategoryInfo(item).name === category)
+  useEffect(() => { if (content.current) content.current.scrollTop = 0; }, [selectedDate, search, selectedCategories]);
+  const filtered = useMemo(() => items.filter(item => (selectedCategories.length === 0 || selectedCategories.includes(getCategoryInfo(item).id))
     && (searching || item.datePrecision === 'month' || getScheduleDate(item).slice(0, 10) === selectedDate)
     && normalize([decodeHtmlEntities(item.title), item.source?.name, getScheduleDate(item)].join(' ')).includes(normalize(search)))
     .sort((a, b) => Number(a.datePrecision === 'month') - Number(b.datePrecision === 'month')
       || getScheduleDate(a).localeCompare(getScheduleDate(b))
       || (getScheduleTime(a) || '99:99').localeCompare(getScheduleTime(b) || '99:99')
-      || String(a.id).localeCompare(String(b.id), 'en', { numeric: true })), [items, category, search, selectedDate, searching]);
+      || String(a.id).localeCompare(String(b.id), 'en', { numeric: true })), [items, selectedCategories, search, selectedDate, searching]);
   const chooseDate = value => { setSelectedDate(value); setPickerOpen(false); setCalendarOpen(false); setSearch(''); hideToast(); };
   const changeMonth = value => { chooseDate(value === getTodayKST().slice(0, 7) ? getTodayKST() : `${value}-01`); };
   const fromDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -132,10 +134,14 @@ export default function MobileAdminSchedules() {
         </button>;
       })}
     </div>}
-    {!pickerOpen && !calendarOpen && <div aria-label="일정 카테고리" className="scrollbar-hide flex gap-2 overflow-x-auto border-b border-hairline px-3 py-3">
-      {['all', ...categories].map(name => <button key={name} aria-pressed={category === name} onClick={() => setCategory(name)} className={`flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border px-3 text-[13px] font-bold ${category === name ? 'border-ink bg-ink text-white' : 'border-hairline bg-white text-esub'}`}>
-        {name !== 'all' && <i className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getCategoryInfo(items.find(item => getCategoryInfo(item).name === name) || {}).color }} />}{name === 'all' ? '전체' : name} {name === 'all' ? items.length : items.filter(item => getCategoryInfo(item).name === name).length}
-      </button>)}
+    {!pickerOpen && !calendarOpen && categories.length > 0 && <div aria-label="일정 카테고리" className="scrollbar-hide flex gap-2 overflow-x-auto border-b border-hairline px-3 py-3">
+      <button aria-pressed={selectedCategories.length === 0} onClick={() => setSelectedCategories([])} className={`flex min-h-11 shrink-0 items-center whitespace-nowrap border px-3 text-[13px] font-bold ${selectedCategories.length === 0 ? 'border-ink bg-ink text-white' : 'border-hairline bg-white text-esub'}`}>전체 {totalCount}</button>
+      {categories.map(cat => {
+        const selected = selectedCategories.includes(cat.id);
+        return <button key={cat.id} aria-pressed={selected} onClick={() => toggleCategory(cat.id)} className={`flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border px-3 text-[13px] font-bold ${selected ? 'border-ink bg-ink text-white' : 'border-hairline bg-white text-esub'}`}>
+          <i className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selected ? '#fff' : cat.color }} />{cat.name} {cat.count}
+        </button>;
+      })}
     </div>}
     {searchOpen && <div className="m-3 flex min-h-12 items-center gap-2 rounded-[4px] border border-hairline bg-white px-3">
       <Search size={19} className="shrink-0 text-mute" />
@@ -149,8 +155,8 @@ export default function MobileAdminSchedules() {
       <h2 className="flex items-baseline gap-2">{searching ? <b className="text-xl font-extrabold">검색 결과</b> : <><b className="text-[30px] font-black tracking-tight">{monthNumber}. {selectedDay.getDate()}.</b><span className="text-[13px] font-bold text-mute">{WEEKDAYS_LONG[selectedDay.getDay()]}</span></>}</h2>
     </div>
     {query.isSuccess && searching && <p role="status" className="mt-1 text-[13px] text-mute">{monthNumber}월 검색 결과 {filtered.length}건</p>}
-    <motion.div key={`${selectedDate}-${searching ? search : category}`} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.35, ease: EASE }}>
-    {query.isPending ? <p role="status" className="py-16 text-center text-sm text-mute">일정을 불러오는 중...</p> : query.isError ? <div role="alert" className="mt-5 border border-[#E5B8B3] p-5 text-sm text-[#A93226]">일정을 불러오지 못했습니다.<button className={`${button} mt-3`} disabled={query.isFetching} onClick={() => query.refetch()}>다시 시도</button></div> : filtered.length === 0 ? <div className="mt-5 flex flex-col items-center gap-3 border border-dashed border-hairline px-5 py-16 text-mute"><CalendarDays size={30} /><p className="text-sm">{search || category !== 'all' ? '검색 조건에 맞는 일정이 없습니다.' : '선택한 날짜에 등록된 일정이 없습니다.'}</p></div> : <ul aria-label="일정 목록" className="mt-5 space-y-4">
+    <motion.div key={`${selectedDate}-${searching ? search : selectedCategories.join(',')}`} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.35, ease: EASE }}>
+    {query.isPending ? <p role="status" className="py-16 text-center text-sm text-mute">일정을 불러오는 중...</p> : query.isError ? <div role="alert" className="mt-5 border border-[#E5B8B3] p-5 text-sm text-[#A93226]">일정을 불러오지 못했습니다.<button className={`${button} mt-3`} disabled={query.isFetching} onClick={() => query.refetch()}>다시 시도</button></div> : filtered.length === 0 ? <div className="mt-5 flex flex-col items-center gap-3 border border-dashed border-hairline px-5 py-16 text-mute"><CalendarDays size={30} /><p className="text-sm">{search || selectedCategories.length > 0 ? '검색 조건에 맞는 일정이 없습니다.' : '선택한 날짜에 등록된 일정이 없습니다.'}</p></div> : <ul aria-label="일정 목록" className="mt-5 space-y-4">
       {filtered.map((item, index) => {
         const date = dateLabel(item);
         const info = getCategoryInfo(item);

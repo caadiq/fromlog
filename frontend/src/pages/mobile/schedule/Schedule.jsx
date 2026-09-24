@@ -1,3 +1,4 @@
+import { getMonthCategories } from '@/utils/schedule';
 import { CalendarPanel, YearMonthPanel } from '@/components/mobile/schedule/CalendarPanels';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -410,20 +411,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
   }, [schedules, selectedCategories]);
 
   // 해당 달 카테고리 목록 (카운트 포함)
-  const monthCategories = useMemo(() => {
-    const map = new Map();
-    schedules.forEach((s) => {
-      if (!s.category_id) return;
-      const existing = map.get(s.category_id);
-      if (existing) existing.count += 1;
-      else map.set(s.category_id, { id: s.category_id, name: s.category_name, color: s.category_color, count: 1 });
-    });
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.name === '기타') return 1;
-      if (b.name === '기타') return -1;
-      return b.count - a.count;
-    });
-  }, [schedules]);
+  const monthCategories = useMemo(() => getMonthCategories(schedules), [schedules]);
 
   const totalCount = useMemo(
     () => monthCategories.reduce((sum, c) => sum + c.count, 0),
