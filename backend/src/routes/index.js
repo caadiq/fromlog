@@ -1,3 +1,4 @@
+import instagramAdminRoutes from './admin/instagram.js';
 import authRoutes from './auth.js';
 import membersRoutes from './members/index.js';
 import albumsRoutes from './albums/index.js';
@@ -87,6 +88,8 @@ export default async function routes(fastify) {
 
   // 관리자 - 기타(공용) 라우트
   fastify.register(etcAdminRoutes, { prefix: '/admin/etc' });
+
+  fastify.register(instagramAdminRoutes, { prefix: '/admin/instagram' });
 
   // 관리자 - 수집 큐(검토 대기) 라우트
   fastify.register(pendingAdminRoutes, { prefix: '/admin/pending' });

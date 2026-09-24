@@ -1145,3 +1145,16 @@ URL로 영상 정보 미리보기. 추천 카테고리(`suggestedCategory`), 중
 split에서는 `title_filters`가 제목에만 적용된다. 제목/설명 각각은 OR, 두 필드 사이는 AND이며 빈 필드는 통과한다. 기존 legacy 봇의 unrelated 설정 수정은 필터 모드를 유지한다. `auto_schedule_config.episodeMatch`는 회차 계산에 포함할 제목 문구이며 관리자 폼에서도 보존/수정한다.
 
 X 봇의 기존 `exclude_managed_channels` 값은 호환성을 위해 DB에 남지만 수집에는 사용하지 않는다. `extract_youtube=true`이면 모든 채널의 링크를 처리하고 영상 ID로 중복을 방지한다.
+
+### POST /admin/instagram/posters (관리자)
+
+입력한 공개 인스타그램 게시물에서 포스터 후보 사진을 가져온다. Gemini 호출 없음.
+
+- Body: `{ "url": "https://www.instagram.com/p/SHORTCODE/" }`
+- 응답: `{ "postUrl": "정규화한 게시물 주소", "images": [{ "name": "instagram-SHORTCODE-1.jpg", "dataUrl": "data:image/jpeg;base64,..." }] }`
+- JWT 인증 필수, 요청 본문 4KB 이하, IP당 분당 6회, 프로세스당 동시 가져오기 1건. 응답은 `Cache-Control: no-store`.
+- `instagram.com`/`www.instagram.com`/`m.instagram.com`의 HTTPS `p`/`reel`/`tv` 게시물 주소만 허용. 추적 쿼리는 제거한다. 서버는 고정 Instagram embed 주소와 검증한 Instagram/Meta CDN에만 요청하며 리다이렉트는 따르지 않는다.
+- 최대 20장, HTML 4MB, 입력 이미지당 8MB·합계 25MB, 출력 이미지 합계 25MB, 요청 전체 60초. JPEG/PNG/WebP를 확인하고 최대 2160px JPEG(quality 92)로 변환한다. 동영상 썸네일은 제외한다.
+- 400: 잘못된 주소 / 401: 인증 실패 / 429: 호출 제한·가져오기 진행 중 / 502: 비공개·접근 제한·사진 없음·형식/용량 제한 등 가져오기 실패.
+- 이 요청은 일정이나 스토리지에 이미지를 저장하지 않는다. 프론트에서 선택한 후보를 `File`로 바꿔 기존 등록 API의 multipart 포스터 필드로 전송하고, 최종 일정 저장 시 RustFS에 업로드한다.
+- 성공·실패는 `instagram_poster` 대상으로 활동 로그를 남긴다. CDN 주소·이미지 데이터·추적 쿼리는 로그에 저장하지 않는다.

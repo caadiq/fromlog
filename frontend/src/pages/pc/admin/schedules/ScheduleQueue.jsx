@@ -9,11 +9,13 @@ import { Inbox, X, MapPin, Image as ImageIcon } from 'lucide-react';
 
 import { Toast } from '@/components/common';
 import { AdminLayout, AdminPageHeader, DatePicker, TimePicker, CustomSelect, F } from '@/components/pc/admin';
+import PosterPreviews from '@/components/pc/admin/schedule/PosterPreviews';
+import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 import LocationSearchDialog from '@/components/pc/admin/schedule/LocationSearchDialog';
 import { useAdminAuth } from '@/hooks/pc/admin';
 import { useToast, useDocumentTitle } from '@/hooks/common';
 import { EASE } from '@/components/editorial';
-import { uid, invalidateSchedules, invalidatePending } from '@/utils';
+import { invalidateSchedules, invalidatePending } from '@/utils';
 import { getPending, registerPending, dismissPending } from '@/api/admin/pending';
 
 // 큐에서 바로 등록 가능한 카테고리
@@ -85,22 +87,6 @@ function ScheduleQueue() {
     setPostUrls([]);
     setUrlInput('');
   };
-
-  const handlePosterChange = (e) => {
-    const files = Array.from(e.target.files || []);
-    Promise.all(
-      files.map(
-        (file) =>
-          new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve({ id: uid(), file, preview: reader.result });
-            reader.readAsDataURL(file);
-          })
-      )
-    ).then((items) => setPosterFiles((prev) => [...prev, ...items]));
-    e.target.value = '';
-  };
-  const removePoster = (index) => setPosterFiles((prev) => prev.filter((_, i) => i !== index));
 
   const addUrl = () => {
     const url = urlInput.trim();
@@ -478,27 +464,11 @@ function ScheduleQueue() {
                   <div>
                     <label className={F.label}>포스터 (선택 · 여러 장 가능)</label>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {posterFiles.map((item, idx) => (
-                        <div key={item.id} className="relative">
-                          <img
-                            src={item.preview}
-                            alt={`poster ${idx}`}
-                            className="h-24 w-24 border border-hairline object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removePoster(idx)}
-                            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center bg-ink text-[12px] text-white transition-colors hover:bg-[#C0392B]"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                      <label className={`${F.dropzone} h-24 w-24`}>
+                      <PosterPreviews items={posterFiles} setItems={setPosterFiles} sizeClass="h-24 w-24" />
+                      <PosterAddButton className={`${F.dropzone} h-24 w-24`} sourceUrls={[...postUrls, urlInput]} onAdd={(items) => setPosterFiles((previous) => [...previous, ...items])}>
                         <ImageIcon size={17} className="text-faint" />
                         <span className="text-[12.5px]">추가</span>
-                        <input type="file" accept="image/*" multiple className="hidden" onChange={handlePosterChange} />
-                      </label>
+                      </PosterAddButton>
                     </div>
                   </div>
                 )}

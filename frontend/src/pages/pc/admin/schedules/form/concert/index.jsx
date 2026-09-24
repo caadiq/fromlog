@@ -208,6 +208,7 @@ function ConcertForm() {
       >
         {/* 콘서트 정보 */}
         <ConcertInfoSection
+          usePosterDialog
           title={title}
           setTitle={setTitle}
           posterPreview={posterPreview}

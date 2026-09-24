@@ -5,9 +5,10 @@
  */
 import { useRef } from 'react';
 import { Image } from 'lucide-react';
+import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 import { F } from '@/components/pc/admin';
 
-function ConcertInfoSection({ title, setTitle, posterPreview, onPosterChange, onPosterRemove }) {
+function ConcertInfoSection({ title, setTitle, posterPreview, onPosterChange, onPosterRemove, usePosterDialog = false }) {
   const posterInputRef = useRef(null);
 
   const handlePosterChange = (e) => {
@@ -36,20 +37,26 @@ function ConcertInfoSection({ title, setTitle, posterPreview, onPosterChange, on
         <div>
           <label className={F.label}>포스터</label>
           <div className="mt-2.5 flex items-start gap-6">
-            <button
-              type="button"
-              onClick={() => posterInputRef.current?.click()}
-              className={`${F.dropzone} h-56 w-40 overflow-hidden`}
-            >
-              {posterPreview ? (
-                <img src={posterPreview} alt="포스터 미리보기" className="h-full w-full object-cover" />
-              ) : (
-                <>
-                  <Image size={22} className="text-faint" />
-                  <span className="text-[13px]">클릭하여 업로드</span>
-                </>
-              )}
-            </button>
+            {usePosterDialog ? (
+              <PosterAddButton maxCount={1} onAdd={(items) => onPosterChange(items[0].file)} className={`${F.dropzone} h-56 w-40 overflow-hidden`}>
+                {posterPreview ? <img src={posterPreview} alt="포스터 미리보기" className="h-full w-full object-cover" /> : <><Image size={22} className="text-faint" /><span className="text-[13px]">포스터 추가</span></>}
+              </PosterAddButton>
+            ) : (
+              <button
+                type="button"
+                onClick={() => posterInputRef.current?.click()}
+                className={`${F.dropzone} h-56 w-40 overflow-hidden`}
+              >
+                {posterPreview ? (
+                  <img src={posterPreview} alt="포스터 미리보기" className="h-full w-full object-cover" />
+                ) : (
+                  <>
+                    <Image size={22} className="text-faint" />
+                    <span className="text-[13px]">클릭하여 업로드</span>
+                  </>
+                )}
+              </button>
+            )}
             <input
               ref={posterInputRef}
               type="file"

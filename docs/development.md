@@ -835,3 +835,16 @@ invalidateSchedules(queryClient);
 - dev 모의 API로 등록순·날짜/시간·미정·이름순·검색 조합·320px 드롭다운·새로고침 기본값 검증, 프론트 빌드 통과.
 
 - 모바일 큐 무시 성공 안내는 목록 내 문구 대신 공통 Toast/useToast로 하단에 `일정을 무시했습니다.`를 표시한다. 3초 후 자동으로 사라지고 탭으로 닫을 수 있다. 실패 안내는 확인 다이얼로그에 유지한다. 모의 API로 성공 토스트 표시/자동 닫힘과 기존 무시 흐름을 확인했다.
+
+### 인스타그램 포스터 추가 (2026-09-24)
+
+- 공통 `PosterAddButton`/`PosterAddDialog`: `frontend/src/components/pc/admin/schedule/PosterAddButton.jsx`. 확정 B안은 `docs/design/poster-add-dialog.md` 참고.
+- 행사·기타 일정 추가 및 PC 큐 등록에 다중 선택, 콘서트 추가에는 1장 선택으로 연결했다. 콘서트 수정에서 공유하는 `ConcertInfoSection`은 `usePosterDialog` opt-in으로 기존 수정 동작을 유지한다.
+- 파일 첨부/인스타그램 링크 탭. 기존 링크 입력값이 있으면 링크 탭에 미리 채운다. 불러온 후보 선택 0장은 `불러오기`, 선택 후 `추가하기 · N장`, URL 수정 시 후보·선택 초기화.
+- 파일은 미리보기 후 추가하며 드래그해서 놓기도 지원한다. 로컬 첨부는 JPEG/PNG/WebP/GIF, 파일당 10MB, 한 번에 최대 20장(콘서트 1장).
+- 가져온 사진은 게시물 순서로 부모 폼에 첨부된다. 일정 저장 전까지 임시 상태이며, 기존 multipart 업로드 동작을 재사용한다. 공통 `PosterPreviews`의 삭제·좌우 이동 버튼으로 저장 전 포스터 목록을 정리할 수 있다.
+- Native dialog로 포커스 및 큐 등록창 위 레이어를 처리한다. 브라우저 뒤로가기 훅은 항상 마운트된 버튼에서 `open` 상태로 호출해 StrictMode 최초 effect 재실행으로 생기는 이중 history 이동을 방지한다. 닫기 시 fetch를 취소하고 늦은 응답은 무시한다.
+- 백엔드: `services/instagramPosters.js`, `routes/admin/instagram.js`. API 제한/응답은 `docs/api.md` 참고. 로그인 쿠키, Instagram API 키, Gemini 키가 필요하지 않다. 외부 응답 구조 변경이나 접근 차단 시 파일 첨부로 진행한다.
+- 검증: `docker exec fromlog-backend node --test test/instagram-posters.test.js`. 주소/CDN 검증, 캐러셀 순서·중복·영상 제외, 실제 JPEG 변환, 용량/리다이렉트/취소/비이미지 처리, 인증·성공/실패 로그·동시 요청 제한을 검사한다.
+- 실제 공개 게시물 읽기 테스트: 인하대 `DcxRlfukV-1` 6장, 건국대 `DdVjOk-k4bd` 4장 다운로드·이미지 변환 성공. 일정·큐 등록 데이터는 변경하지 않았다.
+- 브라우저는 실제 다운로드 이미지와 모의 API를 사용해 행사·기타·콘서트·큐 연결, 다중 선택/전체 해제/주소 변경, 파일 fallback, 링크 미리 채우기, 닫기·Back 후 부모 상태 보존, 320px 다이얼로그를 확인했다. 모의 큐 등록 요청에서 선택한 JPEG 파일의 multipart 전달도 검증했다. 모바일 큐의 검토/등록 폼은 아직 후속 작업이다.

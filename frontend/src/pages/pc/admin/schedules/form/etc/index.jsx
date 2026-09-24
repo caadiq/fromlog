@@ -10,11 +10,13 @@ import { MapPin, X, Image as ImageIcon } from 'lucide-react';
 import Toast from '@/components/common/Toast';
 import DatePicker from '@/components/pc/admin/common/DatePicker';
 import TimePicker from '@/components/pc/admin/common/TimePicker';
+import PosterPreviews from '@/components/pc/admin/schedule/PosterPreviews';
+import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 import LocationSearchDialog from '@/components/pc/admin/schedule/LocationSearchDialog';
 import { F } from '@/components/pc/admin';
 import { useToast } from '@/hooks/common';
 import { createEtc } from '@/api/admin/etc';
-import { uid, invalidateSchedules } from '@/utils';
+import { invalidateSchedules } from '@/utils';
 
 function EtcForm() {
   const navigate = useNavigate();
@@ -31,24 +33,6 @@ function EtcForm() {
   const [postUrls, setPostUrls] = useState([]);
   const [urlInput, setUrlInput] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const handlePosterChange = (e) => {
-    const files = Array.from(e.target.files || []);
-    const newItems = files.map((file) => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve({ id: uid(), file, preview: reader.result });
-        reader.readAsDataURL(file);
-      });
-    });
-    Promise.all(newItems).then((items) => {
-      setPosterFiles((prev) => [...prev, ...items]);
-    });
-    e.target.value = '';
-  };
-  const removePoster = (index) => {
-    setPosterFiles((prev) => prev.filter((_, i) => i !== index));
-  };
 
   const addUrl = () => {
     const url = urlInput.trim();
@@ -199,27 +183,11 @@ function EtcForm() {
           POSTERS <span className="ml-1.5 font-bold tracking-normal text-mute">선택 · 여러 장 가능</span>
         </div>
         <div className="mt-[18px] flex flex-wrap gap-2.5">
-          {posterFiles.map((item, idx) => (
-            <div key={item.id} className="relative">
-              <img
-                src={item.preview}
-                alt={`poster ${idx}`}
-                className="h-32 w-32 border border-hairline object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => removePoster(idx)}
-                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center bg-ink text-[13px] text-white transition-colors hover:bg-[#C0392B]"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <label className={`${F.dropzone} h-32 w-32`}>
+          <PosterPreviews items={posterFiles} setItems={setPosterFiles} />
+          <PosterAddButton className={`${F.dropzone} h-32 w-32`} sourceUrls={[...postUrls, urlInput]} onAdd={(items) => setPosterFiles((previous) => [...previous, ...items])}>
             <ImageIcon size={18} className="text-faint" />
             <span className="text-[13px]">추가</span>
-            <input type="file" accept="image/*" multiple className="hidden" onChange={handlePosterChange} />
-          </label>
+          </PosterAddButton>
         </div>
 
         {/* URL */}

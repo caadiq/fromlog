@@ -137,3 +137,7 @@ logActivity(db, { actor, action, category, targetType, targetId, summary, detail
 | delete / error | 빨강 |
 | sync_complete | 보라 |
 | start / stop | 노랑 |
+
+### 인스타그램 포스터 후보 불러오기
+
+`POST /api/admin/instagram/posters`는 `actor=admin`, `category=schedule`, `target_type=instagram_poster`로 기록한다. 성공은 `action=upload`와 사진 수, 실패는 `action=error`. `details`에는 정규화된 `postUrl` 및 성공 시 `count`만 보관한다. 이 로그는 후보 불러오기 기록이며 최종 일정 등록·스토리지 업로드를 뜻하지 않는다.
