@@ -10,7 +10,7 @@
  * @param {number} minYear - 선택 가능한 최소 연도 (기본값: 2000)
  */
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WEEKDAYS } from '@/constants';
 import { useClickOutside } from '@/hooks/common';
@@ -26,7 +26,9 @@ function DatePicker({
   max,
   compact = false,
   onOpen,
+  inline = false,
 }) {
+  const reducedMotion = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
   const [showYmPicker, setShowYmPicker] = useState(false);
@@ -164,10 +166,16 @@ function DatePicker({
         {isOpen && (
           <motion.div
             data-picker-panel
-            initial={{ opacity: 0, y: dropUp ? 10 : -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: dropUp ? 10 : -10 }}
-            transition={{ duration: 0.15 }}
+            initial={inline ? { opacity: 0, height: 0, marginTop: 0, borderWidth: 0, paddingTop: 0, paddingBottom: 0 } : { opacity: 0, y: dropUp ? 10 : -10 }}
+            animate={inline ? { opacity: 1, height: 'auto', marginTop: 6, borderWidth: 1, paddingTop: 16, paddingBottom: 16 } : { opacity: 1, y: 0 }}
+            exit={inline ? { opacity: 0, height: 0, marginTop: 0, borderWidth: 0, paddingTop: 0, paddingBottom: 0, overflow: 'hidden' } : { opacity: 0, y: dropUp ? 10 : -10 }}
+            transition={inline ? { duration: reducedMotion ? 0 : 0.18, ease: 'easeOut' } : { duration: 0.15 }}
+            onAnimationStart={definition => {
+              if (inline) {
+                const panel = ref.current?.querySelector('[data-picker-panel]');
+                if (panel) panel.dataset.pickerClosing = String(definition.height === 0);
+              }
+            }}
             className={`absolute z-50 w-80 border border-ink bg-white p-4 ${
               dropUp ? 'bottom-full mb-1.5' : 'mt-1.5'
             }`}
