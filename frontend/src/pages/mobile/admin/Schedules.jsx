@@ -15,6 +15,7 @@ import { getCategoryInfo, getScheduleDate, getScheduleTime, getMonthCategories }
 import MobileAdminLayout from './Layout';
 import ScheduleEdit, { canEditSchedule } from './ScheduleEdit';
 import { useAdminAuth } from '@/hooks/pc/admin';
+import useAdminScheduleFilterStore from '@/stores/useAdminScheduleFilterStore';
 
 const normalize = value => String(value || '').normalize('NFC').toLowerCase().replace(/\s+/g, '');
 const button = 'flex min-h-11 items-center justify-center rounded-[2px] border border-hairline bg-white px-3 text-sm font-bold disabled:opacity-40';
@@ -41,7 +42,7 @@ export default function MobileAdminSchedules() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(year);
   const [search, setSearch] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const { selectedCategories, setSelectedCategories } = useAdminScheduleFilterStore();
   const [target, setTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const editBusy = useRef(false);

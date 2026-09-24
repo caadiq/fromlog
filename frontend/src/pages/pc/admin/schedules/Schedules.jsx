@@ -13,6 +13,7 @@ import { Toast } from '@/components/common';
 import { AdminLayout, ConfirmDialog, AdminPageHeader, YearMonthPicker } from '@/components/pc/admin';
 import { ScheduleItem } from '@/components/pc/admin/schedule';
 import useScheduleStore from '@/stores/useScheduleStore';
+import useAdminScheduleFilterStore from '@/stores/useAdminScheduleFilterStore';
 import { useAdminAuth, useScheduleSearch } from '@/hooks/pc/admin';
 import { useToast, useDocumentTitle } from '@/hooks/common';
 import { getTodayKST, formatDate, invalidateSchedules } from '@/utils';
@@ -36,8 +37,6 @@ function Schedules() {
 
   // Zustand 스토어에서 상태 가져오기 (검색 제외)
   const {
-    selectedCategories,
-    setSelectedCategories,
     selectedDate,
     setSelectedDate,
     currentDate,
@@ -45,6 +44,7 @@ function Schedules() {
     scrollPosition,
     setScrollPosition,
   } = useScheduleStore();
+  const { selectedCategories, setSelectedCategories } = useAdminScheduleFilterStore();
 
   const { user, isAuthenticated } = useAdminAuth();
   useDocumentTitle('일정 관리');
