@@ -151,3 +151,7 @@ logActivity(db, { actor, action, category, targetType, targetId, summary, detail
 ### 고정 링크 공개 및 순서 변경 (2026-09-24)
 
 `PATCH /admin/schedule-links/:id/visibility`와 `PUT /admin/schedule-links/order`는 `actor=admin`, `action=update`, `category=schedule`, `target_type=schedule_link`로 기록한다. 공개 변경은 대상 ID 및 `details.enabled`, 순서 변경은 `details.ids`를 기록한다. 기존 추가·수정·삭제 기록은 유지한다.
+
+### 앨범 색 재추출 (2026-09-25)
+
+기존 `POST /api/admin/theme/reextract`에도 활동 로그를 기록한다. `actor=admin`, `category=settings`, `target_type=theme`, 성공 시 `action=update`, 부분 실패 시 `action=error`. `details`에 전체 재추출 여부(`all`), 대상 수(`total`), 갱신 수(`updated`), 실패 목록(`failed`)을 남긴다. PC와 모바일 요청 모두 적용된다.

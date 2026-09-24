@@ -176,6 +176,11 @@ export default async function themeRoutes(fastify) {
       }
     }
 
+    logActivity(db, {
+      actor: 'admin', action: failed.length ? 'error' : 'update', category: 'settings',
+      targetType: 'theme', summary: `앨범 색 재추출: ${updated}개 완료, ${failed.length}개 실패`,
+      details: { all, total: albums.length, updated, failed },
+    });
     return { total: albums.length, updated, failed };
   });
 }
