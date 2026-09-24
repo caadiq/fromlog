@@ -109,7 +109,7 @@ function ScheduleList() {
             <div className="min-w-0 flex-1 py-1"><h2 className="break-words text-base font-extrabold leading-[1.5]">{title}</h2><div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-mute"><span className="rounded-[3px] bg-green-soft px-1.5 py-0.5 text-xs font-semibold text-green-deep">{info.name}</span><span>{item.datePrecision === 'month' ? '날짜 미정' : getScheduleTime(item) || '시간 미정'}{item.source?.name ? ` · ${item.source.name}` : ''}</span></div></div>
             {canManage && <ChevronRight size={18} className="my-5 shrink-0 text-mute" />}
           </Body>
-          {canManage && <div className="mt-3 grid grid-cols-[2fr_3fr] gap-2"><button disabled={deleting} className={`${button} border-ink`} onClick={() => { setError(''); hideToast(); setTarget(item); }}>삭제</button><button disabled title="모바일 수정 기능은 준비 중입니다." className="min-h-11 rounded-[2px] bg-ink px-3 text-sm font-bold text-white disabled:opacity-40">수정</button></div>}
+          {canManage && <div className="mt-3 grid grid-cols-[minmax(0,1fr)_72px] gap-2"><button disabled title="모바일 수정 기능은 준비 중입니다." className="min-h-11 rounded-[2px] bg-ink px-3 text-sm font-bold text-white disabled:opacity-40">수정</button><button disabled={deleting} className={`${button} border-ink`} onClick={() => { setError(''); hideToast(); setTarget(item); }}>삭제</button></div>}
         </li>;
       })}
     </ul>}
