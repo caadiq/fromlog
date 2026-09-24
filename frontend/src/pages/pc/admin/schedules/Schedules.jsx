@@ -536,7 +536,7 @@ function Schedules() {
                       return (
                         <div
                           key={`prev-${i}`}
-                          className="flex aspect-square items-center justify-center border-b border-r border-hairline text-[14.5px] font-medium text-faint-light"
+                          className="relative aspect-square border-b border-r border-hairline p-[9px] text-left text-[14.5px] font-medium text-faint-light"
                         >
                           {day}
                         </div>
@@ -569,7 +569,7 @@ function Schedules() {
                           key={day}
                           onClick={() => !isSearchMode && selectDate(day)}
                           disabled={isSearchMode}
-                          className={`flex aspect-square flex-col items-center justify-center gap-[3px] border-b border-r border-hairline text-[14.5px] font-bold transition-colors ${
+                          className={`relative flex aspect-square items-start border-b border-r border-hairline p-[9px] text-left text-[14.5px] font-bold transition-colors ${
                             isSelected
                               ? 'bg-ink text-white'
                               : dayOfWeek === 0
@@ -581,7 +581,7 @@ function Schedules() {
                           style={isToday && !isSelected ? { boxShadow: `inset 0 0 0 1.5px ${GREEN}` } : undefined}
                         >
                           {day}
-                          <span className="flex h-[5px] gap-[4px]">
+                          <span className="absolute bottom-[9px] left-[10px] flex h-[5px] gap-[4px]">
                             {daySchedules.map((schedule, idx) => (
                               <span
                                 key={idx}
@@ -610,7 +610,7 @@ function Schedules() {
                       return Array.from({ length: nextDays }).map((_, i) => (
                         <div
                           key={`next-${i}`}
-                          className="flex aspect-square items-center justify-center border-b border-r border-hairline text-[14.5px] font-medium text-faint-light"
+                          className="relative aspect-square border-b border-r border-hairline p-[9px] text-left text-[14.5px] font-medium text-faint-light"
                         >
                           {i + 1}
                         </div>
