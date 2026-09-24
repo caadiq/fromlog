@@ -143,9 +143,8 @@ export default function MobileAdminSchedules() {
     <motion.div initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE, delay: reduceMotion ? 0 : 0.1 }}>
     <div className="mt-3 flex items-center justify-between gap-2">
       <h2 className="flex items-baseline gap-2">{searching ? <b className="text-xl font-extrabold">검색 결과</b> : <><b className="text-[30px] font-black tracking-tight">{monthNumber}. {selectedDay.getDate()}.</b><span className="text-[13px] font-bold text-mute">{WEEKDAYS_LONG[selectedDay.getDay()]}</span></>}</h2>
-      <button className={button} onClick={() => chooseDate(getTodayKST())}>오늘</button>
     </div>
-    {query.isSuccess && <p role="status" className="mt-1 text-[13px] text-mute">{searching ? `${monthNumber}월 검색 결과 ${filtered.length}건` : `선택한 날짜 ${filtered.filter(item => item.datePrecision !== 'month').length}건`}</p>}
+    {query.isSuccess && searching && <p role="status" className="mt-1 text-[13px] text-mute">{monthNumber}월 검색 결과 {filtered.length}건</p>}
     <motion.div key={`${selectedDate}-${searching ? search : category}`} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.35, ease: EASE }}>
     {query.isPending ? <p role="status" className="py-16 text-center text-sm text-mute">일정을 불러오는 중...</p> : query.isError ? <div role="alert" className="mt-5 border border-[#E5B8B3] p-5 text-sm text-[#A93226]">일정을 불러오지 못했습니다.<button className={`${button} mt-3`} disabled={query.isFetching} onClick={() => query.refetch()}>다시 시도</button></div> : filtered.length === 0 ? <div className="mt-5 flex flex-col items-center gap-3 border border-dashed border-hairline px-5 py-16 text-mute"><CalendarDays size={30} /><p className="text-sm">{search || category !== 'all' ? '검색 조건에 맞는 일정이 없습니다.' : '선택한 날짜에 등록된 일정이 없습니다.'}</p></div> : <ul aria-label="일정 목록" className="mt-5 space-y-4">
       {filtered.map((item, index) => {
