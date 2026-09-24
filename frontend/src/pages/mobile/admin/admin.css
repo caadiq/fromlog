@@ -67,7 +67,9 @@ html.mobile-admin-layout body {
   inset: 0;
   width: 100%;
   max-width: none;
-  height: 100dvh;
+  top: var(--review-top, 0px);
+  bottom: auto;
+  height: var(--review-height, 100dvh);
   max-height: none;
   margin: 0;
   padding: 0;
@@ -88,3 +90,13 @@ html.mobile-admin-layout body {
   width: 100%;
 }
 .mobile-queue-review .fixed .relative.flex-1 { min-width: 0; }
+
+.mobile-queue-review [data-picker-panel] {
+  position: relative;
+  inset: auto;
+  margin-top: 6px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow-y: auto;
+  overscroll-behavior: none;
+}

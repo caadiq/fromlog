@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import useReviewViewport from './useReviewViewport';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, X, ImagePlus, MapPin } from 'lucide-react';
 import { useDialogBackClose } from '@/hooks/common';
@@ -19,6 +20,7 @@ const schoolName = title => String(title || '').match(/^(\S*(?:전문대학교|�
 export default function QueueReview({ item, onClose, onSuccess, onFailure, onBusyChange, onLinked }) {
   const dialog = useRef(null);
   const busy = useRef(false);
+  const revealPicker = useReviewViewport(dialog, Boolean(item));
   const [form, setForm] = useState({});
   const [posters, setPosters] = useState([]);
   const [links, setLinks] = useState([]);
@@ -99,8 +101,8 @@ export default function QueueReview({ item, onClose, onSuccess, onFailure, onBus
             {!supported && <p role="status" className="text-sm leading-relaxed text-[#A93226]">{form.category}은 전용 일정 추가 폼에서 등록해주세요. 분류가 잘못 수집된 경우 카테고리를 변경할 수 있습니다.</p>}
             {form.category === '유튜브' && <p className="text-sm leading-relaxed text-mute">영상이 아직 없는 예정 일정으로 등록합니다. 영상이 올라오면 봇이 연결합니다.</p>}
             <label className="block text-sm font-bold">일정 제목 *<input value={form.title || ''} onChange={event => update('title', event.target.value)} className={inputClass} /></label>
-            <div className="queue-review-date"><span className="mb-2 block text-sm font-bold">날짜 *</span><DatePicker value={form.date || ''} onChange={value => update('date', value)} /></div>
-            <div><div className="mb-2 flex items-center justify-between"><span className="text-sm font-bold">시간</span>{form.time && <button type="button" onClick={() => update('time', '')} className="min-h-11 px-2 text-sm text-mute">시간 미정으로 변경</button>}</div><TimePicker value={form.time || ''} placeholder="시간 미정" onChange={value => update('time', value)} /></div>
+            <div className="queue-review-date"><span className="mb-2 block text-sm font-bold">날짜 *</span><DatePicker onOpen={revealPicker} value={form.date || ''} onChange={value => update('date', value)} /></div>
+            <div><div className="mb-2 flex items-center justify-between"><span className="text-sm font-bold">시간</span>{form.time && <button type="button" onClick={() => update('time', '')} className="min-h-11 px-2 text-sm text-mute">시간 미정으로 변경</button>}</div><TimePicker onOpen={revealPicker} value={form.time || ''} placeholder="시간 미정" onChange={value => update('time', value)} /></div>
             {form.category === '행사' && <>
               <div><span className="mb-2 block text-sm font-bold">행사 유형</span><CustomSelect value={form.subtype || 'general'} onChange={value => update('subtype', value)} options={[{ value: 'university', label: '대학 축제' }, { value: 'general', label: '일반 행사' }]} /></div>
               {form.subtype === 'university' && <label className="block text-sm font-bold">학교 *<input value={form.schoolName || ''} onChange={event => update('schoolName', event.target.value)} className={inputClass} /></label>}

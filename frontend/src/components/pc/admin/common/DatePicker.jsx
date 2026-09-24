@@ -25,6 +25,7 @@ function DatePicker({
   min,
   max,
   compact = false,
+  onOpen,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
@@ -34,6 +35,10 @@ function DatePicker({
     return new Date();
   });
   const ref = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) onOpen?.(ref.current?.querySelector('[data-picker-panel]'));
+  }, [isOpen, onOpen]);
 
   useClickOutside(ref, () => {
     setIsOpen(false);
@@ -158,6 +163,7 @@ function DatePicker({
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            data-picker-panel
             initial={{ opacity: 0, y: dropUp ? 10 : -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: dropUp ? 10 : -10 }}

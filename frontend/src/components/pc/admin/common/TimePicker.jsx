@@ -9,9 +9,13 @@ import { Clock } from 'lucide-react';
 import { useClickOutside } from '@/hooks/common';
 import NumberPicker from './NumberPicker';
 
-function TimePicker({ value, onChange, placeholder = '시간 선택' }) {
+function TimePicker({ value, onChange, placeholder = '시간 선택', onOpen }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) onOpen?.(ref.current?.querySelector('[data-picker-panel]'));
+  }, [isOpen, onOpen]);
 
   // 현재 값 파싱
   const parseValue = () => {
@@ -95,6 +99,7 @@ function TimePicker({ value, onChange, placeholder = '시간 선택' }) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            data-picker-panel
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
