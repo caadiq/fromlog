@@ -13,6 +13,7 @@ import { AdminLayout, AdminPageHeader, ConfirmDialog } from '@/components/pc/adm
 import PortalDropdown from '@/components/pc/admin/common/PortalDropdown';
 import { useAdminAuth } from '@/hooks/pc/admin';
 import { useDocumentTitle, useDialogBackClose } from '@/hooks/common';
+import { decodeHtmlEntities } from '@/utils';
 import { EASE } from '@/components/editorial';
 import { getVideos, previewVideo, createVideo, updateVideo, deleteVideo } from '@/api/admin/videos';
 
@@ -279,7 +280,7 @@ function Videos() {
 
   return (
     <AdminLayout user={user}>
-      <div className="mx-auto w-full max-w-[1180px] px-10 pb-[90px] pt-[52px]">
+      <div className="mx-auto w-full max-w-[1360px] px-6 lg:px-10 pb-[90px] pt-[52px]">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -339,50 +340,26 @@ function Videos() {
             ) : (
               <ul className="divide-y divide-hairline">
                 {videos.map((v) => (
-                  <li key={v.videoId} className="flex items-center gap-4 px-5 py-3">
-                    <img
-                      src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
-                      alt=""
-                      loading="lazy"
-                      className={`flex-none border border-hairline object-cover ${
-                        v.videoType === 'shorts' ? 'h-[72px] w-[41px]' : 'h-[54px] w-[96px]'
-                      }`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13.5px] font-bold text-ink" title={v.title}>{v.title}</p>
-                      <p className="mt-0.5 text-[12.5px] text-mute">
-                        {v.channelName} · {formatDate(v.publishedAt)}
-                        {v.videoType === 'shorts' && (
-                          <span className="ml-2 bg-ink px-1.5 py-0.5 text-[10.5px] font-extrabold tracking-k1 text-white">SHORTS</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="w-[160px] flex-none">
-                      <PortalDropdown
-                        value={v.category}
-                        options={CATEGORY_OPTIONS}
-                        onChange={(newCat) => handleCategoryChange(v, newCat)}
-                      />
-                    </div>
-                    <a
-                      href={v.videoType === 'shorts'
-                        ? `https://www.youtube.com/shorts/${v.videoId}`
-                        : `https://www.youtube.com/watch?v=${v.videoId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-none p-2 text-mute transition-colors hover:text-ink"
-                      title="YouTube에서 보기"
-                    >
-                      <ExternalLink size={16} />
+                  <li key={v.videoId} className="grid grid-cols-[160px_minmax(0,1fr)_172px] items-center gap-5 px-5 py-5 xl:grid-cols-[224px_minmax(0,1fr)_180px] xl:gap-6">
+                    <a href={v.videoType === 'shorts' ? `https://www.youtube.com/shorts/${v.videoId}` : `https://www.youtube.com/watch?v=${v.videoId}`} target="_blank" rel="noreferrer" aria-label={`${decodeHtmlEntities(v.title)} · YouTube에서 보기`} className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-[3px] border border-hairline bg-[#F3F4F3]">
+                      <img src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`} alt="" loading="lazy" className={v.videoType === 'shorts' ? 'h-full w-auto aspect-[9/16] object-cover' : 'h-full w-full object-cover'} />
                     </a>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(v)}
-                      className="flex-none p-2 text-mute transition-colors hover:text-[#C0392B]"
-                      title="삭제"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="min-w-0">
+                      <h2 className="line-clamp-2 break-words text-[18px] font-bold leading-relaxed text-ink" title={decodeHtmlEntities(v.title)}>{decodeHtmlEntities(v.title)}</h2>
+                      <p className="mt-2 truncate text-[14px] text-mute">{v.channelName}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <time className="rounded bg-[#F3F4F3] px-2 py-1 text-[12.5px] font-bold text-esub">{formatDate(v.publishedAt)}</time>
+                        <span className="rounded bg-green-soft px-2 py-1 text-[12.5px] font-bold text-green-deep">{v.videoType === 'shorts' ? 'SHORTS' : '일반 영상'}</span>
+                      </div>
+                    </div>
+                    <div className="min-w-0 border-l border-hairline pl-4">
+                      <p className="mb-2 text-[12.5px] font-bold text-mute">카테고리</p>
+                      <PortalDropdown value={v.category} options={CATEGORY_OPTIONS} onChange={(newCat) => handleCategoryChange(v, newCat)} />
+                      <div className="mt-2 grid grid-cols-[1fr_60px] gap-2">
+                        <a href={v.videoType === 'shorts' ? `https://www.youtube.com/shorts/${v.videoId}` : `https://www.youtube.com/watch?v=${v.videoId}`} target="_blank" rel="noreferrer" className="flex min-h-10 items-center justify-center gap-1.5 border border-hairline bg-white text-[12.5px] font-bold text-esub hover:border-ink" title="YouTube에서 보기"><ExternalLink size={14} />영상 보기</a>
+                        <button type="button" onClick={() => setDeleteTarget(v)} className="flex min-h-10 items-center justify-center gap-1 border border-hairline bg-white text-[12.5px] font-bold text-esub hover:border-[#C0392B] hover:text-[#C0392B]" title="삭제"><Trash2 size={13} />삭제</button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
