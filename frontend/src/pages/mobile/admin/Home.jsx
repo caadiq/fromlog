@@ -51,13 +51,13 @@ function HomeContent() {
           <div className="mt-3 grid grid-cols-2 gap-3">
             {quickLinks.map(([label, to, Icon]) => <Link key={to} to={to} className={`flex min-h-20 items-center gap-3 border border-hairline bg-white px-4 py-4 text-sm font-bold ${focus}`}><Icon size={21} className="shrink-0" />{label}<ChevronRight size={15} className="ml-auto shrink-0 text-mute" /></Link>)}
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-mute">관리 메뉴는 현재 기존 화면으로 연결됩니다.</p>
+          <p className="mt-3 text-xs leading-relaxed text-mute">일정과 활동 로그를 모바일에서 관리할 수 있습니다.</p>
         </section>
 
         <section className="mt-8" aria-labelledby="activity-title">
           <div className="flex items-center justify-between"><h2 id="activity-title" className="text-base font-extrabold">최근 활동</h2><Link to="/admin/logs" className={`flex min-h-11 items-center gap-1 text-sm text-mute ${focus}`}>전체보기<ChevronRight size={15} /></Link></div>
           <div className="border border-hairline bg-white" aria-busy={logs.isFetching}>
-            {logs.isPending ? <p className="p-5 text-sm text-mute">최근 활동을 불러오는 중...</p> : logs.isError ? <p className="p-5 text-sm text-mute">최근 활동을 불러오지 못했습니다.</p> : !logs.data.logs?.length ? <p className="p-5 text-sm text-mute">아직 기록된 활동이 없습니다.</p> : logs.data.logs.map(log => <div key={log.id} className="flex gap-3 border-b border-hairline p-4 last:border-b-0"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${log.action === 'error' ? 'bg-[#C0392B]' : 'bg-primary'}`} /><div className="min-w-0"><p className="break-words text-sm font-semibold leading-relaxed">{log.summary}</p><p className="mt-1 text-xs text-mute">{log.action === 'error' ? '오류 · ' : ''}{dateLabel(log.created_at)}</p></div></div>)}
+            {logs.isPending ? <p className="p-5 text-sm text-mute">최근 활동을 불러오는 중...</p> : logs.isError ? <p className="p-5 text-sm text-mute">최근 활동을 불러오지 못했습니다.</p> : !logs.data.logs?.length ? <p className="p-5 text-sm text-mute">아직 기록된 활동이 없습니다.</p> : logs.data.logs.map(log => <Link to={log.action === 'error' ? '/admin/logs?action=error' : '/admin/logs'} state={{ log }} key={log.id} className="flex gap-3 border-b border-hairline p-4 last:border-b-0"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${log.action === 'error' ? 'bg-[#C0392B]' : 'bg-primary'}`} /><div className="min-w-0"><p className="break-words text-sm font-semibold leading-relaxed">{log.summary}</p><p className="mt-1 text-xs text-mute">{log.action === 'error' ? '오류 · ' : ''}{dateLabel(log.created_at)}</p></div><ChevronRight size={16} className="ml-auto shrink-0 self-center text-mute" /></Link>)}
           </div>
         </section>
   </>;

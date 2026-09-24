@@ -57,6 +57,7 @@ export default async function logsRoutes(fastify) {
           category: { type: 'string', description: '카테고리 필터 (콤마 구분)' },
           actor: { type: 'string', description: '행위자 필터 (admin 또는 bot)' },
           search: { type: 'string', description: 'summary 검색' },
+          action: { type: 'string', enum: ['error'], description: '오류만 조회' },
           from: { type: 'string', description: '시작 날짜 (YYYY-MM-DD)' },
           to: { type: 'string', description: '종료 날짜 (YYYY-MM-DD)' },
         },
@@ -93,7 +94,7 @@ export default async function logsRoutes(fastify) {
     },
     preHandler: [fastify.authenticate],
   }, async (request, reply) => {
-    const { page = 1, limit = 50, category, actor, search, from, to } = request.query;
+    const { page = 1, limit = 50, category, actor, search, action, from, to } = request.query;
 
     try {
       const conditions = [];
@@ -113,6 +114,11 @@ export default async function logsRoutes(fastify) {
         conditions.push("actor = 'admin'");
       } else if (actor === 'bot') {
         conditions.push("actor != 'admin'");
+      }
+
+      if (action) {
+        conditions.push('action = ?');
+        params.push(action);
       }
 
       // 텍스트 검색
@@ -143,7 +149,7 @@ export default async function logsRoutes(fastify) {
 
       // 로그 조회
       const [logs] = await db.query(
-        `SELECT * FROM logs ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        `SELECT * FROM logs ${whereClause} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
         [...params, limit, offset]
       );
 

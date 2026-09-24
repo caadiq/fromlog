@@ -1010,6 +1010,7 @@ DC봇이 적재한 신규 일정 후보(`bot_pending_schedules`)를 검토·등�
 - `limit` - 페이지당 개수 (기본 50, 최대 100)
 - `category` - 카테고리 필터 (콤마 구분: album, schedule, member, bot, category, dict, concert, sync)
 - `actor` - 행위자 필터 (admin 또는 bot)
+- `action=error` - 오류만 조회. 건수와 페이지 수에도 동일 조건 적용; 생략하면 전체 액션.
 - `search` - summary 텍스트 검색
 - `from` - 시작 날짜 (YYYY-MM-DD)
 - `to` - 종료 날짜 (YYYY-MM-DD)

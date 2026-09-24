@@ -10,6 +10,7 @@ import { fetchAuthApi } from '@/api/client';
  * @param {number} [params.limit] - 페이지당 개수
  * @param {string} [params.category] - 카테고리 필터 (콤마 구분)
  * @param {string} [params.actor] - 행위자 필터 (admin 또는 bot)
+ * @param {'error'} [params.action] - 오류만 조회
  * @param {string} [params.search] - summary 검색
  * @param {string} [params.from] - 시작 날짜 (YYYY-MM-DD)
  * @param {string} [params.to] - 종료 날짜 (YYYY-MM-DD)
