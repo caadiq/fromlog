@@ -1162,3 +1162,12 @@ X 봇의 기존 `exclude_managed_channels` 값은 호환성을 위해 DB에 남�
 #### 수집 큐 등록 시간 변경
 
 `POST /admin/pending/:id/register`의 `payload.time`은 생략하면 기존 수집 시간을 사용한다. 명시적 `null` 또는 빈 문자열은 시간 미정으로 저장한다. 모바일 검토 화면의 시간 미정 전환도 동일한 계약을 따른다.
+
+### POST /admin/instagram/caption (관리자)
+
+학교 축제 등의 일정 제목을 편집하기 위한 공개 게시글 본문 조회. Body는 `{ "url": "https://www.instagram.com/p/SHORTCODE/" }`, 응답은 `{ "postUrl": "정규화한 주소", "caption": "게시글 본문" }`.
+
+- 기존 포스터 가져오기와 URL 검증·embed 파서를 공유한다. 사진 다운로드나 Gemini 호출은 하지 않는다. 영상 게시물도 본문이 있으면 사용할 수 있다.
+- 인증 필수, 본문 4KB, IP당 분당 6회, 포스터 가져오기와 동시 처리 제한 공유. 외부 요청 15초·HTML 4MB, 반환 본문 최대 20,000자, 응답 no-store.
+- 잘못된 주소 400, 미인증 401, 처리 중/호출 제한 429, 접근 불가·본문 없음 등 502. 실패 시 직접 입력 가능.
+- 활동 로그 대상 `instagram_caption`: 성공 upload / 실패 error. 정규화한 링크만 기록하며 게시글 본문은 보관하지 않는다. 이 API는 일정 제목이나 큐를 변경하지 않는다.

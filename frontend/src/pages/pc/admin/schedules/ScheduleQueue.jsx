@@ -10,6 +10,7 @@ import { Inbox, X, MapPin, Image as ImageIcon } from 'lucide-react';
 import { Toast } from '@/components/common';
 import { AdminLayout, AdminPageHeader, DatePicker, TimePicker, CustomSelect, F } from '@/components/pc/admin';
 import PosterPreviews from '@/components/pc/admin/schedule/PosterPreviews';
+import InstagramTitleButton from '@/components/pc/admin/schedule/InstagramTitleButton';
 import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 import LocationSearchDialog from '@/components/pc/admin/schedule/LocationSearchDialog';
 import { useAdminAuth } from '@/hooks/pc/admin';
@@ -318,9 +319,10 @@ function ScheduleQueue() {
 
                 {/* 제목 */}
                 <div>
-                  <label className={F.label}>제목 *</label>
+                  <div className="flex items-center justify-between gap-3"><label htmlFor="queue-title" className={F.label}>제목 *</label>{editing.category === '행사' && <InstagramTitleButton sourceUrls={[...postUrls, urlInput]} disabled={saving || Boolean(editing.createdScheduleId)} onApply={title => setEditing(previous => ({ ...previous, title }))} />}</div>
                   <input
                     type="text"
+                    id="queue-title"
                     value={editing.title}
                     onChange={(e) => setEditing((p) => ({ ...p, title: e.target.value }))}
                     className={`${F.underline} mt-1.5`}

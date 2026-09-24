@@ -21,12 +21,30 @@ export function isInstagramImageUrl(input) {
   } catch { return false; }
 }
 
-export function extractInstagramImages(html) {
+function extractInstagramMedia(html) {
   const match = html.match(/"contextJSON"\s*:\s*("(?:\\.|[^"\\])*")/);
   if (!match) throw new Error(unavailable);
   let media;
   try { media = JSON.parse(JSON.parse(match[1])).gql_data?.shortcode_media; } catch { throw new Error(unavailable); }
   if (!media) throw new Error(unavailable);
+  return media;
+}
+
+export function extractInstagramCaption(html) {
+  const media = extractInstagramMedia(html);
+  const caption = (media.edge_media_to_caption?.edges || []).map(edge => edge.node?.text || '').join('\n').trim();
+  if (!caption) throw new Error('게시글 본문이 없습니다. 제목을 직접 입력해주세요.');
+  return caption.slice(0, 20000);
+}
+
+export async function importInstagramCaption(input, { fetcher = fetch, signal = AbortSignal.timeout(15000) } = {}) {
+  const postUrl = normalizeInstagramPost(input);
+  const html = await fetchLimited(`${postUrl}embed/`, 4 * MB, signal, fetcher);
+  return { postUrl, caption: extractInstagramCaption(html.toString('utf8')) };
+}
+
+export function extractInstagramImages(html) {
+  const media = extractInstagramMedia(html);
   const nodes = media.edge_sidecar_to_children?.edges?.map((edge) => edge.node) || [media];
   const urls = [...new Set(nodes.filter((node) => node && !node.is_video).map((node) => node.display_url).filter(Boolean))];
   if (!urls.length) throw new Error('가져올 사진이 없습니다. 영상 게시물은 파일 첨부를 이용해주세요.');

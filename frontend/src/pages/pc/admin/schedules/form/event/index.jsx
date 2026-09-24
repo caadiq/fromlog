@@ -11,6 +11,7 @@ import Toast from '@/components/common/Toast';
 import DatePicker from '@/components/pc/admin/common/DatePicker';
 import TimePicker from '@/components/pc/admin/common/TimePicker';
 import PosterPreviews from '@/components/pc/admin/schedule/PosterPreviews';
+import InstagramTitleButton from '@/components/pc/admin/schedule/InstagramTitleButton';
 import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 import LocationSearchDialog from '@/components/pc/admin/schedule/LocationSearchDialog';
 import { F } from '@/components/pc/admin';
@@ -145,9 +146,10 @@ function EventForm() {
 
           {/* 제목 */}
           <div>
-            <label className={F.label}>제목 *</label>
+            <div className="flex items-center justify-between gap-3"><label htmlFor="event-title" className={F.label}>제목 *</label><InstagramTitleButton sourceUrls={[...postUrls, urlInput]} onApply={setTitle} /></div>
             <input
               type="text"
+              id="event-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className={`${F.underline} mt-1.5`}

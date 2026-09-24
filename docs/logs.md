@@ -141,3 +141,5 @@ logActivity(db, { actor, action, category, targetType, targetId, summary, detail
 ### 인스타그램 포스터 후보 불러오기
 
 `POST /api/admin/instagram/posters`는 `actor=admin`, `category=schedule`, `target_type=instagram_poster`로 기록한다. 성공은 `action=upload`와 사진 수, 실패는 `action=error`. `details`에는 정규화된 `postUrl` 및 성공 시 `count`만 보관한다. 이 로그는 후보 불러오기 기록이며 최종 일정 등록·스토리지 업로드를 뜻하지 않는다.
+
+- 일정 제목 편집용 `POST /api/admin/instagram/caption`도 `category=schedule`, `target_type=instagram_caption`으로 조회 성공(upload)/실패(error)를 기록한다. `details.postUrl`만 남기며 본문이나 편집한 제목은 기록하지 않는다. 최종 일정 저장 로그는 기존 등록 API가 담당한다.

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import sharp from 'sharp';
 import Fastify from 'fastify';
 import instagramRoutes from '../src/routes/admin/instagram.js';
-import { normalizeInstagramPost, isInstagramImageUrl, extractInstagramImages, importInstagramPosters } from '../src/services/instagramPosters.js';
+import { normalizeInstagramPost, isInstagramImageUrl, extractInstagramImages, importInstagramPosters, extractInstagramCaption, importInstagramCaption } from '../src/services/instagramPosters.js';
 
 const photo = 'https://scontent-example.cdninstagram.com/photo.jpg';
 const embed = (media) => `{"contextJSON":${JSON.stringify(JSON.stringify({ gql_data: { shortcode_media: media } }))}}`;
@@ -106,4 +106,44 @@ test('admin import returns files without storing schedules and prevents overlapp
     assert.equal(queries.length, 2);
     assert.ok(queries.every(([sql]) => sql.startsWith('INSERT INTO logs')));
   } finally { release(); globalThis.fetch = originalFetch; await api.close(); }
+});
+
+
+test('caption import preserves text and line breaks without downloading images', async () => {
+  const caption = '[2026 건국대학교 가을 대동제 : 일감연]\n\n아티스트 라인업';
+  const html = embed({ is_video: true, edge_media_to_caption: { edges: [{ node: { text: caption } }] } });
+  assert.equal(extractInstagramCaption(html), caption);
+  let calls = 0;
+  const result = await importInstagramCaption('https://www.instagram.com/p/Test/?img_index=2', { fetcher: async url => {
+    calls++;
+    assert.equal(url, 'https://www.instagram.com/p/Test/embed/');
+    return new Response(html);
+  } });
+  assert.equal(calls, 1);
+  assert.equal(result.caption, caption);
+  assert.throws(() => extractInstagramCaption(embed({ edge_media_to_caption: { edges: [] } })));
+  assert.throws(() => extractInstagramCaption('login page'));
+});
+
+test('caption endpoint authenticates and logs only the canonical link, never the caption', async () => {
+  const api = Fastify();
+  const queries = [];
+  api.decorate('db', { query: async (...args) => queries.push(args) });
+  api.decorate('authenticate', async (request, reply) => { if (!request.headers.authorization) return reply.code(401).send({ error: 'unauthorized' }); });
+  await api.register(instagramRoutes, { prefix: '/instagram' });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(embed({ edge_media_to_caption: { edges: [{ node: { text: '본문 테스트' } }] } }));
+  try {
+    const request = { method: 'POST', url: '/instagram/caption', payload: { url: 'https://www.instagram.com/p/Test/?tracking=secret' } };
+    assert.equal((await api.inject(request)).statusCode, 401);
+    const response = await api.inject({ ...request, headers: { authorization: 'test' } });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.json().caption, '본문 테스트');
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.equal(queries.length, 1);
+    assert.ok(!JSON.stringify(queries).includes('본문 테스트'));
+    assert.ok(!JSON.stringify(queries).includes('secret'));
+    globalThis.fetch = async () => new Response(embed({}));
+    assert.equal((await api.inject({ ...request, headers: { authorization: 'test' } })).statusCode, 502);
+  } finally { globalThis.fetch = originalFetch; await api.close(); }
 });
