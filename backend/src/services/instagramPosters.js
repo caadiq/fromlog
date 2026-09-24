@@ -23,28 +23,60 @@ export function isInstagramImageUrl(input) {
 
 function extractInstagramMedia(html) {
   const match = html.match(/"contextJSON"\s*:\s*("(?:\\.|[^"\\])*")/);
-  if (!match) throw new Error(unavailable);
+  if (!match) return null;
   let media;
   try { media = JSON.parse(JSON.parse(match[1])).gql_data?.shortcode_media; } catch { throw new Error(unavailable); }
   if (!media) throw new Error(unavailable);
   return media;
 }
 
+function decodeHtml(text) {
+  const entities = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+  return text.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (match, entity) => {
+    if (!entity.startsWith('#')) return entities[entity.toLowerCase()] || match;
+    const code = entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1));
+    return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff) ? String.fromCodePoint(code) : '\uFFFD';
+  });
+}
+
+function attribute(tag, name) {
+  const match = tag.match(new RegExp(`\\s${name}=["']([^"']*)["']`, 'i'));
+  return match ? decodeHtml(match[1]) : '';
+}
+
 export function extractInstagramCaption(html) {
   const media = extractInstagramMedia(html);
-  const caption = (media.edge_media_to_caption?.edges || []).map(edge => edge.node?.text || '').join('\n').trim();
+  let caption = (media?.edge_media_to_caption?.edges || []).map(edge => edge.node?.text || '').join('\n').trim();
+  if (!caption) {
+    // Simple photo embeds expose caption HTML instead of contextJSON.
+    const fragment = html.match(/<div\b[^>]*class=["']Caption["'][^>]*>([\s\S]*?)(?:<div\b[^>]*class=["']CaptionComments["']|<\/div>)/i)?.[1];
+    if (fragment) caption = decodeHtml(fragment
+      .replace(/<a\b[^>]*class=["']CaptionUsername["'][^>]*>[\s\S]*?<\/a>/gi, '')
+      .replace(/<br\s*\/?\s*>/gi, '\n')
+      .replace(/<[^>]*>/g, '')).trim();
+  }
   if (!caption) throw new Error('게시글 본문이 없습니다. 제목을 직접 입력해주세요.');
   return caption.slice(0, 20000);
 }
 
 export async function importInstagramCaption(input, { fetcher = fetch, signal = AbortSignal.timeout(15000) } = {}) {
   const postUrl = normalizeInstagramPost(input);
-  const html = await fetchLimited(`${postUrl}embed/`, 4 * MB, signal, fetcher);
+  const html = await fetchLimited(`${postUrl}embed/captioned/`, 4 * MB, signal, fetcher);
   return { postUrl, caption: extractInstagramCaption(html.toString('utf8')) };
 }
 
 export function extractInstagramImages(html) {
   const media = extractInstagramMedia(html);
+  if (!media) {
+    // Never silently reduce an unavailable carousel/video to one thumbnail.
+    if (!/"isRichEmbed"\s*:\s*false/.test(html) || !/"isSidecar"\s*:\s*false/.test(html)) throw new Error(unavailable);
+    const tag = (html.match(/<img\b[^>]*>/gi) || []).find(image => attribute(image, 'class').split(/\s+/).includes('EmbeddedMediaImage'));
+    if (!tag) throw new Error(unavailable);
+    const candidates = attribute(tag, 'srcset').split(',').map(value => value.trim().match(/^(\S+)\s+(\d+)w$/)).filter(Boolean).sort((a, b) => Number(b[2]) - Number(a[2]));
+    const url = candidates[0]?.[1] || attribute(tag, 'src');
+    if (!isInstagramImageUrl(url)) throw new Error(unavailable);
+    return [url];
+  }
   const nodes = media.edge_sidecar_to_children?.edges?.map((edge) => edge.node) || [media];
   const urls = [...new Set(nodes.filter((node) => node && !node.is_video).map((node) => node.display_url).filter(Boolean))];
   if (!urls.length) throw new Error('가져올 사진이 없습니다. 영상 게시물은 파일 첨부를 이용해주세요.');

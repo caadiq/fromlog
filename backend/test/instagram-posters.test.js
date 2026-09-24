@@ -116,7 +116,7 @@ test('caption import preserves text and line breaks without downloading images',
   let calls = 0;
   const result = await importInstagramCaption('https://www.instagram.com/p/Test/?img_index=2', { fetcher: async url => {
     calls++;
-    assert.equal(url, 'https://www.instagram.com/p/Test/embed/');
+    assert.equal(url, 'https://www.instagram.com/p/Test/embed/captioned/');
     return new Response(html);
   } });
   assert.equal(calls, 1);
@@ -146,4 +146,17 @@ test('caption endpoint authenticates and logs only the canonical link, never the
     globalThis.fetch = async () => new Response(embed({}));
     assert.equal((await api.inject({ ...request, headers: { authorization: 'test' } })).statusCode, 502);
   } finally { globalThis.fetch = originalFetch; await api.close(); }
+});
+
+
+test('simple HTML embeds extract full caption and the largest safe photo', () => {
+  const html = `<div class="Caption"><a class="CaptionUsername" href="/account">account</a><br /><br />&lt;한양문화제기획단&gt;<br />프로미스나인 &#127818; &amp; 동심<div class="CaptionComments">View all 10 comments</div></div>
+    <img class="EmbeddedMediaImage" src="${photo}?size=small&amp;x=1" srcset="${photo}?size=small&amp;x=1 640w, ${photo}?size=large&amp;x=1 1080w">
+    {"isRichEmbed":false,"isSidecar":false,"contextJSON":null}`;
+  assert.equal(extractInstagramCaption(html), '<한양문화제기획단>\n프로미스나인 🍊 & 동심');
+  assert.deepEqual(extractInstagramImages(html), [`${photo}?size=large&x=1`]);
+  assert.throws(() => extractInstagramImages(html.replace('"isSidecar":false', '"isSidecar":true')));
+  assert.throws(() => extractInstagramImages(html.replace('"isRichEmbed":false', '"isRichEmbed":true')));
+  assert.throws(() => extractInstagramImages(html.replaceAll(photo, 'https://127.0.0.1/image')));
+  assert.throws(() => extractInstagramCaption('<div class="Caption"><a class="CaptionUsername">account</a><div class="CaptionComments">Comments</div></div>'));
 });
