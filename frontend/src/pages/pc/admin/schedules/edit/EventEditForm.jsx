@@ -1,3 +1,6 @@
+import InstagramTitleButton from '@/components/pc/admin/schedule/InstagramTitleButton';
+import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
+import PosterPreviews from '@/components/pc/admin/schedule/PosterPreviews';
 /**
  * 행사 일정 수정 폼 — 에디토리얼 리뉴얼
  */
@@ -71,27 +74,11 @@ function EventEditForm() {
   }, [eventData, initialized]);
 
   // 포스터
-  const handlePosterChange = (e) => {
-    const files = Array.from(e.target.files || []);
-    const newItems = files.map((file) => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve({ file, preview: reader.result });
-        reader.readAsDataURL(file);
-      });
-    });
-    Promise.all(newItems).then((items) => {
-      setNewPosterFiles((prev) => [...prev, ...items]);
-    });
-    e.target.value = '';
-  };
   const removeExistingPoster = (posterId) => {
     setKeepPosterIds((prev) => prev.filter((id) => id !== posterId));
     setExistingPosters((prev) => prev.filter((p) => p.id !== posterId));
   };
-  const removeNewPoster = (index) => {
-    setNewPosterFiles((prev) => prev.filter((_, i) => i !== index));
-  };
+
 
   // URL
   const addUrl = () => {
@@ -198,8 +185,9 @@ function EventEditForm() {
             </div>
 
             <div>
-              <label className={F.label}>제목 *</label>
+              <div className="flex items-center justify-between gap-3"><label htmlFor="edit-event-title" className={F.label}>제목 *</label><InstagramTitleButton sourceUrls={[...postUrls, urlInput]} disabled={saving} onApply={setTitle} /></div>
               <input
+                id="edit-event-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -295,6 +283,8 @@ function EventEditForm() {
                 />
                 <button
                   type="button"
+                  aria-label={`기존 포스터 ${p.id} 삭제`}
+                  disabled={saving}
                   onClick={() => removeExistingPoster(p.id)}
                   className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center bg-ink text-[13px] text-white transition-colors hover:bg-[#C0392B]"
                 >
@@ -302,27 +292,11 @@ function EventEditForm() {
                 </button>
               </div>
             ))}
-            {newPosterFiles.map((item, idx) => (
-              <div key={`n-${idx}`} className="relative">
-                <img
-                  src={item.preview}
-                  alt={`new poster ${idx}`}
-                  className="h-32 w-32 border border-hairline object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeNewPoster(idx)}
-                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center bg-ink text-[13px] text-white transition-colors hover:bg-[#C0392B]"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-            <label className={`${F.dropzone} h-32 w-32`}>
+            <PosterPreviews items={newPosterFiles} setItems={setNewPosterFiles} />
+            <PosterAddButton sourceUrls={[...postUrls, urlInput]} disabled={saving || existingPosters.length + newPosterFiles.length >= 20} maxCount={Math.max(1, 20 - existingPosters.length - newPosterFiles.length)} onAdd={items => setNewPosterFiles(previous => [...previous, ...items])} className={`${F.dropzone} h-32 w-32 disabled:opacity-40`}>
               <ImageIcon size={18} className="text-faint" />
               <span className="text-[13px]">추가</span>
-              <input type="file" accept="image/*" multiple className="hidden" onChange={handlePosterChange} />
-            </label>
+            </PosterAddButton>
           </div>
 
           {/* URL */}
