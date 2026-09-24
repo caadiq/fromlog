@@ -82,11 +82,11 @@ function TitleDialog({ initialUrl, onApply, onClose }) {
   </dialog>, document.body);
 }
 
-export default function InstagramTitleButton({ sourceUrls = [], onApply, disabled = false }) {
+export default function InstagramTitleButton({ sourceUrls = [], onApply, disabled = false, iconOnly = false }) {
   const [open, setOpen] = useState(false);
   useDialogBackClose(open, () => setOpen(false));
   return <>
-    <button type="button" disabled={disabled} onClick={() => setOpen(true)} className="flex min-h-10 shrink-0 items-center gap-1.5 border border-hairline bg-white px-2.5 text-[13px] font-semibold tracking-normal text-esub transition-colors hover:border-ink disabled:opacity-40"><Instagram size={15} />인스타에서 가져오기</button>
+    <button type="button" aria-label="인스타에서 가져오기" title="인스타에서 가져오기" disabled={disabled} onClick={() => setOpen(true)} className={`flex shrink-0 items-center justify-center border border-hairline bg-white text-[13px] font-semibold tracking-normal text-esub transition-colors hover:border-ink disabled:opacity-40 ${iconOnly ? 'h-[50px] w-[50px]' : 'min-h-10 gap-1.5 px-2.5'}`}><Instagram size={iconOnly ? 21 : 15} />{!iconOnly && '인스타에서 가져오기'}</button>
     {open && <TitleDialog initialUrl={findInstagramUrl(sourceUrls)} onApply={onApply} onClose={() => setOpen(false)} />}
   </>;
 }
