@@ -19,7 +19,7 @@ const links = [
 ];
 const focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
-export default function MobileAdminLayout({ children }) {
+export default function MobileAdminLayout({ children, headerContent, flush = false }) {
   const token = useAuthStore(s => s.token);
   const logout = useAuthStore(s => s.logout);
   const auth = useAdminAuth();
@@ -68,13 +68,13 @@ export default function MobileAdminLayout({ children }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-paper text-ink">
       <header className="z-20 shrink-0 touch-none border-b border-hairline bg-paper pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-16 max-w-[680px] items-center gap-2 px-4">
-          <button ref={menuButton} onClick={openMenu} aria-label="관리 메뉴 열기" aria-haspopup="dialog" className={`flex h-11 w-11 items-center justify-center ${focus}`}><Menu size={24} /></button>
-          <Link to="/admin/dashboard" className={`text-xl font-black tracking-tight ${focus}`}>fromlog <span className="ml-1 text-xs font-semibold text-mute">관리자</span></Link>
+        <div className={`mx-auto flex h-16 max-w-[680px] items-center ${headerContent ? 'gap-0 px-2' : 'gap-2 px-4'}`}>
+          <button ref={menuButton} onClick={openMenu} aria-label="관리 메뉴 열기" aria-haspopup="dialog" className={`flex h-11 w-11 shrink-0 items-center justify-center ${focus}`}><Menu size={24} /></button>
+          {headerContent || <Link to="/admin/dashboard" className={`text-xl font-black tracking-tight ${focus}`}>fromlog <span className="ml-1 text-xs font-semibold text-mute">관리자</span></Link>}
         </div>
       </header>
 
-      <main className="mx-auto min-h-0 w-full max-w-[680px] flex-1 overflow-y-auto overscroll-none px-5 pb-12 pt-7">
+      <main className={`mx-auto min-h-0 w-full max-w-[680px] flex-1 overscroll-none ${flush ? 'flex flex-col overflow-hidden' : 'overflow-y-auto px-5 pb-12 pt-7'}`}>
         {children}
       </main>
 
