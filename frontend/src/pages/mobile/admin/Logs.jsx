@@ -7,16 +7,10 @@ import { getLogs, getLogCategories } from '@/api/admin/logs';
 import { decodeHtmlEntities, getTodayKST } from '@/utils';
 import { CATEGORY_LABELS, ACTION_STYLES } from '@/components/pc/admin/log/constants';
 import MobileAdminLayout from './Layout';
-import { LogDetail, LogFilters, actionName, logDate } from './LogDialogs';
+import { LogDetail, LogFilters, actionName, logDate, periodRange } from './LogDialogs';
 
 const LIMIT = 20;
 const button = 'flex min-h-11 items-center justify-center border border-hairline px-3 text-sm font-bold disabled:opacity-40';
-function periodRange(days) {
-  const to = getTodayKST();
-  const from = new Date(`${to}T00:00:00Z`);
-  from.setUTCDate(from.getUTCDate() - days + 1);
-  return { from: from.toISOString().slice(0, 10), to };
-}
 const dateText = value => value.replaceAll('-', '. ');
 
 export default function MobileAdminLogs() {
@@ -82,19 +76,14 @@ function LogsContent() {
     if (!/^\d+$/.test(pageInput) || !Number.isSafeInteger(page) || page < 1 || page > totalPages) { setPageError(`1~${totalPages} 사이의 페이지를 입력해주세요.`); return; }
     goToPage(page);
   };
-  const filterCount = params.category.split(',').filter(Boolean).length;
-  const activePeriod = [1, 7, 30].find(days => { const range = periodRange(days); return range.from === params.from && range.to === params.to; });
+  const hasFilters = Boolean(params.category || params.actor || params.action || params.from !== getTodayKST() || params.to !== getTodayKST());
 
   return <div ref={surface} className="flex min-h-0 w-full shrink-0 flex-col">
     <section className="max-h-[50%] shrink-0 overflow-y-auto overscroll-none border-b border-hairline bg-paper px-4 pb-4 pt-5" aria-label="활동 로그 검색과 필터">
       <h1 className="mb-4 text-[26px] font-extrabold">활동 로그</h1>
-      <div className="grid grid-cols-4 border border-hairline text-xs font-semibold">
-        {[[1, '오늘'], [7, '최근 7일'], [30, '최근 30일']].map(([days, label]) => <button key={days} aria-pressed={activePeriod === days} onClick={() => change(periodRange(days))} className={`min-h-11 border-r border-hairline ${activePeriod === days ? 'bg-ink text-white' : 'bg-white'}`}>{label}</button>)}
-        <button aria-pressed={!activePeriod} onClick={() => setFilter(params)} className={`min-h-11 ${!activePeriod ? 'bg-ink text-white' : 'bg-white'}`}>기간 설정</button>
-      </div>
       <div className="my-3 flex flex-wrap items-center justify-between gap-1 text-xs text-mute"><span>{dateText(params.from)}{params.to !== params.from && ` — ${dateText(params.to)}`}</span><span className="font-bold text-green-deep">{query.isSuccess ? `전체 ${total.toLocaleString()}건` : query.isError ? '조회 실패' : '조회 중...'}</span></div>
-      <div className="flex gap-2"><div className="flex min-w-0 flex-1 items-center gap-2 border border-hairline bg-white px-3"><Search size={18} className="shrink-0 text-mute" /><input type="search" aria-label="활동 내용 검색" placeholder="활동 내용 검색" value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent py-3 text-base outline-none [&::-webkit-search-cancel-button]:hidden" />{search && <button aria-label="검색어 지우기" onClick={() => setSearch('')} className="h-11 shrink-0"><X size={17} /></button>}</div><button aria-label={filterCount ? `상세 필터 · 분류 ${filterCount}개 선택` : '상세 필터'} onClick={() => setFilter(params)} className={`${button} relative w-12 shrink-0 bg-white`}><SlidersHorizontal size={19} />{filterCount > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />}</button></div>
-      <div className="mt-3 flex flex-wrap gap-2">{[['', '전체'], ['admin', '관리자'], ['bot', '봇']].map(([value, label]) => <button key={value} aria-pressed={params.actor === value} className={`${button} ${params.actor === value ? 'border-ink bg-ink text-white' : 'bg-white'}`} onClick={() => change({ actor: value })}>{label}</button>)}<button aria-pressed={params.action === 'error'} className={`${button} ${params.action ? 'border-ink bg-ink text-white' : 'bg-white'}`} onClick={() => change({ action: params.action ? '' : 'error' })}>오류만</button></div>
+      <div className="flex gap-2"><div className="flex min-w-0 flex-1 items-center gap-2 border border-hairline bg-white px-3"><Search size={18} className="shrink-0 text-mute" /><input type="search" aria-label="활동 내용 검색" placeholder="활동 내용 검색" value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent py-3 text-base outline-none [&::-webkit-search-cancel-button]:hidden" />{search && <button aria-label="검색어 지우기" onClick={() => setSearch('')} className="h-11 shrink-0"><X size={17} /></button>}</div><button aria-label={hasFilters ? '상세 필터 · 적용됨' : '상세 필터'} onClick={() => setFilter(params)} className={`${button} relative w-12 shrink-0 bg-white`}><SlidersHorizontal size={19} />{hasFilters && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />}</button></div>
+
     </section>
     <div ref={list} data-log-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-none px-4 pb-5" aria-busy={query.isFetching}>
       {query.isPending ? <p role="status" className="py-16 text-center text-sm text-mute">활동 로그를 불러오는 중...</p> : query.isError ? <div role="alert" className="py-10 text-sm text-[#A93226]">로그를 불러오지 못했습니다.<button onClick={() => query.refetch()} className={`${button} mt-3`}>다시 시도</button></div> : logs.length === 0 ? <p role="status" className="py-16 text-center text-sm text-mute">선택한 조건에 맞는 활동이 없습니다.</p> : <ul aria-label="활동 로그 목록">{logs.map((log, index) => {
