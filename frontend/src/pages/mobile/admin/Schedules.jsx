@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { EASE } from '@/components/editorial';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, X, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Grid3x3 } from 'lucide-react';
-import { useDocumentTitle, useToast } from '@/hooks/common';
+import { useDocumentTitle, useToast, useDialogBackClose } from '@/hooks/common';
 import { Toast } from '@/components/common';
 import ConfirmDialog from '@/components/pc/admin/common/ConfirmDialog';
 import { CalendarPanel, YearMonthPanel } from '@/components/mobile/schedule/CalendarPanels';
@@ -13,6 +13,7 @@ import { getSchedules, deleteSchedule } from '@/api/admin/schedules';
 import { decodeHtmlEntities, getTodayKST, invalidateSchedules } from '@/utils';
 import { getCategoryInfo, getScheduleDate, getScheduleTime } from '@/utils/schedule';
 import MobileAdminLayout from './Layout';
+import ScheduleEdit, { canEditSchedule } from './ScheduleEdit';
 import { useAdminAuth } from '@/hooks/pc/admin';
 
 const normalize = value => String(value || '').normalize('NFC').toLowerCase().replace(/\s+/g, '');
@@ -42,6 +43,9 @@ export default function MobileAdminSchedules() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [target, setTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const editBusy = useRef(false);
+  useDialogBackClose(Boolean(editTarget), () => { if (!editBusy.current) setEditTarget(null); });
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const busy = useRef(false);
@@ -151,7 +155,7 @@ export default function MobileAdminSchedules() {
         const date = dateLabel(item);
         const info = getCategoryInfo(item);
         const title = decodeHtmlEntities(item.title);
-        const canManage = !item.is_birthday && /^\d+$/.test(String(item.id));
+        const canManage = !item.is_birthday && !item.is_debut && !item.is_anniversary && /^\d+$/.test(String(item.id));
         const Body = canManage ? Link : 'div';
         return <li key={item.id}>
           {!searching && item.datePrecision === 'month' && (index === 0 || filtered[index - 1].datePrecision !== 'month') && <h3 className="mb-3 mt-6 border-t border-dashed border-hairline pt-4 text-sm font-bold text-mute">날짜 미정 · {monthNumber}월 중</h3>}
@@ -161,7 +165,7 @@ export default function MobileAdminSchedules() {
             <div className="min-w-0 flex-1 py-1"><h2 className="break-words text-base font-extrabold leading-[1.5]">{title}</h2><div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-mute"><span className="rounded-[3px] bg-green-soft px-1.5 py-0.5 text-xs font-semibold text-green-deep">{info.name}</span><span>{item.datePrecision === 'month' ? '날짜 미정' : getScheduleTime(item) || '시간 미정'}{item.source?.name ? ` · ${item.source.name}` : ''}</span></div></div>
             {canManage && <ChevronRight size={18} className="my-5 shrink-0 text-mute" />}
           </Body>
-          {canManage && <div className="mt-3 grid grid-cols-[minmax(0,1fr)_72px] gap-2"><button disabled title="모바일 수정 기능은 준비 중입니다." className="min-h-11 rounded-[2px] bg-ink px-3 text-sm font-bold text-white disabled:opacity-40">수정</button><button disabled={deleting} className={`${button} border-ink`} onClick={() => { setError(''); hideToast(); setTarget(item); }}>삭제</button></div>}
+          {canManage && <div className={`mt-3 grid gap-2 ${canEditSchedule(item) ? 'grid-cols-[minmax(0,1fr)_72px]' : 'grid-cols-[72px] justify-end'}`}>{canEditSchedule(item) && <button disabled={deleting} onClick={() => { hideToast(); setEditTarget(item); }} className="min-h-11 rounded-[2px] bg-ink px-3 text-sm font-bold text-white disabled:opacity-40">수정</button>}<button disabled={deleting} className={`${button} border-ink`} onClick={() => { setError(''); hideToast(); setTarget(item); }}>삭제</button></div>}
           </div>
         </li>;
       })}
@@ -169,6 +173,7 @@ export default function MobileAdminSchedules() {
     </motion.div>
     </motion.div>
     </div>
+    {editTarget && <ScheduleEdit key={editTarget.id} item={editTarget} onBusyChange={value => { editBusy.current = value; }} onClose={() => setEditTarget(null)} onSuccess={({ date, monthOnly }) => { setEditTarget(null); if (date && (!monthOnly || date.slice(0, 7) !== month)) chooseDate(date); showSuccess('일정이 수정되었습니다.'); }} />}
     <ConfirmDialog isOpen={Boolean(target)} onClose={closeDelete} onConfirm={confirmDelete} title="이 일정을 삭제할까요?" confirmText="삭제하기" loading={deleting} message={<><p className="break-words font-semibold text-ink">{target ? decodeHtmlEntities(target.title) : ''}</p><p className="mt-2">삭제한 일정은 복구할 수 없습니다.</p>{error && <p role="alert" className="mt-3 break-words text-[#A93226]">{error}</p>}</>} />
   </MobileAdminLayout>;
 }

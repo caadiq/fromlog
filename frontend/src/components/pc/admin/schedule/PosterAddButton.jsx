@@ -167,12 +167,12 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
   );
 }
 
-export default function PosterAddButton({ sourceUrls = [], onAdd, maxCount = 20, children, className }) {
+export default function PosterAddButton({ sourceUrls = [], onAdd, maxCount = 20, children, className, disabled = false }) {
   const [open, setOpen] = useState(false);
   // Keep history ownership mounted while closed; StrictMode replays mount effects.
   useDialogBackClose(open, () => setOpen(false));
   return <>
-    <button type="button" aria-label="포스터 추가" onClick={() => setOpen(true)} className={className}>{children}</button>
+    <button type="button" aria-label="포스터 추가" disabled={disabled} onClick={() => setOpen(true)} className={className}>{children}</button>
     {open && <PosterAddDialog initialUrl={instagramUrl(sourceUrls)} maxCount={maxCount} onAdd={onAdd} onClose={() => setOpen(false)} />}
   </>;
 }
