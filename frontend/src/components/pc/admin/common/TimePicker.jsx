@@ -4,12 +4,13 @@
  * NumberPicker를 사용하여 스크롤 방식 선택 제공
  */
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Clock } from 'lucide-react';
 import { useClickOutside } from '@/hooks/common';
 import NumberPicker from './NumberPicker';
 
-function TimePicker({ value, onChange, placeholder = '시간 선택', onOpen }) {
+function TimePicker({ value, onChange, placeholder = '시간 선택', onOpen, inline = false }) {
+  const reducedMotion = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
 
@@ -100,9 +101,16 @@ function TimePicker({ value, onChange, placeholder = '시간 선택', onOpen }) 
         {isOpen && (
           <motion.div
             data-picker-panel
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            initial={inline ? { opacity: 0, height: 0, marginTop: 0, borderWidth: 0 } : { opacity: 0, y: -10 }}
+            animate={inline ? { opacity: 1, height: 'auto', marginTop: 6, borderWidth: 1 } : { opacity: 1, y: 0 }}
+            exit={inline ? { opacity: 0, height: 0, marginTop: 0, borderWidth: 0, overflow: 'hidden' } : { opacity: 0, y: -10 }}
+            transition={inline ? { duration: reducedMotion ? 0 : 0.18, ease: 'easeOut' } : undefined}
+            onAnimationStart={definition => {
+              if (inline) {
+                const panel = ref.current?.querySelector('[data-picker-panel]');
+                if (panel) panel.dataset.pickerClosing = String(definition.height === 0);
+              }
+            }}
             className="absolute left-0 top-full z-50 mt-1.5 overflow-hidden border border-ink bg-white"
           >
             {/* 피커 영역 */}

@@ -10,7 +10,7 @@ export default function useReviewViewport(dialogRef, open) {
     const body = dialog.querySelector('[data-review-scroll]');
     const focused = document.activeElement;
     const input = body?.contains(focused) && focused.matches('input, textarea') ? focused : null;
-    const panel = panelRef.current?.isConnected ? panelRef.current : null;
+    const panel = panelRef.current?.isConnected && panelRef.current.dataset.pickerClosing !== 'true' ? panelRef.current : null;
     const target = input || panel;
     if (!target || !body) return;
     if (panel) panel.style.maxHeight = `${Math.max(80, body.clientHeight - 24)}px`;
