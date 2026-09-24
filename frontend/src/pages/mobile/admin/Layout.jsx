@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Menu, X, Plus, Inbox, CalendarDays, Link2, ScrollText, Palette, Video, Bot, Home as HomeIcon, LogOut, ArrowUpRight } from 'lucide-react';
+import { Menu, X, Inbox, CalendarDays, Link2, ScrollText, Palette, Video, Bot, Home as HomeIcon, LogOut, ArrowUpRight } from 'lucide-react';
 import { useAuthStore } from '@/stores';
 import { useAdminAuth } from '@/hooks/pc/admin';
 import { useDialogBackClose } from '@/hooks/common';
@@ -10,7 +10,6 @@ import './admin.css';
 
 const links = [
   ['일정 관리', '/admin/schedule', CalendarDays],
-  ['일정 추가', '/admin/schedule/new', Plus],
   ['수집 큐', '/admin/schedule/queue', Inbox],
   ['고정 링크', '/admin/schedule/links', Link2],
   ['활동 로그', '/admin/logs', ScrollText],

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { EASE } from '@/components/editorial';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, X, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Grid3x3 } from 'lucide-react';
+import { Plus, Search, X, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Grid3x3 } from 'lucide-react';
 import { useDocumentTitle, useToast, useDialogBackClose } from '@/hooks/common';
 import { Toast } from '@/components/common';
 import ConfirmDialog from '@/components/pc/admin/common/ConfirmDialog';
@@ -32,7 +32,7 @@ export default function MobileAdminSchedules() {
   const auth = useAdminAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState(() => location.state?.createdDate || getTodayKST());
+  const [selectedDate, setSelectedDate] = useState(() => location.state?.createdDate || location.state?.selectedDate || getTodayKST());
   const month = selectedDate.slice(0, 7);
   const selectedDay = new Date(`${selectedDate}T12:00:00`);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -157,7 +157,7 @@ export default function MobileAdminSchedules() {
       {search && <button aria-label="검색어 지우기" className="flex h-11 w-8 shrink-0 items-center justify-center" onClick={() => setSearch('')}><X size={17} /></button>}
     </div>}
     </motion.div>
-    <div ref={content} className="min-h-0 flex-1 overflow-y-auto overscroll-none px-3 pb-6" data-schedule-content>
+    <div ref={content} className="min-h-0 flex-1 overflow-y-auto overscroll-none px-3 pb-[calc(104px+env(safe-area-inset-bottom))]" data-schedule-content>
     <motion.div initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE, delay: reduceMotion ? 0 : 0.1 }}>
     <div className="mt-3 flex items-center justify-between gap-2">
       <h2 className="flex items-baseline gap-2">{searching ? <b className="text-xl font-extrabold">검색 결과</b> : <><b className="text-[30px] font-black tracking-tight">{monthNumber}. {selectedDay.getDate()}.</b><span className="text-[13px] font-bold text-mute">{WEEKDAYS_LONG[selectedDay.getDay()]}</span></>}</h2>
@@ -187,6 +187,7 @@ export default function MobileAdminSchedules() {
     </motion.div>
     </motion.div>
     </div>
+    <Link to="/admin/schedule/new" state={{ initialDate: selectedDate }} aria-label="일정 추가" className="mobile-schedule-add flex h-14 w-14 items-center justify-center rounded-full bg-ink text-white transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"><Plus size={27} aria-hidden="true" /></Link>
     {editTarget && <ScheduleEdit key={editTarget.id} item={editTarget} onBusyChange={value => { editBusy.current = value; }} onClose={() => setEditTarget(null)} onSuccess={({ date, monthOnly }) => { setEditTarget(null); if (date && (!monthOnly || date.slice(0, 7) !== month)) chooseDate(date); showSuccess('일정이 수정되었습니다.'); }} />}
     <ConfirmDialog isOpen={Boolean(target)} onClose={closeDelete} onConfirm={confirmDelete} title="이 일정을 삭제할까요?" confirmText="삭제하기" loading={deleting} message={<><p className="break-words font-semibold text-ink">{target ? decodeHtmlEntities(target.title) : ''}</p><p className="mt-2">삭제한 일정은 복구할 수 없습니다.</p>{error && <p role="alert" className="mt-3 break-words text-[#A93226]">{error}</p>}</>} />
   </MobileAdminLayout>;

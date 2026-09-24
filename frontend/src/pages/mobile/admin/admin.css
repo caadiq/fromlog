@@ -100,3 +100,12 @@ html.mobile-admin-layout body {
   overflow-y: auto;
   overscroll-behavior: none;
 }
+
+/* Keep the add action within the centered list and above the device safe area. */
+.mobile-schedule-add {
+  position: fixed;
+  z-index: 30;
+  right: max(20px, calc((100vw - 680px) / 2 + 20px));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 28%), 0 3px 8px rgb(0 0 0 / 18%);
+}
