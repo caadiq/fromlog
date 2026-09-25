@@ -1,12 +1,12 @@
 import useMobileBotDialog from './useMobileBotDialog';
 /**
- * 축제 봇 추가/수정 다이얼로그
+ * 일정 수집 봇 추가/수정 다이얼로그
  */
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronDown, Loader2, PartyPopper } from 'lucide-react';
+import { X, ChevronDown, Loader2, CalendarDays } from 'lucide-react';
 import { getFestivalBot, createFestivalBot, updateFestivalBot } from '@/api/admin/bots';
 import { FESTIVAL_INTERVAL_OPTIONS as INTERVAL_OPTIONS } from '@/constants/bots';
 import Dropdown from '../common/PortalDropdown';
@@ -29,7 +29,7 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = 
   const [interval, setInterval] = useState(360);
   const [submitting, setSubmitting] = useState(false);
 
-  // 축제 봇 상세 조회 (수정 모드)
+  // 일정 수집 봇 상세 조회 (수정 모드)
   const { data: bot, isLoading: botLoading, isError: botError, refetch: retryBot } = useQuery({
     queryKey: ['admin', 'festival-bot', botId],
     queryFn: () => getFestivalBot(botId),
@@ -107,7 +107,7 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = 
             animate={{ scale: 1, opacity: 1 }}
             exit={mobile ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
             ref={mobileRef}
-            role="dialog" aria-modal="true" aria-label={isEdit ? '축제 봇 수정' : '축제 봇 추가'} tabIndex={-1}
+            role="dialog" aria-modal="true" aria-label={isEdit ? '일정 수집 봇 수정' : '일정 수집 봇 추가'} tabIndex={-1}
             className={`mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden border border-ink bg-white ${mobile ? 'mobile-bot-editor' : ''}`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -115,10 +115,10 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = 
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center bg-[#FBF6E4]">
-                  <PartyPopper size={19} className="text-[#8A6D1B]" />
+                  <CalendarDays size={19} className="text-[#8A6D1B]" />
                 </div>
                 <h2 className="text-[17.5px] font-extrabold tracking-[-0.3px] text-ink">
-                  {isEdit ? '축제 봇 수정' : '축제 봇 추가'}
+                  {isEdit ? '일정 수집 봇 수정' : '일정 수집 봇 추가'}
                 </h2>
               </div>
               <button
@@ -149,7 +149,7 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = 
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="대학 축제 봇"
+                    placeholder="DC 일정 수집 봇"
                     className="w-full border border-hairline bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-ink placeholder-faint outline-none transition-colors focus:border-ink"
                   />
                 </div>
@@ -163,11 +163,11 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = 
                     type="url"
                     value={searchUrl}
                     onChange={(e) => setSearchUrl(e.target.value)}
-                    placeholder="https://memogipost.tistory.com/search/프로미스나인"
+                    placeholder="https://m.dcinside.com/board/fromis9?..."
                     className="w-full border border-hairline bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-ink placeholder-faint outline-none transition-colors focus:border-ink"
                   />
                   <p className="mt-1.5 text-[12.5px] text-mute">
-                    축제 정보를 수집할 검색 페이지 URL을 입력하세요
+                    일정 게시글을 찾을 DC 갤러리 검색 URL을 입력하세요
                   </p>
                 </div>
 

@@ -25,7 +25,7 @@ import { formatIntervalMinutes } from '@/utils';
 const SECTIONS = {
   youtube: { title: 'YOUTUBE', canAdd: true },
   x: { title: 'X', canAdd: true },
-  festival: { title: 'FESTIVAL', canAdd: true },
+  festival: { title: 'SCHEDULE', canAdd: true },
   meilisearch: { title: 'MEILISEARCH' },
 };
 
@@ -39,7 +39,7 @@ function ScheduleBots() {
   const [quotaWarning, setQuotaWarning] = useState(null); // 할당량 경고 상태
   const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(false); // YouTube 봇 다이얼로그
   const [xDialogOpen, setXDialogOpen] = useState(false); // X 봇 다이얼로그
-  const [festivalDialogOpen, setFestivalDialogOpen] = useState(false); // 축제 봇 다이얼로그
+  const [festivalDialogOpen, setFestivalDialogOpen] = useState(false); // Schedule collection bot dialog
   const [editingBotId, setEditingBotId] = useState(null); // 수정 중인 봇 DB ID
   const [editingBotType, setEditingBotType] = useState(null); // 수정 중인 봇 타입
   const [deletingBot, setDeletingBot] = useState(null); // 삭제할 봇

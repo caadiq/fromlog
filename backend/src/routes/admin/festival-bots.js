@@ -3,7 +3,7 @@ import { badRequest, notFound } from '../../utils/error.js';
 import { logActivity } from '../../utils/log.js';
 
 /**
- * 축제 봇 응답 스키마
+ * 일정 수집 봇 응답 스키마
  */
 const festivalBotResponse = {
   type: 'object',
@@ -19,7 +19,7 @@ const festivalBotResponse = {
 const festivalBotIdParam = {
   type: 'object',
   properties: {
-    id: { type: 'integer', description: '축제 봇 DB ID' },
+    id: { type: 'integer', description: '일정 수집 봇 DB ID' },
   },
   required: ['id'],
 };
@@ -38,19 +38,19 @@ function formatBotResponse(row) {
 }
 
 /**
- * 축제 봇 관리 라우트
+ * 일정 수집 봇 관리 라우트
  */
 export default async function festivalBotsRoutes(fastify) {
   const { db, scheduler } = fastify;
 
   /**
    * GET /api/admin/festival-bots
-   * 축제 봇 목록 조회
+   * 일정 수집 봇 목록 조회
    */
   fastify.get('/', {
     schema: {
       tags: ['admin/festival-bots'],
-      summary: '축제 봇 목록 조회',
+      summary: '일정 수집 봇 목록 조회',
       security: [{ bearerAuth: [] }],
       response: { 200: { type: 'array', items: festivalBotResponse } },
     },
@@ -62,12 +62,12 @@ export default async function festivalBotsRoutes(fastify) {
 
   /**
    * GET /api/admin/festival-bots/:id
-   * 축제 봇 상세 조회
+   * 일정 수집 봇 상세 조회
    */
   fastify.get('/:id', {
     schema: {
       tags: ['admin/festival-bots'],
-      summary: '축제 봇 상세 조회',
+      summary: '일정 수집 봇 상세 조회',
       security: [{ bearerAuth: [] }],
       params: festivalBotIdParam,
       response: { 200: festivalBotResponse, 404: errorResponse },
@@ -77,19 +77,19 @@ export default async function festivalBotsRoutes(fastify) {
     const { id } = request.params;
     const [rows] = await db.query('SELECT * FROM bot_festival WHERE id = ?', [id]);
     if (rows.length === 0) {
-      return notFound(reply, '축제 봇을 찾을 수 없습니다.');
+      return notFound(reply, '일정 수집 봇을 찾을 수 없습니다.');
     }
     return formatBotResponse(rows[0]);
   });
 
   /**
    * POST /api/admin/festival-bots
-   * 축제 봇 추가
+   * 일정 수집 봇 추가
    */
   fastify.post('/', {
     schema: {
       tags: ['admin/festival-bots'],
-      summary: '축제 봇 추가',
+      summary: '일정 수집 봇 추가',
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
@@ -130,7 +130,7 @@ export default async function festivalBotsRoutes(fastify) {
     logActivity(db, {
       actor: 'admin', action: 'create', category: 'bot',
       targetType: 'festival_bot', targetId: result.insertId,
-      summary: `축제 봇 생성: ${name.trim()}`,
+      summary: `일정 수집 봇 생성: ${name.trim()}`,
     });
     reply.code(201);
     return formatBotResponse(newBot[0]);
@@ -138,12 +138,12 @@ export default async function festivalBotsRoutes(fastify) {
 
   /**
    * PUT /api/admin/festival-bots/:id
-   * 축제 봇 수정
+   * 일정 수집 봇 수정
    */
   fastify.put('/:id', {
     schema: {
       tags: ['admin/festival-bots'],
-      summary: '축제 봇 수정',
+      summary: '일정 수집 봇 수정',
       security: [{ bearerAuth: [] }],
       params: festivalBotIdParam,
       body: {
@@ -164,7 +164,7 @@ export default async function festivalBotsRoutes(fastify) {
 
     const [existing] = await db.query('SELECT * FROM bot_festival WHERE id = ?', [id]);
     if (existing.length === 0) {
-      return notFound(reply, '축제 봇을 찾을 수 없습니다.');
+      return notFound(reply, '일정 수집 봇을 찾을 수 없습니다.');
     }
 
     const fields = [];
@@ -211,19 +211,19 @@ export default async function festivalBotsRoutes(fastify) {
     logActivity(db, {
       actor: 'admin', action: 'update', category: 'bot',
       targetType: 'festival_bot', targetId: parseInt(id),
-      summary: `축제 봇 수정: ${existing[0].name}`,
+      summary: `일정 수집 봇 수정: ${existing[0].name}`,
     });
     return formatBotResponse(updated[0]);
   });
 
   /**
    * DELETE /api/admin/festival-bots/:id
-   * 축제 봇 삭제
+   * 일정 수집 봇 삭제
    */
   fastify.delete('/:id', {
     schema: {
       tags: ['admin/festival-bots'],
-      summary: '축제 봇 삭제',
+      summary: '일정 수집 봇 삭제',
       security: [{ bearerAuth: [] }],
       params: festivalBotIdParam,
       response: {
@@ -237,7 +237,7 @@ export default async function festivalBotsRoutes(fastify) {
 
     const [existing] = await db.query('SELECT * FROM bot_festival WHERE id = ?', [id]);
     if (existing.length === 0) {
-      return notFound(reply, '축제 봇을 찾을 수 없습니다.');
+      return notFound(reply, '일정 수집 봇을 찾을 수 없습니다.');
     }
 
     const botId = `festival-${id}`;
@@ -253,7 +253,7 @@ export default async function festivalBotsRoutes(fastify) {
     logActivity(db, {
       actor: 'admin', action: 'delete', category: 'bot',
       targetType: 'festival_bot', targetId: parseInt(id),
-      summary: `축제 봇 삭제: ${existing[0].name}`,
+      summary: `일정 수집 봇 삭제: ${existing[0].name}`,
     });
     return { success: true };
   });

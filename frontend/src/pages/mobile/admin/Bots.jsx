@@ -15,7 +15,7 @@ import { WEEKDAYS } from '@/constants';
 import MobileAdminLayout from './Layout';
 import useReviewViewport from './useReviewViewport';
 
-const types = [['youtube', 'YouTube'], ['x', 'X'], ['festival', '축제'], ['meilisearch', '검색 동기화']];
+const types = [['youtube', 'YouTube'], ['x', 'X'], ['festival', '일정 수집'], ['meilisearch', '검색 동기화']];
 const statuses = [['running', '실행중'], ['stopped', '정지됨'], ['error', '오류']];
 const statusStyle = { running: 'bg-green-soft text-green-deep', stopped: 'bg-[#F3F4F3] text-esub', error: 'bg-[#F9E9E7] text-[#A93226]' };
 const button = 'min-h-11 border border-hairline px-3 text-sm font-bold';
