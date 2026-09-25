@@ -18,6 +18,7 @@ export function buildYouTubeBotPayload(s) {
   return {
     channel_handle: s.handle || null,
     channel_name: s.channelName,
+    ...(s.bannerUrl !== undefined ? { banner_url: s.bannerUrl } : {}),
     cron_interval: s.pollingMode === 'interval' ? s.interval : null,
     title_filters: s.titleFilters.length > 0 ? s.titleFilters : null,
     description_filters: s.descriptionFilters || [],

@@ -281,6 +281,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
       const data = buildYouTubeBotPayload({
         handle,
         channelName: channelInfo.title,
+        bannerUrl: channelInfo.bannerUrl,
         pollingMode,
         interval,
         titleFilters: finalTitleFilters,
