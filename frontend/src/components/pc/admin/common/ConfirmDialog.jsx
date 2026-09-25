@@ -15,7 +15,7 @@
  * - variant: 버튼 색상 (기본: "danger", "primary" 가능)
  */
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useDialogBackClose } from '@/hooks/common';
 
 function ConfirmDialog({
@@ -30,6 +30,8 @@ function ConfirmDialog({
   loadingText = '삭제 중...',
   variant = 'danger',
 }) {
+  const reduced = useReducedMotion();
+
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
   useDialogBackClose(isOpen, onClose);
 
@@ -45,13 +47,15 @@ function ConfirmDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: reduced ? 0 : 0.18 }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={() => !loading && onClose()}
         >
           <motion.div
-            initial={{ scale: 0.96, opacity: 0 }}
+            initial={{ scale: reduced ? 1 : 0.96, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.96, opacity: 0 }}
+            exit={{ scale: reduced ? 1 : 0.96, opacity: 0 }}
+            transition={{ duration: reduced ? 0 : 0.18, ease: 'easeOut' }}
             className="mx-4 w-full max-w-sm border border-ink bg-white p-7"
             onClick={(e) => e.stopPropagation()}
           >

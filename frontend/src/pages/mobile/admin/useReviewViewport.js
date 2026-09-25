@@ -65,7 +65,7 @@ export default function useReviewViewport(dialogRef, open) {
       viewport?.removeEventListener('resize', resize);
       viewport?.removeEventListener('scroll', resize);
       window.removeEventListener('resize', resize);
-      dialog.style.removeProperty('--review-height'); dialog.style.removeProperty('--review-top');
+      // Preserve the last viewport bounds while the dialog slides out.
       panelRef.current = null;
     };
   }, [open, dialogRef, schedule]);

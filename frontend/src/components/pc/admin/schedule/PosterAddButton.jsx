@@ -1,3 +1,4 @@
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ImagePlus, X } from 'lucide-react';
@@ -24,6 +25,8 @@ function readFile(file) {
 
 export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose }) {
   const dialogRef = useRef(null);
+  const present = useIsPresent();
+  const reduced = useReducedMotion();
   const fileRef = useRef(null);
   const requestRef = useRef(null);
   const aliveRef = useRef(true);
@@ -104,7 +107,9 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
   };
 
   return createPortal(
-    <dialog ref={dialogRef} aria-labelledby="poster-dialog-title"
+    <motion.dialog ref={dialogRef} data-admin-popover={present ? 'open' : 'closing'} inert={present ? undefined : ''}
+      initial={{ opacity: 0, scale: reduced ? 1 : 0.98 }} animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: reduced ? 1 : 0.98 }} transition={{ duration: reduced ? 0 : 0.18 }} aria-labelledby="poster-dialog-title"
       onCancel={(event) => { event.preventDefault(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
       className="m-auto w-[calc(100%_-_32px)] max-w-lg overflow-visible border border-ink bg-white p-0 text-ink backdrop:bg-black/50">
@@ -163,7 +168,7 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
           </button>
         </footer>
       </div>
-    </dialog>, document.body,
+    </motion.dialog>, document.body,
   );
 }
 
@@ -173,6 +178,6 @@ export default function PosterAddButton({ sourceUrls = [], onAdd, maxCount = 20,
   useDialogBackClose(open, () => setOpen(false));
   return <>
     <button type="button" aria-label="포스터 추가" disabled={disabled} onClick={() => setOpen(true)} className={className}>{children}</button>
-    {open && <PosterAddDialog initialUrl={instagramUrl(sourceUrls)} maxCount={maxCount} onAdd={onAdd} onClose={() => setOpen(false)} />}
+    <AnimatePresence>{open && <PosterAddDialog initialUrl={instagramUrl(sourceUrls)} maxCount={maxCount} onAdd={onAdd} onClose={() => setOpen(false)} />}</AnimatePresence>
   </>;
 }

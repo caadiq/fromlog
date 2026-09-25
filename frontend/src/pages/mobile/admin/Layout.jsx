@@ -30,6 +30,7 @@ export default function MobileAdminLayout({ children, headerContent, flush = fal
   const drawer = useRef(null);
   const menuButton = useRef(null);
   const closingMenu = useRef(false);
+  const afterMenuClose = useRef(null);
   const enabled = Boolean(token && !auth.isLoading && !auth.isError);
   const pending = useQuery({ queryKey: ['admin', 'mobile', 'pending-count'], queryFn: getPendingCount, enabled });
   const count = pending.isSuccess ? pending.data.count : null;
@@ -41,6 +42,9 @@ export default function MobileAdminLayout({ children, headerContent, flush = fal
     closingMenu.current = false;
     drawer.current?.close();
     menuButton.current?.focus();
+    const next = afterMenuClose.current;
+    afterMenuClose.current = null;
+    next?.();
   };
   const closeMenu = () => {
     if (!drawer.current?.open || closingMenu.current) return;
@@ -53,6 +57,13 @@ export default function MobileAdminLayout({ children, headerContent, flush = fal
     closingMenu.current = false;
     setMenuOpen(true);
     drawer.current.showModal();
+  };
+  const navigateFromMenu = (event, to) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    if (closingMenu.current) return;
+    afterMenuClose.current = () => navigate(to);
+    closeMenu();
   };
   useDialogBackClose(menuOpen, closeMenu);
   const signOut = () => {
@@ -87,10 +98,10 @@ export default function MobileAdminLayout({ children, headerContent, flush = fal
           <div className="flex items-center justify-between"><h2 id="admin-menu-title" className="text-xl font-extrabold">관리 메뉴</h2><button onClick={closeMenu} aria-label="관리 메뉴 닫기" className={`flex h-11 w-11 items-center justify-center ${focus}`}><X size={23} /></button></div>
           <p className="mt-2 break-words text-sm text-mute">{auth.user?.username || '관리자'} 님</p>
           <nav aria-label="관리자" className="mt-6 space-y-1">
-            <Link to="/admin/dashboard" onClick={closeMenu} aria-current={location.pathname === '/admin/dashboard' ? 'page' : undefined} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-bold ${location.pathname === '/admin/dashboard' ? 'bg-ink text-white' : 'hover:bg-white'} ${focus}`}><HomeIcon size={19} />홈</Link>
-            {links.map(([label, to, Icon]) => <Link key={to} to={to} onClick={closeMenu} aria-current={location.pathname === to ? 'page' : undefined} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-semibold ${location.pathname === to ? 'bg-ink text-white' : 'hover:bg-white'} ${focus}`}><Icon size={19} />{label}{label === '수집 큐' && count > 0 && <span className="ml-auto bg-ink px-2 py-0.5 text-xs text-white">{count}</span>}</Link>)}
+            <Link to="/admin/dashboard" onClick={event => navigateFromMenu(event, '/admin/dashboard')} aria-current={location.pathname === '/admin/dashboard' ? 'page' : undefined} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-bold ${location.pathname === '/admin/dashboard' ? 'bg-ink text-white' : 'hover:bg-white'} ${focus}`}><HomeIcon size={19} />홈</Link>
+            {links.map(([label, to, Icon]) => <Link key={to} to={to} onClick={event => navigateFromMenu(event, to)} aria-current={location.pathname === to ? 'page' : undefined} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-semibold ${location.pathname === to ? 'bg-ink text-white' : 'hover:bg-white'} ${focus}`}><Icon size={19} />{label}{label === '수집 큐' && count > 0 && <span className="ml-auto bg-ink px-2 py-0.5 text-xs text-white">{count}</span>}</Link>)}
           </nav>
-          <div className="mt-auto border-t border-hairline pt-5"><Link to="/" onClick={closeMenu} className={`flex min-h-12 items-center gap-3 px-3 text-sm ${focus}`}><ArrowUpRight size={19} />사이트로 이동</Link><button onClick={signOut} className={`flex min-h-12 w-full items-center gap-3 px-3 text-sm ${focus}`}><LogOut size={19} />로그아웃</button></div>
+          <div className="mt-auto border-t border-hairline pt-5"><Link to="/" onClick={event => navigateFromMenu(event, '/')} className={`flex min-h-12 items-center gap-3 px-3 text-sm ${focus}`}><ArrowUpRight size={19} />사이트로 이동</Link><button onClick={signOut} className={`flex min-h-12 w-full items-center gap-3 px-3 text-sm ${focus}`}><LogOut size={19} />로그아웃</button></div>
         </div>
         </div>
       </dialog>

@@ -109,3 +109,17 @@ html.mobile-admin-layout body {
   bottom: calc(20px + env(safe-area-inset-bottom));
   box-shadow: 0 8px 24px rgb(0 0 0 / 28%), 0 3px 8px rgb(0 0 0 / 18%);
 }
+
+/* Full-screen forms slide over the page without a second backdrop fade. */
+.mobile-queue-review[data-admin-dialog-state]::backdrop { background: transparent; }
+.mobile-queue-review[data-admin-dialog-state='closing'] { pointer-events: none; }
+
+html.mobile-admin-layout [data-admin-popover='open']::backdrop {
+  animation: admin-backdrop-enter 180ms ease-out both;
+}
+html.mobile-admin-layout [data-admin-popover='closing']::backdrop {
+  animation: admin-backdrop-exit 180ms ease-in both;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mobile-admin-layout [data-admin-popover]::backdrop { animation: none; }
+}

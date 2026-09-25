@@ -1,3 +1,4 @@
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Instagram, X } from 'lucide-react';
@@ -13,6 +14,8 @@ function findInstagramUrl(urls) {
 
 function TitleDialog({ initialUrl, onApply, onClose }) {
   const dialog = useRef(null);
+  const present = useIsPresent();
+  const reduced = useReducedMotion();
   const request = useRef(null);
   const alive = useRef(true);
   const busy = useRef(false);
@@ -60,8 +63,11 @@ function TitleDialog({ initialUrl, onApply, onClose }) {
     if (title.length > 500) { setError('제목을 500자 이내로 정리해주세요.'); return; }
     onApply(title); onClose();
   };
-  return createPortal(<dialog ref={dialog} aria-labelledby="instagram-title-heading" onCancel={event => { event.preventDefault(); onClose(); }}
+  return createPortal(<motion.dialog ref={dialog} data-admin-popover={present ? 'open' : 'closing'} inert={present ? undefined : ''}
+      initial={{ opacity: 0, scale: reduced ? 1 : 0.98 }} animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: reduced ? 1 : 0.98 }} transition={{ duration: reduced ? 0 : 0.18 }} aria-labelledby="instagram-title-heading" onCancel={event => { event.preventDefault(); onClose(); }}
     className="fixed bottom-auto left-0 right-0 m-0 mx-auto flex-col overflow-hidden border border-ink bg-white p-0 text-ink backdrop:bg-black/50 open:flex"
+    transformTemplate={(_, transform) => `translateY(-50%) ${transform}`}
     style={{ width: 'min(560px, calc(100vw - 32px))', transform: 'translateY(-50%)' }}>
     <header className="flex shrink-0 items-center justify-between border-b border-hairline px-5 py-3">
       <h2 id="instagram-title-heading" className="break-keep text-[18px] font-extrabold leading-snug">인스타그램에서 제목 가져오기</h2>
@@ -79,7 +85,7 @@ function TitleDialog({ initialUrl, onApply, onClose }) {
       <button type="button" onClick={onClose} className="min-h-11 border border-hairline px-5 text-sm font-bold">취소</button>
       <button type="button" disabled={loading || (!draft.trim() && !url.trim())} onClick={draft.trim() ? apply : load} className="min-h-11 bg-ink px-5 text-sm font-bold text-white disabled:opacity-40">{loading ? '가져오는 중...' : draft.trim() ? '입력하기' : '가져오기'}</button>
     </footer>
-  </dialog>, document.body);
+  </motion.dialog>, document.body);
 }
 
 export default function InstagramTitleButton({ sourceUrls = [], onApply, disabled = false, iconOnly = false }) {
@@ -87,6 +93,6 @@ export default function InstagramTitleButton({ sourceUrls = [], onApply, disable
   useDialogBackClose(open, () => setOpen(false));
   return <>
     <button type="button" aria-label="인스타에서 가져오기" title="인스타에서 가져오기" disabled={disabled} onClick={() => setOpen(true)} className={`flex shrink-0 items-center justify-center border border-hairline bg-white text-[13px] font-semibold tracking-normal text-esub transition-colors hover:border-ink disabled:opacity-40 ${iconOnly ? 'h-[50px] w-[50px]' : 'min-h-10 gap-1.5 px-2.5'}`}><Instagram size={iconOnly ? 21 : 15} />{!iconOnly && '인스타에서 가져오기'}</button>
-    {open && <TitleDialog initialUrl={findInstagramUrl(sourceUrls)} onApply={onApply} onClose={() => setOpen(false)} />}
+    <AnimatePresence>{open && <TitleDialog initialUrl={findInstagramUrl(sourceUrls)} onApply={onApply} onClose={() => setOpen(false)} />}</AnimatePresence>
   </>;
 }

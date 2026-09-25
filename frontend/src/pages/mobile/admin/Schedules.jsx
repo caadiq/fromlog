@@ -188,7 +188,7 @@ export default function MobileAdminSchedules() {
     </motion.div>
     </div>
     <Link to="/admin/schedule/new" state={{ initialDate: selectedDate }} aria-label="일정 추가" className="mobile-schedule-add flex h-14 w-14 items-center justify-center rounded-full bg-ink text-white transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"><Plus size={27} aria-hidden="true" /></Link>
-    {editTarget && <ScheduleEdit key={editTarget.id} item={editTarget} onBusyChange={value => { editBusy.current = value; }} onClose={() => setEditTarget(null)} onSuccess={({ date, monthOnly }) => { setEditTarget(null); if (date && (!monthOnly || date.slice(0, 7) !== month)) chooseDate(date); showSuccess('일정이 수정되었습니다.'); }} />}
+    <AnimatePresence>{editTarget && <ScheduleEdit key={editTarget.id} item={editTarget} onBusyChange={value => { editBusy.current = value; }} onClose={() => setEditTarget(null)} onSuccess={({ date, monthOnly }) => { setEditTarget(null); if (date && (!monthOnly || date.slice(0, 7) !== month)) chooseDate(date); showSuccess('일정이 수정되었습니다.'); }} />}</AnimatePresence>
     <ConfirmDialog isOpen={Boolean(target)} onClose={closeDelete} onConfirm={confirmDelete} title="이 일정을 삭제할까요?" confirmText="삭제하기" loading={deleting} message={<><p className="break-words font-semibold text-ink">{target ? decodeHtmlEntities(target.title) : ''}</p><p className="mt-2">삭제한 일정은 복구할 수 없습니다.</p>{error && <p role="alert" className="mt-3 break-words text-[#A93226]">{error}</p>}</>} />
   </MobileAdminLayout>;
 }

@@ -1,3 +1,5 @@
+import AnimatedDialog from './AnimatedDialog';
+import { usePresence } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ImagePlus, MapPin } from 'lucide-react';
@@ -41,6 +43,13 @@ const validUrl = value => {
 // Mount a fresh editor for each selection; ignore late reads after closing it.
 export default function ScheduleEdit({ item, creating = false, initialDate, onClose, onSuccess, onBusyChange }) {
   const dialog = useRef(null);
+  const [visible, setVisible] = useState(true);
+  const [present, safeToRemove] = usePresence();
+  const afterExit = useRef(null);
+  const finish = callback => {
+    if (!creating) { callback(); return; }
+    afterExit.current = callback; setVisible(false);
+  };
   const busy = useRef(false);
   const [newCategory, setNewCategory] = useState(null);
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: getCategories, enabled: creating, staleTime: 10 * 60 * 1000 });
@@ -73,8 +82,7 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
   const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const close = () => { if (!busy.current) onClose(); };
-  useEffect(() => { dialog.current.showModal(); }, []);
+  const close = () => { if (!busy.current) finish(onClose); };
   useEffect(() => {
     let alive = true;
     setLoading(true); setLoadError('');
@@ -167,12 +175,12 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
       client.invalidateQueries({ queryKey: ['admin', 'mobile'] });
       client.invalidateQueries({ queryKey: ['admin', 'logs'] });
       if (category === '예능') client.invalidateQueries({ queryKey: ['broadcasters'] });
-      onSuccess({ date: form.date, monthOnly });
+      finish(() => onSuccess({ date: form.date, monthOnly }));
     } catch (err) { setError(err.message || '저장하지 못했습니다. 다시 시도해주세요.'); }
     finally { busy.current = false; setSaving(false); onBusyChange(false); }
   };
 
-  return createPortal(<dialog ref={dialog} aria-labelledby="schedule-edit-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (locationOpen) setLocationOpen(false); else close(); }}>
+  return createPortal(<AnimatedDialog open={present && visible} onExitComplete={() => { if (!present) safeToRemove?.(); else afterExit.current?.(); }} ref={dialog} aria-labelledby="schedule-edit-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (locationOpen) setLocationOpen(false); else close(); }}>
     <div className="flex h-full flex-col bg-white text-ink">
       <header className="flex shrink-0 items-center justify-between border-b border-hairline px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
         <span aria-hidden="true" className="w-12 shrink-0" />
@@ -220,5 +228,5 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
       </footer>
       <LocationSearchDialog isOpen={locationOpen} onClose={() => setLocationOpen(false)} onSelect={venue => update('venue', venue)} />
     </div>
-  </dialog>, document.body);
+  </AnimatedDialog>, document.body);
 }

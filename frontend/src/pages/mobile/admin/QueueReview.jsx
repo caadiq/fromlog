@@ -1,3 +1,4 @@
+import AnimatedDialog from './AnimatedDialog';
 import { useEffect, useRef, useState } from 'react';
 import useReviewViewport from './useReviewViewport';
 import { createPortal } from 'react-dom';
@@ -31,10 +32,9 @@ export default function QueueReview({ item, onClose, onSuccess, onFailure, onBus
   const [error, setError] = useState('');
   useDialogBackClose(Boolean(item), onClose);
   useEffect(() => {
-    if (!item) { dialog.current?.close(); return; }
+    if (!item) return;
     setForm({ ...item, title: item.title || '', date: item.date || '', time: item.time || '', description: item.description || '', schoolName: schoolName(item.title), subtype: schoolName(item.title) ? 'university' : 'general', broadcaster: '', venue: item.venueName ? { name: item.venueName } : null });
     setPosters([]); setLinks([]); setUrl(''); setError(''); setLocationOpen(false);
-    dialog.current?.showModal();
     dialog.current?.querySelector('[data-review-scroll]')?.scrollTo(0, 0);
   }, [item?.id]);
   const update = (field, value) => setForm(previous => ({ ...previous, [field]: value }));
@@ -84,7 +84,7 @@ export default function QueueReview({ item, onClose, onSuccess, onFailure, onBus
     } finally { busy.current = false; setSaving(false); onBusyChange(false); }
   };
 
-  return createPortal(<dialog ref={dialog} aria-labelledby="queue-review-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (!locationOpen) onClose(); else setLocationOpen(false); }}>
+  return createPortal(<AnimatedDialog open={Boolean(item)} ref={dialog} aria-labelledby="queue-review-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (!locationOpen) onClose(); else setLocationOpen(false); }}>
     <div className="flex h-full flex-col bg-white text-ink">
       <header className="flex shrink-0 items-center justify-between border-b border-hairline px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
         <span aria-hidden="true" className="w-12 shrink-0" />
@@ -124,5 +124,5 @@ export default function QueueReview({ item, onClose, onSuccess, onFailure, onBus
       </footer>
       <LocationSearchDialog isOpen={locationOpen} onClose={() => setLocationOpen(false)} onSelect={venue => update('venue', venue)} />
     </div>
-  </dialog>, document.body);
+  </AnimatedDialog>, document.body);
 }
