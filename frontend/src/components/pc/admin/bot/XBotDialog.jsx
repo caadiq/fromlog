@@ -5,7 +5,7 @@ import useMobileBotDialog from './useMobileBotDialog';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Search, X, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { getXBot, createXBot, updateXBot, lookupXProfile } from '@/api/admin/bots';
 import { XIcon } from './BotCard';
@@ -22,6 +22,7 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
   const [formError, setFormError] = useState('');
 
   const queryClient = useQueryClient();
+  const reducedMotion = useReducedMotion();
   const isEdit = !!botId;
   const [loadedBotId, setLoadedBotId] = useState(undefined);
 
@@ -152,13 +153,13 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
           animate={{ opacity: 1 }}
           exit={mobile ? { opacity: 1 } : { opacity: 0 }}
           transition={mobile ? { duration: 0 } : undefined}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className={`fixed inset-0 z-50 flex items-center justify-center ${mobile ? 'bg-white' : 'bg-black/50'}`}
         >
           <motion.div
-            initial={mobile ? false : { scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={mobile ? { opacity: 1 } : { scale: 0.95, opacity: 0 }}
-            transition={mobile ? { duration: 0 } : undefined}
+            initial={mobile ? { y: reducedMotion ? 0 : 28 } : { scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={mobile ? { y: reducedMotion ? 0 : 28 } : { scale: 0.95, opacity: 0 }}
+            transition={mobile ? { duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] } : undefined}
             ref={mobileRef}
             role="dialog" aria-modal="true" aria-label={isEdit ? 'X 봇 수정' : 'X 봇 추가'} tabIndex={-1}
             className={`mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden border border-ink bg-white ${mobile ? 'mobile-bot-editor' : ''}`}
