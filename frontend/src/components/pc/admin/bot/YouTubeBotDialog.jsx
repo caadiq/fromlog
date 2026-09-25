@@ -45,6 +45,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
   // 폼 상태
   const [handle, setHandle] = useState('');
   const [channelInfo, setChannelInfo] = useState(null);
+  const [loadedBotId, setLoadedBotId] = useState(undefined);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [pollingMode, setPollingMode] = useState('interval'); // 'interval' | 'weekly'
   const [interval, setInterval] = useState(2);
@@ -142,17 +143,21 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
     }
   };
 
-  const { data: bot, isLoading: botLoading } = useQuery({
+  const { data: bot, isLoading: botLoading, isError: botError, refetch: retryBot } = useQuery({
     queryKey: ['admin', 'youtube-bot', botId],
     queryFn: () => getYouTubeBot(botId),
     enabled: isOpen && !!botId,
     staleTime: 0, // 항상 fresh 데이터 가져오기
   });
 
+  const formReady = loadedBotId === botId && (!isEdit || Boolean(bot)) && !botError;
+
   // 다이얼로그 열릴 때 데이터 설정 (수정/추가 모드)
   useEffect(() => {
     if (!isOpen) {
-      return; // 닫혀있으면 아무것도 안 함
+      setLoadedBotId(undefined);
+      setChannelInfo(null);
+      return;
     }
 
     if (bot) {
@@ -218,6 +223,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
       } else {
         setShowAdvanced(false);
       }
+      setLoadedBotId(botId);
     } else if (!botId) {
       // 추가 모드: 초기값으로 리셋
       setHandle('');
@@ -243,6 +249,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
       setVideoCategory('variety');
       setAddToSchedule(true);
     }
+    if (!botId) setLoadedBotId(botId);
   }, [isOpen, bot, botId]);
 
   // 채널 조회
@@ -268,7 +275,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
   // 제출
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!channelInfo) return;
+    if (!channelInfo || !formReady || submitting) return;
 
     setSubmitting(true);
     try {
@@ -361,7 +368,9 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
             </div>
 
             {/* 본문 */}
-            {botLoading ? (
+            {botError ? (
+              <div role="alert" className="flex-1 p-12 text-sm text-[#A93226]">채널 정보를 불러오지 못했습니다.<button type="button" onClick={() => retryBot()} className="mt-3 block border border-hairline px-4 py-2 text-ink">다시 시도</button></div>
+            ) : botLoading || !formReady ? (
               <div className="flex-1 flex items-center justify-center p-12">
                 <Loader2 size={30} className="animate-spin text-ink" />
               </div>
@@ -406,6 +415,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
                     {channelInfo.bannerUrl && (
                       <div className="h-20 overflow-hidden">
                         <img
+                          key={channelInfo.bannerUrl}
                           src={channelInfo.bannerUrl}
                           alt="채널 배너"
                           className="w-full h-full object-cover"
@@ -866,7 +876,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
               <button
                 type="submit"
                 onClick={handleSubmit}
-                disabled={!channelInfo || submitting || botLoading}
+                disabled={!channelInfo || submitting || botLoading || !formReady}
                 className="flex items-center gap-2 bg-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting && <Loader2 size={16} className="animate-spin" />}

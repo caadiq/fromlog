@@ -1032,3 +1032,4 @@ invalidateSchedules(queryClient);
 - 실제 13개 봇 조사 결과 스프만 저장 배너가 있었다. YouTube channels API 일괄 조회로 확인된 누락 11건의 `banner_url`만 보완, 기존 배너/다른 설정은 유지. 변경 전후 자료는 백엔드 컨테이너 `/tmp/fromlog-bot-banners-audit.json`(권한 600), 활동 로그에 보완 ID 기록.
 - fromis_9 공식 채널은 API에서 채널은 조회되지만 `brandingSettings.image.bannerExternalUrl`이 없어 보완하지 않았다.
 - 검증: 저장된 12개 배너 HEAD 모두 HTTP 200, 공용 payload의 URL/null/필드 생략 동작, 프런트 빌드 확인. DB 배너 보완은 공유 API에 즉시 반영되며 저장 폼 수정은 개발 프런트에 반영.
+- YouTube 봇 수정창 전환 시 이전 채널 폼/배너가 잠깐 표시되는 문제 수정: 초기화 완료한 봇 ID가 현재 대상과 일치할 때만 폼 표시·저장 허용. 닫으면 채널 정보와 초기화 상태를 비우고, 조회 실패 시 재시도 표시. 배너 이미지도 URL별 키로 구분한다. 500ms 지연 모의 응답으로 채널1→채널2 전환의 렌더 프레임에 이전 배너가 없는지 및 캐시 재진입·빌드 확인.
