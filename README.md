@@ -1,6 +1,6 @@
 # 🌸 프롬로그 (fromlog) — fromis_9 팬 아카이브
 
-프로미스나인(fromis_9) 팬사이트입니다. PC/모바일 분기, 멤버·디스코그래피·일정·영상 아카이브, YouTube/X 자동 수집 봇, 검색, Flutter 앱(푸시 알림)까지 포함한 풀스택 서비스입니다.
+프로미스나인(fromis_9) 팬사이트입니다. PC/모바일 분기, 멤버·디스코그래피·일정·영상 아카이브, YouTube/X·커뮤니티 일정 수집 봇, 모바일 관리자, 검색, Flutter 앱(푸시 알림)까지 포함한 풀스택 서비스입니다.
 
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
 ![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite)
@@ -27,8 +27,10 @@
 - 🔎 **검색** - Meilisearch 기반 일정 검색 + 초성/형태소 추천 검색어
 - 🤖 **자동 수집 봇** - YouTube / X(Twitter) 일정 자동 동기화 + 커뮤니티 글을 LLM으로 정형화하는 일정 수집 봇
 - 📥 **수집 큐** - 봇이 찾은 신규 일정을 자동 등록 대신 검토 큐에 쌓고, 관리자 푸시 → 확인 후 등록
-- 🛠️ **관리자 페이지** - 멤버·앨범·일정·봇·수집 큐 관리, 활동 로그 조회
-- 📱 **PC / 모바일 분기** - 디바이스별 전용 페이지·레이아웃 제공
+- 🛠️ **관리자 페이지** - 멤버·앨범·일정·영상·봇·수집 큐·고정 링크·테마 관리, 활동 로그 조회
+- 📱 **모바일 관리자** - 휴대폰 브라우저에서 큐 검토·일정 등록, 영상·봇 관리까지 지원
+- 🖼️ **인스타그램 가져오기** - 게시글 링크로 포스터를 선택·첨부하고, 본문을 편집해 일정 제목에 반영
+- 📱 **PC / 모바일 분기** - 화면 너비 1100px를 기준으로 전용 페이지·레이아웃 제공
 - 📲 **Flutter 앱** - 웹과 동일한 화면 구성, Otto OTA 자가 업데이트
 - 🔔 **푸시 알림(FCM)** - 봇 정지·세션 만료 등 운영 알림을 원인·조치와 함께 발송
 
@@ -61,8 +63,32 @@ YouTube/X 봇   ──▶ 채널·계정 단위 수집 ──▶ 일정 자동 �
 ```
 
 - 게시글은 글 단위로 처리 이력을 남겨 **같은 글을 다시 분석하지 않습니다**(LLM 호출 절약).
-- 이미 있는 일정과 대조해 중복을 걸러내고, **유튜브 콘텐츠는 전용 봇이 담당**하므로 큐에서 제외합니다.
+- 이미 있는 일정과 대조해 중복을 걸러냅니다. 유튜브 항목은 **일정을 생성하는 전용 봇이 담당하는 시리즈만** 큐에서 제외하고, 비정기·일회성 출연은 검토 대상으로 남깁니다.
 - 날짜가 아직 안 잡힌 일정도 큐에 담아 두고, 다음 수집 때 날짜가 정해지면 **기존 항목을 갱신**합니다.
+
+---
+
+## 📱 모바일 관리자
+
+운영 사이트의 [`/admin`](https://fromlog.caadiq.co.kr/admin)에서 로그인합니다. 앱 설치 없이 모바일 브라우저에서 이용할 수 있으며, 사이드바로 관리 화면을 이동합니다.
+
+| 화면 | 지원 기능 |
+| --- | --- |
+| 홈 | 검토 대기 건수, 전체 일정 수, 빠른 작업, 최근 활동 |
+| 수집 큐 | 검색·등록순/날짜순/이름순 정렬, 무시, 내용 보완 후 일정 등록 |
+| 일정 관리 | 날짜별 캘린더·검색·카테고리 필터, 일정 추가·수정·삭제 |
+| 활동 로그 | 기간·분류·행위자·오류 필터, 상세 기록, 페이지 직접 입력 |
+| 고정 링크 | 추가·수정·삭제, 공개 여부·표시 기간·순서 변경 |
+| 테마 | 앨범 기반 자동 색상, 수동 색상, 재추출 |
+| 영상 관리 | 검색·채널/카테고리/형식 필터, 등록·수정·삭제, 페이지 이동 |
+| 봇 관리 | YouTube·X·일정 수집 봇 추가·수정, 시작/정지·동기화·삭제 |
+
+- **일정 추가:** 유튜브·X·예능·행사·기타를 지원합니다.
+- **일정 수정 및 큐에서 등록:** 유튜브·예능·행사·기타를 지원합니다. 콘서트·팬사인회·티켓팅처럼 복잡한 전용 폼은 PC 관리자에서 처리합니다.
+- **포스터·제목:** 포스터는 파일 첨부 또는 인스타그램 링크에서 선택합니다. 행사 제목 옆 인스타그램 버튼으로 본문을 가져와 원하는 제목으로 편집할 수 있습니다.
+- **모바일 입력:** 전체화면 편집창, 날짜/시간 픽커 자동 스크롤, 키보드 높이 대응, 저장 중 중복 요청·닫기 방지를 적용했습니다.
+
+2026-09-25 운영 반영 완료. 검증 범위와 제한은 [모바일 관리자 점검 기록](docs/mobile-admin-audit-2026-09-25.md)을 참고하세요.
 
 ---
 
@@ -74,7 +100,7 @@ fromlog/
 │   └── src/
 │       ├── api/              # API 클라이언트 (public / admin)
 │       ├── components/       # 공통 / pc / mobile 컴포넌트
-│       ├── pages/            # pc(public·admin) / mobile 페이지
+│       ├── pages/            # pc(public·admin) / mobile(public·admin) 페이지
 │       ├── routes/           # 라우트 정의 (pc·mobile 분기)
 │       ├── hooks/            # 커스텀 훅
 │       ├── stores/           # Zustand 스토어
@@ -121,7 +147,7 @@ fromlog/
 | **framer-motion**          | 애니메이션                 |
 | **@dnd-kit**               | 드래그 앤 드롭             |
 | **Swiper**                 | 슬라이드 / 갤러리          |
-| **react-device-detect**    | PC / 모바일 분기           |
+| **matchMedia**             | 뷰포트 너비 기준 PC / 모바일 분기 |
 
 ### Backend
 
@@ -159,12 +185,11 @@ fromlog/
 ### Docker (권장)
 
 ```bash
-docker compose up -d --build   # 전체 실행 (frontend/dev + frontend-prod + backend + meilisearch + redis)
-docker compose logs -f         # 로그 확인
-docker compose down            # 중지
+docker compose up -d --build fromlog-backend fromlog-frontend meilisearch redis
+docker compose logs -f fromlog-frontend fromlog-backend
 ```
 
-> `frontend`(Vite)와 `backend`(`node --watch`)는 워치 모드로 동작합니다.
+> 개발 프런트는 Vite, 백엔드는 `node --watch`로 수정 사항을 반영합니다. MariaDB·RustFS와 외부 Docker 네트워크 `app`·`db`는 별도로 준비해야 합니다.
 
 **프로덕션 / 개발 병행 서빙**
 
@@ -176,8 +201,10 @@ docker compose down            # 중지
 프론트 수정은 dev 도메인에서 확인한 뒤, 아래 한 줄로 프로덕션에 반영합니다.
 
 ```bash
-docker compose up -d --build fromlog-frontend-prod
+docker compose up -d --build --no-deps fromlog-frontend-prod
 ```
+
+위 운영 프런트 배포 명령은 백엔드가 이미 실행 중인 환경 기준입니다.
 
 ### 앱 (Flutter)
 
@@ -221,6 +248,8 @@ RUSTFS_PUBLIC_URL=...
 # 외부 API
 GOOGLE_API_KEY=...   # YouTube Data API
 GEMINI_API_KEY=...   # 일정 수집 봇(게시글 정형화)
+GOOGLE_OAUTH_CLIENT_ID=...  # 관리자 구글 로그인 (선택)
+ADMIN_GOOGLE_EMAILS=...    # 로그인 허용 구글 계정, 쉼표로 구분
 KAKAO_REST_KEY=...   # 카카오맵 장소 검색
 
 # 푸시 알림 (FCM)
@@ -232,7 +261,13 @@ PUSH_INTERNAL_KEY=...   # 내부 스크립트가 알림 발송 시 사용
 > - `app/android/app/google-services.json` (앱)
 > - `backend/firebase-service-account.json` (서버 발송용)
 
-자세한 내용은 [`docs/`](docs/) 폴더(architecture.md, api.md, development.md, logs.md)를 참고하세요.
+### 관련 문서
+
+- [시스템 구조](docs/architecture.md)
+- [API 명세](docs/api.md)
+- [개발·배포 및 변경 기록](docs/development.md)
+- [활동 로그](docs/logs.md)
+- [모바일 관리자 점검 기록](docs/mobile-admin-audit-2026-09-25.md)
 
 ---
 
