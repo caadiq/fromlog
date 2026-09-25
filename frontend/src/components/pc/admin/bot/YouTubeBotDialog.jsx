@@ -1,3 +1,4 @@
+import useMobileBotDialog from './useMobileBotDialog';
 /**
  * YouTube 봇 추가/수정 다이얼로그
  */
@@ -35,9 +36,11 @@ const AUTO_SCHEDULE_DEFAULTS = {
   deadlineDayOfWeek: 5,
 };
 
-function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
+function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }) {
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
-  useDialogBackClose(isOpen, onClose);
+  useDialogBackClose(isOpen, () => { if (!submitting) onClose(); });
+  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (!submitting) onClose(); });
+  const [formError, setFormError] = useState('');
 
   const queryClient = useQueryClient();
   const isEdit = !!botId;
@@ -147,6 +150,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
     queryKey: ['admin', 'youtube-bot', botId],
     queryFn: () => getYouTubeBot(botId),
     enabled: isOpen && !!botId,
+    refetchOnWindowFocus: false,
     staleTime: 0, // 항상 fresh 데이터 가져오기
   });
 
@@ -155,6 +159,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
   // 다이얼로그 열릴 때 데이터 설정 (수정/추가 모드)
   useEffect(() => {
     if (!isOpen) {
+      setFormError('');
       setLoadedBotId(undefined);
       setChannelInfo(null);
       return;
@@ -277,6 +282,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
     e.preventDefault();
     if (!channelInfo || !formReady || submitting) return;
 
+    setFormError('');
     setSubmitting(true);
     try {
       // 입력창에 남아있는(Enter 안 누른) 키워드도 누락 없이 포함
@@ -327,7 +333,8 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
       onClose();
     } catch (error) {
       console.error('봇 저장 실패:', error);
-      alert(error.message || '봇 저장에 실패했습니다.');
+      if (mobile) setFormError(error.message || '봇 저장에 실패했습니다.');
+      else alert(error.message || '봇 저장에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -343,10 +350,12 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
+            initial={mobile ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden border border-ink bg-white"
+            exit={mobile ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
+            ref={mobileRef}
+            role="dialog" aria-modal="true" aria-label={isEdit ? 'YouTube 봇 수정' : 'YouTube 봇 추가'} tabIndex={-1}
+            className={`mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden border border-ink bg-white ${mobile ? 'mobile-bot-editor' : ''}`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 헤더 */}
@@ -361,6 +370,8 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
               </div>
               <button
                 onClick={onClose}
+                disabled={submitting}
+                aria-label="봇 수정 닫기"
                 className="p-1.5 text-faint transition-colors hover:text-ink"
               >
                 <X size={20} />
@@ -863,6 +874,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
             </form>
             )}
 
+            {mobile && formError && <p role="alert" className="shrink-0 px-4 py-2 text-sm text-[#A93226]">{formError}</p>}
             {/* 푸터 */}
             <div className="flex justify-end gap-2 border-t border-hairline bg-paper px-6 py-4">
               <button

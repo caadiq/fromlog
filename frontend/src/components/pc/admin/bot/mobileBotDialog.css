@@ -1,0 +1,40 @@
+.mobile-bot-editor.mobile-bot-editor {
+  position: fixed;
+  inset: var(--bot-top, 0px) 0 auto;
+  height: var(--bot-height, 100dvh);
+  max-height: none;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  outline: none;
+  overscroll-behavior: none;
+}
+.mobile-bot-editor > div:first-child {
+  position: relative;
+  flex-shrink: 0;
+  min-height: calc(64px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 16px 0;
+  justify-content: center;
+}
+.mobile-bot-editor > div:first-child > div > div { display: none; }
+.mobile-bot-editor > div:first-child > button {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mobile-bot-editor form { min-height: 0; padding: 20px; overscroll-behavior: none; }
+.mobile-bot-editor form input:not([type=checkbox]), .mobile-bot-editor form textarea { font-size: 16px; min-width: 0; }
+.mobile-bot-editor form button { min-height: 44px; }
+.mobile-bot-editor > div:last-child {
+  flex-shrink: 0;
+  padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+}
+.mobile-bot-editor > div:last-child button { min-height: 48px; justify-content: center; }

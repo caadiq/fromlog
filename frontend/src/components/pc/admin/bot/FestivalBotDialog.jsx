@@ -1,3 +1,4 @@
+import useMobileBotDialog from './useMobileBotDialog';
 /**
  * 축제 봇 추가/수정 다이얼로그
  */
@@ -12,12 +13,15 @@ import Dropdown from '../common/PortalDropdown';
 import { useDialogBackClose } from '@/hooks/common';
 
 
-function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
+function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }) {
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
-  useDialogBackClose(isOpen, onClose);
+  useDialogBackClose(isOpen, () => { if (!submitting) onClose(); });
+  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (!submitting) onClose(); });
+  const [formError, setFormError] = useState('');
 
   const queryClient = useQueryClient();
   const isEdit = !!botId;
+  const [loadedBotId, setLoadedBotId] = useState(undefined);
 
   // 폼 상태
   const [name, setName] = useState('');
@@ -26,35 +30,41 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
 
   // 축제 봇 상세 조회 (수정 모드)
-  const { data: bot, isLoading: botLoading } = useQuery({
+  const { data: bot, isLoading: botLoading, isError: botError, refetch: retryBot } = useQuery({
     queryKey: ['admin', 'festival-bot', botId],
     queryFn: () => getFestivalBot(botId),
     enabled: isOpen && !!botId,
+    refetchOnWindowFocus: false,
     staleTime: 0,
   });
 
+  const formReady = loadedBotId === botId && (!isEdit || Boolean(bot)) && !botError;
+
   // 다이얼로그 열릴 때 데이터 설정
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) { setFormError(''); setLoadedBotId(undefined); return; }
 
     if (bot) {
       // 수정 모드
       setName(bot.name || '');
       setSearchUrl(bot.search_url || '');
       setInterval(bot.cron_interval || 360);
+      setLoadedBotId(botId);
     } else if (!botId) {
       // 추가 모드
       setName('');
       setSearchUrl('');
       setInterval(360);
     }
+    if (!botId) setLoadedBotId(botId);
   }, [isOpen, bot, botId]);
 
   // 제출
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !searchUrl.trim()) return;
+    if (!name.trim() || !searchUrl.trim() || !formReady || submitting) return;
 
+    setFormError('');
     setSubmitting(true);
     try {
       const data = {
@@ -76,7 +86,8 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
       onClose();
     } catch (error) {
       console.error('봇 저장 실패:', error);
-      alert(error.message || '봇 저장에 실패했습니다.');
+      if (mobile) setFormError(error.message || '봇 저장에 실패했습니다.');
+      else alert(error.message || '봇 저장에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -92,10 +103,12 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
+            initial={mobile ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden border border-ink bg-white"
+            exit={mobile ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
+            ref={mobileRef}
+            role="dialog" aria-modal="true" aria-label={isEdit ? '축제 봇 수정' : '축제 봇 추가'} tabIndex={-1}
+            className={`mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden border border-ink bg-white ${mobile ? 'mobile-bot-editor' : ''}`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 헤더 */}
@@ -110,6 +123,8 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
               </div>
               <button
                 onClick={onClose}
+                disabled={submitting}
+                aria-label="봇 수정 닫기"
                 className="p-1.5 text-faint transition-colors hover:text-ink"
               >
                 <X size={20} />
@@ -117,7 +132,9 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
             </div>
 
             {/* 본문 */}
-            {botLoading ? (
+            {botError ? (
+              <div role="alert" className="flex-1 p-8 text-sm text-[#A93226]">봇 설정을 불러오지 못했습니다.<button type="button" onClick={() => retryBot()} className="mt-3 block border border-hairline px-4 py-2 text-ink">다시 시도</button></div>
+            ) : botLoading || !formReady ? (
               <div className="flex-1 flex items-center justify-center p-12">
                 <Loader2 size={30} className="animate-spin text-ink" />
               </div>
@@ -170,6 +187,7 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
               </form>
             )}
 
+            {mobile && formError && <p role="alert" className="shrink-0 px-4 py-2 text-sm text-[#A93226]">{formError}</p>}
             {/* 푸터 */}
             <div className="flex justify-end gap-2 border-t border-hairline bg-paper px-6 py-4">
               <button
@@ -183,7 +201,7 @@ function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess }) {
               <button
                 type="submit"
                 onClick={handleSubmit}
-                disabled={!name.trim() || !searchUrl.trim() || submitting || botLoading}
+                disabled={!name.trim() || !searchUrl.trim() || submitting || botLoading || !formReady}
                 className="flex items-center gap-2 bg-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting && <Loader2 size={16} className="animate-spin" />}

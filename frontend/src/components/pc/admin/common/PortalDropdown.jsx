@@ -34,12 +34,30 @@ function PortalDropdown({ value, options, onChange, placeholder = '선택', clas
   useEffect(() => {
     if (isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const mobile = Boolean(buttonRef.current.closest('.mobile-bot-editor'));
+      const viewport = window.visualViewport;
+      const lower = (viewport?.height || window.innerHeight) + (viewport?.offsetTop || 0) - 12;
+      const upper = (viewport?.offsetTop || 0) + 12;
+      const below = lower - rect.bottom - 4;
+      const above = rect.top - upper - 4;
+      const height = mobile ? Math.min(240, options.length * 44 + 8, Math.max(below, above)) : undefined;
       setPosition({
-        top: rect.bottom + 4,
+        top: mobile && below < height ? Math.max(upper, rect.top - height - 4) : rect.bottom + 4,
         left: rect.left,
         width: rect.width,
+        maxHeight: height,
+        mobile,
       });
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !buttonRef.current?.closest('.mobile-bot-editor')) return;
+    const form = buttonRef.current.closest('form');
+    const close = () => setIsOpen(false);
+    form?.addEventListener('scroll', close);
+    window.visualViewport?.addEventListener('resize', close);
+    return () => { form?.removeEventListener('scroll', close); window.visualViewport?.removeEventListener('resize', close); };
   }, [isOpen]);
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -77,12 +95,14 @@ function PortalDropdown({ value, options, onChange, placeholder = '선택', clas
                 left: position.left,
                 width: position.width,
                 zIndex: 9999,
+                maxHeight: position.maxHeight,
               }}
               className="max-h-60 overflow-y-auto border border-ink bg-white py-1"
             >
               {options.map((opt) => (
                 <button
                   key={opt.value}
+                  style={position.mobile ? { minHeight: 44 } : undefined}
                   type="button"
                   onClick={() => {
                     onChange(opt.value);
