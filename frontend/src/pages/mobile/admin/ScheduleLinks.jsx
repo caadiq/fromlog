@@ -42,7 +42,7 @@ function LinksContent() {
     client.invalidateQueries({ queryKey: ['admin', 'logs'] });
     client.invalidateQueries({ queryKey: ['admin', 'mobile'] });
   };
-  const closeEditor = () => { if (!lock.current) { setEditor(null); setError(''); } };
+  const closeEditor = () => { if (lock.current) return false; setEditor(null); setError(''); };
   const closeDelete = () => { if (!lock.current) { setDeleting(null); setError(''); } };
   const mutate = async (operation, success, close) => {
     if (lock.current) return;

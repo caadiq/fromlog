@@ -38,8 +38,8 @@ const AUTO_SCHEDULE_DEFAULTS = {
 
 function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }) {
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
-  useDialogBackClose(isOpen, () => { if (!submitting && !lookupLoading) onClose(); });
-  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (!submitting && !lookupLoading) onClose(); });
+  useDialogBackClose(isOpen, () => { if (submitting || lookupLoading) return false; onClose(); });
+  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (submitting || lookupLoading) return false; onClose(); });
   const [formError, setFormError] = useState('');
 
   const queryClient = useQueryClient();

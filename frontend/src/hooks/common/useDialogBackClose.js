@@ -23,12 +23,16 @@ function handlePopstate() {
     return;
   }
   const top = stack.pop();
-  if (top) top.close();
+  if (top && top.close() === false) {
+    // A pending save may veto closing. Restore the consumed Back entry.
+    stack.push(top);
+    window.history.pushState({ __dialog: true }, '');
+  }
 }
 
 /**
  * @param {boolean} isOpen - 다이얼로그 열림 상태
- * @param {Function} onClose - 닫기 콜백
+ * @param {Function} onClose - 닫기 콜백 (false 반환 시 닫기와 history 소비 취소)
  */
 export function useDialogBackClose(isOpen, onClose) {
   const onCloseRef = useRef(onClose);

@@ -38,7 +38,7 @@ export function VideoEditor({ value, onClose, onSuccess }) {
   const lock = useRef(false);
   const editing = Boolean(value?.videoId);
   useEffect(() => { if (value) { setUrl(''); setPreview(null); setCategory(value.category || 'variety'); setError(''); } }, [value]);
-  const close = () => { if (!lock.current) onClose(); };
+  const close = () => { if (lock.current) return false; onClose(); };
   const lookup = async () => {
     if (lock.current || !url.trim()) return;
     lock.current = true; setBusy('lookup'); setError(''); setPreview(null);

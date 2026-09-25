@@ -33,7 +33,7 @@ function ConfirmDialog({
   const reduced = useReducedMotion();
 
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
-  useDialogBackClose(isOpen, onClose);
+  useDialogBackClose(isOpen, () => loading ? false : onClose());
 
   const confirmColors = {
     danger: 'bg-[#C0392B] hover:bg-[#A93226]',

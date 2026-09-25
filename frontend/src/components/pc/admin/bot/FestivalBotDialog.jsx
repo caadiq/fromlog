@@ -15,8 +15,8 @@ import { useDialogBackClose } from '@/hooks/common';
 
 function FestivalBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }) {
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
-  useDialogBackClose(isOpen, () => { if (!submitting) onClose(); });
-  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (!submitting) onClose(); });
+  useDialogBackClose(isOpen, () => { if (submitting) return false; onClose(); });
+  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (submitting) return false; onClose(); });
   const [formError, setFormError] = useState('');
 
   const queryClient = useQueryClient();

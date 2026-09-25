@@ -30,7 +30,8 @@ export default function QueueReview({ item, onClose, onSuccess, onFailure, onBus
   const [locationOpen, setLocationOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  useDialogBackClose(Boolean(item), onClose);
+  const close = () => { if (busy.current) return false; onClose(); };
+  useDialogBackClose(Boolean(item), close);
   useEffect(() => {
     if (!item) return;
     setForm({ ...item, title: item.title || '', date: item.date || '', time: item.time || '', description: item.description || '', schoolName: schoolName(item.title), subtype: schoolName(item.title) ? 'university' : 'general', broadcaster: '', venue: item.venueName ? { name: item.venueName } : null });
@@ -84,12 +85,12 @@ export default function QueueReview({ item, onClose, onSuccess, onFailure, onBus
     } finally { busy.current = false; setSaving(false); onBusyChange(false); }
   };
 
-  return createPortal(<AnimatedDialog open={Boolean(item)} ref={dialog} aria-labelledby="queue-review-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (!locationOpen) onClose(); else setLocationOpen(false); }}>
+  return createPortal(<AnimatedDialog open={Boolean(item)} ref={dialog} aria-labelledby="queue-review-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (!locationOpen) close(); else setLocationOpen(false); }}>
     <div className="flex h-full flex-col bg-white text-ink">
       <header className="flex shrink-0 items-center justify-between border-b border-hairline px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
         <span aria-hidden="true" className="w-12 shrink-0" />
         <h2 id="queue-review-title" className="text-lg font-extrabold">일정 등록</h2>
-        <button type="button" aria-label="등록 닫기" onClick={onClose} className="flex h-12 w-12 items-center justify-center"><X size={21} /></button>
+        <button type="button" aria-label="등록 닫기" disabled={saving} onClick={close} className="flex h-12 w-12 items-center justify-center"><X size={21} /></button>
       </header>
       <div data-review-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-none p-5">
         <p className="mb-5 text-sm text-mute">큐에서 가져온 내용을 확인해주세요.</p>
@@ -120,7 +121,7 @@ export default function QueueReview({ item, onClose, onSuccess, onFailure, onBus
       </div>
       <footer className="shrink-0 border-t border-hairline bg-white px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         {error && <p role="alert" className="mb-3 max-h-24 overflow-y-auto text-sm leading-relaxed text-[#A93226]">{error}</p>}
-        <div className="grid grid-cols-[1fr_2fr] gap-2"><button type="button" onClick={onClose} className={buttonClass}>취소</button><button type="button" disabled={saving || (!supported && !linked)} onClick={submit} className="min-h-12 bg-ink px-3 text-sm font-bold text-white disabled:opacity-40">{saving ? '등록 중...' : linked ? '등록 마무리' : '일정 등록'}</button></div>
+        <div className="grid grid-cols-[1fr_2fr] gap-2"><button type="button" disabled={saving} onClick={close} className={buttonClass}>취소</button><button type="button" disabled={saving || (!supported && !linked)} onClick={submit} className="min-h-12 bg-ink px-3 text-sm font-bold text-white disabled:opacity-40">{saving ? '등록 중...' : linked ? '등록 마무리' : '일정 등록'}</button></div>
       </footer>
       <LocationSearchDialog isOpen={locationOpen} onClose={() => setLocationOpen(false)} onSelect={venue => update('venue', venue)} />
     </div>

@@ -48,7 +48,7 @@ export default function MobileAdminSchedules() {
   const [target, setTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const editBusy = useRef(false);
-  useDialogBackClose(Boolean(editTarget), () => { if (!editBusy.current) setEditTarget(null); });
+  useDialogBackClose(Boolean(editTarget), () => { if (editBusy.current) return false; setEditTarget(null); });
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const busy = useRef(false);
