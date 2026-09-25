@@ -38,8 +38,8 @@ const AUTO_SCHEDULE_DEFAULTS = {
 
 function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }) {
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
-  useDialogBackClose(isOpen, () => { if (!submitting) onClose(); });
-  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (!submitting) onClose(); });
+  useDialogBackClose(isOpen, () => { if (!submitting && !lookupLoading) onClose(); });
+  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (!submitting && !lookupLoading) onClose(); });
   const [formError, setFormError] = useState('');
 
   const queryClient = useQueryClient();
@@ -259,7 +259,9 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
 
   // 채널 조회
   const handleLookup = async () => {
-    if (!handle.trim()) return;
+    if (!handle.trim() || lookupLoading) return;
+    setFormError('');
+    setChannelInfo(null);
     setLookupLoading(true);
     try {
       const data = await lookupChannel(handle);
@@ -271,7 +273,8 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
       });
     } catch (error) {
       console.error('채널 조회 실패:', error);
-      alert(error.message || '채널을 찾을 수 없습니다.');
+      if (mobile) setFormError(error.message || '채널을 찾을 수 없습니다.');
+      else alert(error.message || '채널을 찾을 수 없습니다.');
     } finally {
       setLookupLoading(false);
     }
@@ -370,7 +373,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
               </div>
               <button
                 onClick={onClose}
-                disabled={submitting}
+                disabled={submitting || lookupLoading}
                 aria-label="봇 수정 닫기"
                 className="p-1.5 text-faint transition-colors hover:text-ink"
               >
@@ -398,9 +401,9 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
                     <input
                       type="text"
                       value={handle}
-                      onChange={(e) => setHandle(e.target.value)}
+                      onChange={(e) => { setHandle(e.target.value); setChannelInfo(null); }}
                       placeholder="studiofromis_9"
-                      disabled={isEdit}
+                      disabled={isEdit || lookupLoading}
                       className="w-full border border-hairline bg-white py-2.5 pl-8 pr-4 text-[13.5px] font-semibold text-ink placeholder-faint outline-none transition-colors focus:border-ink disabled:bg-paper disabled:text-mute"
                     />
                   </div>
@@ -880,7 +883,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
               <button
                 type="button"
                 onClick={onClose}
-                disabled={submitting}
+                disabled={submitting || lookupLoading}
                 className="border border-hairline bg-white px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-esub transition-colors hover:border-ink hover:text-ink disabled:opacity-50"
               >
                 취소
@@ -888,7 +891,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
               <button
                 type="submit"
                 onClick={handleSubmit}
-                disabled={!channelInfo || submitting || botLoading || !formReady}
+                disabled={!channelInfo || submitting || lookupLoading || botLoading || !formReady}
                 className="flex items-center gap-2 bg-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting && <Loader2 size={16} className="animate-spin" />}

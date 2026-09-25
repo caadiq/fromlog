@@ -17,8 +17,8 @@ import { useDialogBackClose } from '@/hooks/common';
 
 function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }) {
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
-  useDialogBackClose(isOpen, () => { if (!submitting) onClose(); });
-  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (!submitting) onClose(); });
+  useDialogBackClose(isOpen, () => { if (!submitting && !lookupLoading) onClose(); });
+  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (!submitting && !lookupLoading) onClose(); });
   const [formError, setFormError] = useState('');
 
   const queryClient = useQueryClient();
@@ -85,7 +85,9 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
 
   // 프로필 조회
   const handleLookup = async () => {
-    if (!username.trim()) return;
+    if (!username.trim() || lookupLoading) return;
+    setFormError('');
+    setProfileInfo(null);
     setLookupLoading(true);
     try {
       const data = await lookupXProfile(username);
@@ -96,7 +98,8 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
       });
     } catch (error) {
       console.error('프로필 조회 실패:', error);
-      alert(error.message || '프로필을 찾을 수 없습니다.');
+      if (mobile) setFormError(error.message || '프로필을 찾을 수 없습니다.');
+      else alert(error.message || '프로필을 찾을 수 없습니다.');
     } finally {
       setLookupLoading(false);
     }
@@ -171,7 +174,7 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
               </div>
               <button
                 onClick={onClose}
-                disabled={submitting}
+                disabled={submitting || lookupLoading}
                 aria-label="봇 수정 닫기"
                 className="p-1.5 text-faint transition-colors hover:text-ink"
               >
@@ -199,9 +202,9 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
                       <input
                         type="text"
                         value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+                        onChange={(e) => { setUsername(e.target.value); setProfileInfo(null); }}
                         placeholder="realfromis_9"
-                        disabled={isEdit}
+                        disabled={isEdit || lookupLoading}
                         className="w-full border border-hairline bg-white py-2.5 pl-8 pr-4 text-[13.5px] font-semibold text-ink placeholder-faint outline-none transition-colors focus:border-ink disabled:bg-paper disabled:text-mute"
                       />
                     </div>
@@ -371,7 +374,7 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
               <button
                 type="button"
                 onClick={onClose}
-                disabled={submitting}
+                disabled={submitting || lookupLoading}
                 className="border border-hairline bg-white px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-esub transition-colors hover:border-ink hover:text-ink disabled:opacity-50"
               >
                 취소
@@ -379,7 +382,7 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
               <button
                 type="submit"
                 onClick={handleSubmit}
-                disabled={!profileInfo || submitting || botLoading || !formReady}
+                disabled={!profileInfo || submitting || lookupLoading || botLoading || !formReady}
                 className="flex items-center gap-2 bg-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting && <Loader2 size={16} className="animate-spin" />}
