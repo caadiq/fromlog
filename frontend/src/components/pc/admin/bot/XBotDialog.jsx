@@ -148,15 +148,17 @@ function XBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={mobile ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          exit={mobile ? { opacity: 1 } : { opacity: 0 }}
+          transition={mobile ? { duration: 0 } : undefined}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         >
           <motion.div
-            initial={mobile ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
+            initial={mobile ? false : { scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={mobile ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
+            exit={mobile ? { opacity: 1 } : { scale: 0.95, opacity: 0 }}
+            transition={mobile ? { duration: 0 } : undefined}
             ref={mobileRef}
             role="dialog" aria-modal="true" aria-label={isEdit ? 'X 봇 수정' : 'X 봇 추가'} tabIndex={-1}
             className={`mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden border border-ink bg-white ${mobile ? 'mobile-bot-editor' : ''}`}
