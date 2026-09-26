@@ -111,7 +111,7 @@ export function extractCard(html) {
   if (!title && !image) return null;
 
   return {
-    url: hrefMatch[1],
+    url: decodeEntities(hrefMatch[1]),
     title,
     description: stripTags(descMatch?.[1]),
     destination: stripTags(destMatch?.[1]),
@@ -123,28 +123,19 @@ export function extractCard(html) {
  * 텍스트에서 유튜브 videoId 추출
  */
 export function extractYoutubeVideoIds(text) {
-  if (!text) return [];
   const ids = new Set();
-
-  // youtu.be/{id}
-  const shortRegex = /youtu\.be\/([a-zA-Z0-9_-]{11})/g;
-  let m;
-  while ((m = shortRegex.exec(text)) !== null) {
-    ids.add(m[1]);
+  const links = String(text || '').match(/(?<![\w.-])(?:https?:\/\/)?(?:(?:www|m)\.)?(?:youtube\.com|youtu\.be)\/[^\s<>"']+/gi) || [];
+  for (const link of links) {
+    try {
+      const url = new URL(/^https?:/i.test(link) ? decodeEntities(link) : `https://${decodeEntities(link)}`);
+      let id;
+      if (url.hostname.toLowerCase() === 'youtu.be') id = url.pathname.split('/')[1];
+      else if (url.pathname === '/watch') id = url.searchParams.get('v');
+      else if (/^\/(shorts|live|embed)\//.test(url.pathname)) id = url.pathname.split('/')[2];
+      id = id?.replace(/[),.!]+$/, '');
+      if (/^[a-zA-Z0-9_-]{11}$/.test(id || '')) ids.add(id);
+    } catch { /* Ignore malformed URLs. */ }
   }
-
-  // youtube.com/watch?v={id}
-  const watchRegex = /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/g;
-  while ((m = watchRegex.exec(text)) !== null) {
-    ids.add(m[1]);
-  }
-
-  // youtube.com/shorts/{id}
-  const shortsRegex = /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/g;
-  while ((m = shortsRegex.exec(text)) !== null) {
-    ids.add(m[1]);
-  }
-
   return [...ids];
 }
 
@@ -206,6 +197,9 @@ function extractTextFromHtml(html) {
  */
 export function parseTweets(html, username, options = {}) {
   const { includeRetweets = false } = options;
+  if (/class="error-panel"/.test(html)) {
+    throw new Error('Nitter returned an error page instead of a timeline');
+  }
   const tweets = [];
   const containers = html.split('class="timeline-item ');
 
@@ -220,26 +214,11 @@ export function parseTweets(html, username, options = {}) {
     const isRetweet = container.includes('class="retweet-header"');
     if (isRetweet && !includeRetweets) continue;
 
-    // 리트윗인 경우 원본 작성자 추출 (data-username 또는 tweet-header에서)
-    let originalUsername = null;
-    if (isRetweet) {
-      const dataUserMatch = containers[i - 1]?.match(/data-username="([^"]+)"/) ||
-                            container.match(/data-username="([^"]+)"/);
-      if (dataUserMatch) {
-        originalUsername = dataUserMatch[1];
-      } else {
-        // tweet-header의 username 링크에서 추출
-        const headerUserMatch = container.match(/class="username"[^>]*href="\/([^"]+)"/);
-        if (headerUserMatch) {
-          originalUsername = headerUserMatch[1];
-        }
-      }
-    }
-
-    // 트윗 ID
-    const idMatch = container.match(/href="\/[^\/]+\/status\/(\d+)/);
+    // The status link belongs to this item; attributes in the previous item may name another author.
+    const idMatch = container.match(/href="\/([^\/]+)\/status\/(\d+)/);
     if (!idMatch) continue;
-    const id = idMatch[1];
+    const id = idMatch[2];
+    const originalUsername = isRetweet ? idMatch[1] : null;
 
     // 시간
     const timeMatch = container.match(/<span class="tweet-date"[^>]*><a[^>]*title="([^"]+)"/);
@@ -382,10 +361,10 @@ export async function resolveWrappedRetweet(nitterUrl, tweet, log) {
 
   const author = m[1];
   const body = tweet.text.slice(m[0].length);
-  tweet.originalUsername = tweet.originalUsername || author;
+  tweet.originalUsername = author;
 
   // 앞부분이 너무 짧으면(사진만 있는 글 등) 엉뚱한 글을 물 수 있어 건너뛴다
-  const key = normBody(body.replace(/…\s*$/, '')).slice(0, 25);
+  const key = normBody(body.replace(/…\s*$/, ''));
   if (key.length < 12) {
     tweet.text = body;
     return false;
@@ -401,7 +380,7 @@ export async function resolveWrappedRetweet(nitterUrl, tweet, log) {
     // 이 리트윗보다 앞선 것 중 가장 가까운 글이 그 원본이다.
     const wrapperId = BigInt(tweet.id);
     const hit = list
-      .filter((t) => normBody(t.text).startsWith(key) && BigInt(t.id) < wrapperId)
+      .filter((t) => (normBody(t.text) === key || (/…\s*$/.test(body) && normBody(t.text).startsWith(key))) && BigInt(t.id) < wrapperId)
       .sort((a, b) => (BigInt(b.id) < BigInt(a.id) ? -1 : 1))[0];
 
     if (!hit) {
@@ -422,6 +401,8 @@ export async function resolveWrappedRetweet(nitterUrl, tweet, log) {
       if (full?.text && full.text.length > text.length) {
         text = full.text;
         if (full.imageUrls?.length > 0) imageUrls = full.imageUrls;
+        if (full.card) hit.card = full.card;
+        if (full.videoThumbnails?.length > 0) hit.videoThumbnails = full.videoThumbnails;
       }
     }
 
@@ -471,6 +452,8 @@ async function hydrateTruncatedTweets(nitterUrl, tweets, username, log) {
       if (full?.text && full.text.length > tweet.text.length && !/…\s*$/.test(full.text)) {
         tweet.text = full.text;
         if (full.imageUrls?.length > 0) tweet.imageUrls = full.imageUrls;
+        if (full.videoThumbnails?.length > 0) tweet.videoThumbnails = full.videoThumbnails;
+        if (full.card) tweet.card = full.card;
         tweet.truncated = false;
       }
     } catch (err) {
@@ -520,6 +503,8 @@ export async function fetchTweets(nitterUrl, username, options = {}) {
  */
 export async function fetchAllTweets(nitterUrl, username, log, options = {}) {
   const allTweets = [];
+  const seenIds = new Set();
+  const seenCursors = new Set();
   let cursor = null;
   let pageNum = 1;
   let emptyCount = 0;
@@ -544,7 +529,10 @@ export async function fetchAllTweets(nitterUrl, username, log, options = {}) {
         await resolveWrappedRetweets(nitterUrl, tweets, log);
         // 잘린 긴 트윗 전체 내용 복원
         await hydrateTruncatedTweets(nitterUrl, tweets, username, log);
-        allTweets.push(...tweets);
+        for (const tweet of tweets) {
+          if (!seenIds.has(tweet.id)) allTweets.push(tweet);
+          seenIds.add(tweet.id);
+        }
         log?.info(`  -> ${tweets.length}개 추출 (누적: ${allTweets.length})`);
       }
 
@@ -552,14 +540,20 @@ export async function fetchAllTweets(nitterUrl, username, log, options = {}) {
       const cursorMatch = html.match(/class="show-more"[^>]*>\s*<a href="\?cursor=([^"]+)"/);
       if (!cursorMatch) break;
 
-      cursor = cursorMatch[1];
+      cursor = decodeEntities(cursorMatch[1]);
+      if (seenCursors.has(cursor)) {
+        const err = new Error('Nitter repeated a pagination cursor; full sync is incomplete');
+        err.code = 'NITTER_PAGINATION_LOOP';
+        throw err;
+      }
+      seenCursors.add(cursor);
       pageNum++;
 
       await new Promise(r => setTimeout(r, 1000));
     } catch (err) {
       log?.error(`  -> 오류: ${err.message}`);
       emptyCount++;
-      if (emptyCount >= 5) break;
+      if (err.code === 'NITTER_PAGINATION_LOOP' || emptyCount >= 5) throw err;
       await new Promise(r => setTimeout(r, 3000));
     }
   }

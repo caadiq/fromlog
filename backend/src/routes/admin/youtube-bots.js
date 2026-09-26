@@ -383,7 +383,7 @@ export default async function youtubeBotsRoutes(fastify) {
       );
 
       // 필터 설정이 바뀌면 스킵 캐시 초기화 — 이전에 거부된 영상을 새 기준으로 재평가
-      if (['title_filters', 'description_filters', 'filter_mode', 'min_duration_seconds', 'exclude_shorts', 'auto_schedule_config', 'add_to_schedule'].some(k => updates[k] !== undefined)) {
+      if (['title_filters', 'description_filters', 'filter_mode', 'min_duration_seconds', 'exclude_shorts', 'archive_shorts', 'auto_schedule_config', 'add_to_schedule'].some(k => updates[k] !== undefined)) {
         await db.query('DELETE FROM youtube_bot_processed WHERE channel_id = ?', [existing[0].channel_id]);
         await db.query('DELETE FROM youtube_skipped_videos WHERE channel_id = ?', [
           existing[0].channel_id,

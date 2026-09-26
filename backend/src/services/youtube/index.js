@@ -10,7 +10,7 @@ import { logActivity } from '../../utils/log.js';
 import { archiveVideo } from '../videos.js';
 import { refineCategory } from '../videoCategory.js';
 import { toKST, formatDateTime, todayKST, weekdayOf, nextWeekday } from '../../utils/date.js';
-import { promoteTempSchedule, comparableTitle } from '../../utils/tempSchedule.js';
+import { promoteTempSchedule, matchesPendingVideo, canFillPendingVideo } from '../../utils/tempSchedule.js';
 
 const YOUTUBE_CATEGORY_ID = CATEGORY_IDS.YOUTUBE;
 
@@ -43,11 +43,11 @@ async function youtubeBotPlugin(fastify) {
   /**
    * 다음 주 예정 일정 생성
    */
-  async function createScheduledEntry(bot) {
+  async function createScheduledEntry(bot, fromDate = new Date()) {
     const { autoScheduleNext } = bot;
     if (!autoScheduleNext) return null;
 
-    const nextDate = nextWeekday(autoScheduleNext.dayOfWeek, autoScheduleNext.weeksAhead || 1);
+    const nextDate = nextWeekday(autoScheduleNext.dayOfWeek, autoScheduleNext.weeksAhead || 1, fromDate);
 
     // 이미 존재하는지 확인 (같은 채널, 같은 날짜, is_temp = 1)
     const [existing] = await fastify.db.query(
@@ -116,7 +116,7 @@ async function youtubeBotPlugin(fastify) {
   /**
    * 예정 일정 삭제 + 다음 주 예정 일정 생성
    */
-  async function deleteScheduledAndCreateNext(bot, scheduleId) {
+  async function deleteScheduledAndCreateNext(bot, scheduleId, fromDate) {
     // 삭제
     await withTransaction(fastify.db, async (conn) => {
       await conn.query('DELETE FROM schedule_youtube WHERE schedule_id = ?', [scheduleId]);
@@ -128,7 +128,7 @@ async function youtubeBotPlugin(fastify) {
     fastify.log.info(`[${bot.id}] 예정 일정 삭제 (영상 미업로드)`);
 
     // 다음 주 예정 일정 생성
-    await createScheduledEntry(bot);
+    await createScheduledEntry(bot, fromDate);
   }
 
   /**
@@ -136,7 +136,7 @@ async function youtubeBotPlugin(fastify) {
    */
   async function checkScheduledDeadline(bot) {
     const { autoScheduleNext } = bot;
-    if (!autoScheduleNext || !autoScheduleNext.deadlineDayOfWeek) return;
+    if (!autoScheduleNext || autoScheduleNext.deadlineDayOfWeek == null) return;
 
     const kst = toKST(new Date());
 
@@ -145,8 +145,9 @@ async function youtubeBotPlugin(fastify) {
       return;
     }
 
-    // 어제(목요일) 날짜 - deadline 당일이면 전날이 목표 요일
-    const targetDateStr = kst.subtract(1, 'day').format('YYYY-MM-DD');
+    // Find the configured publication day preceding this deadline, including Sunday.
+    const daysSinceUpload = (kst.day() - autoScheduleNext.dayOfWeek + 7) % 7 || 7;
+    const targetDateStr = kst.subtract(daysSinceUpload, 'day').format('YYYY-MM-DD');
 
     // 예정 일정이 아직 존재하는지 확인 (is_temp = 1인 것)
     const [rows] = await fastify.db.query(
@@ -158,7 +159,7 @@ async function youtubeBotPlugin(fastify) {
 
     if (rows.length > 0) {
       // 아직 예정 상태 → 삭제 + 다음 주 생성
-      await deleteScheduledAndCreateNext(bot, rows[0].schedule_id);
+      await deleteScheduledAndCreateNext(bot, rows[0].schedule_id, new Date(`${targetDateStr}T00:00:00+09:00`));
       return;
     }
 
@@ -182,20 +183,20 @@ async function youtubeBotPlugin(fastify) {
     );
     if (pending.length > 0) return;
 
-    await createScheduledEntry(bot);
+    await createScheduledEntry(bot, new Date(`${targetDateStr}T00:00:00+09:00`));
   }
 
   async function reconcilePending(video, bot, existingId) {
+    if (video.videoType === 'shorts') return;
     const [pending] = await fastify.db.query(
       `SELECT s.id, s.title, sy.channel_id, s.date FROM schedules s
        JOIN schedule_youtube sy ON sy.schedule_id = s.id
        WHERE s.is_temp = 1 AND sy.video_id IS NULL
        AND s.date BETWEEN DATE_SUB(?, INTERVAL 7 DAY) AND DATE_ADD(?, INTERVAL 7 DAY)`, [video.date, video.date]);
     for (const row of pending) {
-      const key = comparableTitle(row.title);
       const own = bot.autoScheduleNext && video.videoType === 'video' && row.channel_id === bot.channelId &&
-        formatDateTime(row.date).slice(0, 10) === video.date;
-      if (row.id === existingId || (!own && !(key.length >= 6 && comparableTitle(video.title).includes(key)))) continue;
+        formatDateTime(row.date).slice(0, 10) === video.date && canFillPendingVideo(row, { ...video, channelId: bot.channelId });
+      if (row.id === existingId || (!own && !matchesPendingVideo(row, { ...video, channelId: bot.channelId }))) continue;
       const [deleted] = await fastify.db.query(
         `DELETE s FROM schedules s JOIN schedule_youtube sy ON sy.schedule_id = s.id
          WHERE s.id = ? AND s.is_temp = 1 AND sy.video_id IS NULL`, [row.id]);
@@ -235,7 +236,7 @@ async function youtubeBotPlugin(fastify) {
       // 해당 날짜의 예정 일정이 있는지 확인
       const scheduledEntry = await findScheduledEntry(bot, video.date);
 
-      if (scheduledEntry) {
+      if (scheduledEntry && canFillPendingVideo(scheduledEntry, video)) {
         // 예정 일정을 실제 영상으로 덮어씌움
         await updateScheduledEntry(scheduledEntry, video, bot);
         // 다음 주 예정 일정 생성
@@ -424,6 +425,7 @@ async function youtubeBotPlugin(fastify) {
       for (const u of rejected.filter((r) => bot.filterMode === 'legacy' && !r.description)) {
         const linked = await fetchShortsLinkedVideo(u.videoId);
         if (linked && matchesTitleFilters(bot, linked)) {
+          u.linkedVideo = linked;
           pass.push(u);
           rejected = rejected.filter((r) => r !== u);
         }
@@ -446,8 +448,8 @@ async function youtubeBotPlugin(fastify) {
     }
 
     // Newly published/live metadata can report zero duration. Never cache that as an exclusion.
-    candidates = candidates.filter(c => durationMap[c.videoId]?.seconds > 0 ||
-      (archivedById.has(c.videoId) && !bot.minDurationSeconds && durationMap[c.videoId]?.seconds == null));
+    candidates = candidates.filter(c => durationMap[c.videoId]?.isShorts != null && (durationMap[c.videoId]?.seconds > 0 ||
+      (archivedById.has(c.videoId) && !bot.minDurationSeconds && durationMap[c.videoId]?.seconds == null)));
     const tooShort = candidates.filter(c => meetsDuration(bot, {
       videoType: durationMap[c.videoId]?.isShorts ? 'shorts' : 'video', duration: durationMap[c.videoId]?.seconds,
     }) === false);
@@ -462,10 +464,11 @@ async function youtubeBotPlugin(fastify) {
     //      예외 2: archiveShorts=false 채널은 쇼츠를 아예 담지 않는다 — 풀무원처럼
     //              쇼츠 대부분이 게스트 단독 클립이라 제목·설명으로 가려낼 수 없는 경우.
     const ARCHIVE_SKIP_RE = /인터뷰|interview/i;
+    const newlyArchived = new Set();
     for (const cand of candidates) {
       if (bot.addToSchedule === false && ARCHIVE_SKIP_RE.test(cand.title)) continue;
       if (bot.archiveShorts === false && durationMap[cand.videoId]?.isShorts) continue;
-      await archiveVideo(fastify.db, {
+      const added = await archiveVideo(fastify.db, {
         videoId: cand.videoId,
         channelId: bot.channelId,
         channelName: bot.channelName,
@@ -476,6 +479,7 @@ async function youtubeBotPlugin(fastify) {
         duration: durationMap[cand.videoId]?.seconds ?? null,
         publishedAt: formatDateTime(cand.publishedAt),
       });
+      if (added) newlyArchived.add(cand.videoId);
     }
 
     // 아카이브 전용 봇 — 일정을 새로 만들지는 않지만, 큐에서 등록한 예정 일정이
@@ -487,7 +491,7 @@ async function youtubeBotPlugin(fastify) {
         await fastify.db.query(
           'INSERT IGNORE INTO youtube_bot_processed (channel_id, video_id, is_target, video_date) VALUES (?, ?, ?, ?)',
           [bot.channelId, cand.videoId, 0, formatDateTime(cand.publishedAt).slice(0, 10)]);
-        if (promoted || !archivedById.has(cand.videoId)) addedCount++;
+        if (promoted || newlyArchived.has(cand.videoId)) addedCount++;
       }
       return { addedCount, total, foundTarget };
     }
@@ -502,7 +506,9 @@ async function youtubeBotPlugin(fastify) {
     // 5. 필터를 통과한 영상만 상세 조회 (videos.list - 영상당 1 unit)
     for (const cand of candidates) {
       const video = await fetchVideoInfo(cand.videoId);
-      if (!video || meetsDuration(bot, video) === null) continue;
+      if (video && cand.linkedVideo) video.linkedVideo = cand.linkedVideo;
+      if (!video || video.channelId !== bot.channelId || !(video.duration > 0) ||
+          video.liveBroadcastContent === 'upcoming' || meetsDuration(bot, video) === null) continue;
 
       const scheduleId = await saveVideo(video, bot);
       if (scheduleId) {

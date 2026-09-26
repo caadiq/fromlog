@@ -34,3 +34,18 @@ test('episode title uses actual scoped episodes, excluding previews and prior se
   assert.equal(nextEpisodeTitle(bot, videos), '방판소녀들 시즌2 EP.3');
   assert.equal(nextEpisodeTitle(bot, []), '방판소녀들 시즌2 (예정)');
 });
+
+test('legacy related-video fallback remains valid at final save, but never bypasses split filters', () => {
+  const video = { title: '쇼츠', description: '', linkedVideo: { title: '프로미스나인 본편' } };
+  assert.equal(matchesVideoFilters({ filterMode: 'legacy', titleFilters: ['프로미스나인'] }, video), true);
+  assert.equal(matchesVideoFilters({ filterMode: 'split', titleFilters: ['프로미스나인'] }, video), false);
+});
+
+test('pending matching respects episode boundaries, channels and full-episode type', async () => {
+  const { matchesPendingVideo } = await import('../src/utils/tempSchedule.js');
+  const pending = { title: '테스트 프로그램 EP.1', channel_id: 'one' };
+  const video = { title: '테스트 프로그램 EP.01', channelId: 'one', videoType: 'video' };
+  assert.equal(matchesPendingVideo(pending, video), true);
+  assert.equal(matchesPendingVideo(pending, { ...video, title: '테스트 프로그램 1화' }), true);
+  for (const extra of [{ title: '테스트 프로그램 EP.10' }, { channelId: 'two' }, { videoType: 'shorts' }, { title: '테스트 프로그램 EP.1 예고' }]) assert.equal(matchesPendingVideo(pending, { ...video, ...extra }), false);
+});

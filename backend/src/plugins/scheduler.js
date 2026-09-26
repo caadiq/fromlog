@@ -102,6 +102,7 @@ export function describeBotError(bot, err) {
 
 async function schedulerPlugin(fastify, opts) {
   const tasks = new Map();
+  const activeSyncs = new Set();
   const burstTimers = new Map();  // weekly 모드 내부 setInterval 핸들
   let cachedBots = null;
 
@@ -121,7 +122,7 @@ async function schedulerPlugin(fastify, opts) {
         const [h, m] = weekly.startTime.split(':').map(Number);
         cronExpr = `${m} ${h} * * ${weekly.dayOfWeek}`;
       } else {
-        cronExpr = `*/${row.cron_interval || 2} * * * *`;
+        cronExpr = intervalToCron(row.cron_interval);
       }
 
       return {
@@ -163,7 +164,7 @@ async function schedulerPlugin(fastify, opts) {
       displayName: row.display_name,
       avatarUrl: row.avatar_url,
       nitterUrl: process.env.NITTER_URL || 'http://nitter:8080',
-      cron: `*/${row.cron_interval} * * * *`,
+      cron: intervalToCron(row.cron_interval),
       enabled: row.enabled === 1,
       textFilters: safeParse(row.text_filters, []),
       includeRetweets: row.include_retweets === 1,
@@ -314,6 +315,8 @@ async function schedulerPlugin(fastify, opts) {
    * 단일 동기화 실행 + 에러 처리 (consecutiveErrors, 자동 정지 포함)
    */
   async function runSync(botId, bot, syncFn, { setRunningStatus = false } = {}) {
+    if (activeSyncs.has(botId)) return { ok: true, addedCount: 0, foundTarget: false };
+    activeSyncs.add(botId);
     try {
       const result = await syncFn(bot);
       const addedCount = await handleSyncResult(botId, result, { setRunningStatus });
@@ -376,6 +379,8 @@ async function schedulerPlugin(fastify, opts) {
         }
       }
       return { ok: false, err };
+    } finally {
+      activeSyncs.delete(botId);
     }
   }
 
@@ -404,6 +409,7 @@ async function schedulerPlugin(fastify, opts) {
 
     const tick = async () => {
       if (!burstTimers.has(botId)) return;
+      if (Date.now() >= endAt) { stopBurst('최대 지속시간 초과'); return; }
       const result = await runSync(botId, bot, syncFn, { setRunningStatus: true });
       if (!burstTimers.has(botId)) return; // runSync 중 자동 정지 등으로 정리됐을 수 있음
       if (result.ok && result.foundTarget) {
@@ -515,6 +521,8 @@ async function schedulerPlugin(fastify, opts) {
       await updateStatus(botId, { status: 'stopped' });
     }
     tasks.clear();
+    for (const { timer } of burstTimers.values()) clearInterval(timer);
+    burstTimers.clear();
   }
 
   /**
@@ -526,7 +534,7 @@ async function schedulerPlugin(fastify, opts) {
 
   // 예정(임시) 일정 deadline 체크 — 매일 00:05 KST
   // syncNewVideos 내부 체크는 weekly 봇에서 실행될 기회가 없으므로 별도 cron으로 보장
-  cron.schedule('5 0 * * *', async () => {
+  const deadlineTask = cron.schedule('5 0 * * *', async () => {
     try {
       const youtubeBots = await getYouTubeBotsFromDB();
       for (const bot of youtubeBots) {
@@ -552,6 +560,7 @@ async function schedulerPlugin(fastify, opts) {
 
   // 앱 종료 시 모든 봇 정지
   fastify.addHook('onClose', async () => {
+    deadlineTask.stop();
     await stopAll();
     fastify.log.info('모든 봇 스케줄 정지');
   });

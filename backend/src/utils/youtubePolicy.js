@@ -2,7 +2,8 @@
 export const normalize = value => String(value || '').normalize('NFC').toLowerCase();
 const matches = (filters, text) => !filters?.length || filters.some(f => normalize(text).includes(normalize(f)));
 export function matchesVideoFilters(bot, video) {
-  if (bot.filterMode === 'legacy') return matches(bot.titleFilters, `${video.title}\n${video.description || ''}`);
+  if (bot.filterMode === 'legacy') return matches(bot.titleFilters, `${video.title}\n${video.description || ''}`)
+    || (!video.description && !!video.linkedVideo && matches(bot.titleFilters, video.linkedVideo.title));
   return matches(bot.titleFilters, video.title) && matches(bot.descriptionFilters, video.description);
 }
 // null means metadata is not available yet, and must be retried.

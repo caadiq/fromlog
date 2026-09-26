@@ -49,10 +49,8 @@ export async function getUploadsPlaylistId(channelId) {
   const url = `${API_BASE}/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
   const data = await res.json();
+  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
 
-  if (data.error) {
-    throw new Error(data.error.message);
-  }
   if (!data.items?.length) {
     throw new Error('채널을 찾을 수 없습니다');
   }
@@ -70,10 +68,8 @@ export async function getChannelByHandle(handle) {
   const url = `${API_BASE}/channels?part=snippet,brandingSettings&forHandle=${cleanHandle}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
   const data = await res.json();
+  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
 
-  if (data.error) {
-    throw new Error(data.error.message);
-  }
   if (!data.items?.length) {
     throw new Error('채널을 찾을 수 없습니다');
   }
@@ -98,7 +94,7 @@ export async function getChannelByHandle(handle) {
 /**
  * /shorts/{id} 리다이렉트 여부로 쇼츠 정확 판별 (API 쿼터 소모 없음)
  * 쇼츠면 200, 일반 영상이면 /watch로 3xx 리다이렉트된다.
- * 판별 실패 시 null 반환 (호출부에서 duration 기준으로 폴백).
+ * 판별 실패 시 null 반환 (다음 폴링에서 재시도).
  */
 async function checkShortsByRedirect(videoId) {
   try {
@@ -121,27 +117,24 @@ async function checkShortsByRedirect(videoId) {
  * @returns {Promise<{videoId, title}|null>} 연결 영상 없거나 추출 실패 시 null
  */
 export async function fetchShortsLinkedVideo(videoId) {
-  try {
-    const res = await fetchWithTimeout(`https://www.youtube.com/shorts/${videoId}`, {
-      // 일반 영상은 /watch로 리다이렉트된다 — watch 페이지의 추천 영상을 잘못 잡지 않도록 따라가지 않는다
-      redirect: 'manual',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
-        'Accept-Language': 'ko',
-      },
-    });
-    if (res.status !== 200) return null;
-    const html = await res.text();
-    const m = html.match(
-      /"watchEndpoint":\{"videoId":"([\w-]{11})"\}\}\},"accessibilityText":"((?:[^"\\]|\\.)*)"/
-    );
-    if (!m) return null;
-    // JSON 이스케이프(\uXXXX 등) 복원
-    const title = JSON.parse(`"${m[2]}"`);
-    return { videoId: m[1], title };
-  } catch {
-    return null;
-  }
+  const res = await fetchWithTimeout(`https://www.youtube.com/shorts/${videoId}`, {
+    // 일반 영상은 /watch로 리다이렉트된다 — watch 페이지의 추천 영상을 잘못 잡지 않도록 따라가지 않는다
+    redirect: 'manual',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
+      'Accept-Language': 'ko',
+    },
+  });
+  if ((res.status >= 300 && res.status < 400) || res.status === 404) return null;
+  if (res.status !== 200) throw new Error(`YouTube related video HTTP ${res.status}`);
+  const html = await res.text();
+  const m = html.match(
+    /"watchEndpoint":\{"videoId":"([\w-]{11})"\}\}\},"accessibilityText":"((?:[^"\\]|\\.)*)"/
+  );
+  if (!m) return null;
+  // JSON 이스케이프(\uXXXX 등) 복원
+  const title = JSON.parse(`"${m[2]}"`);
+  return { videoId: m[1], title };
 }
 
 /**
@@ -149,13 +142,15 @@ export async function fetchShortsLinkedVideo(videoId) {
  * 쇼츠는 최대 3분(2024-10 확대)이라 duration만으론 1~3분 쇼츠를 일반 영상으로 오판한다.
  * → 3분 초과는 무조건 일반 영상, 3분 이하만 /shorts 리다이렉트로 정확 판별.
  *
- * 반환: { [videoId]: { isShorts: boolean, seconds: number } }
+ * 반환: { [videoId]: { isShorts: boolean|null, seconds: number } }
  * 판별에 쓰고 버리던 초를 함께 돌려준다 — 길이 표시에 추가 API 호출이 들지 않는다.
  */
 export async function getVideoDurations(videoIds) {
+  if (!videoIds.length) return {};
   const url = `${API_BASE}/videos?part=contentDetails&id=${videoIds.join(',')}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
   const data = await res.json();
+  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
 
   const durations = {};
   if (data.items) {
@@ -166,8 +161,8 @@ export async function getVideoDurations(videoIds) {
         isShorts = false;
       } else {
         const byRedirect = await checkShortsByRedirect(v.id);
-        // 리다이렉트 판별 실패 시 옛 기준(60초 이하)으로 폴백
-        isShorts = byRedirect !== null ? byRedirect : seconds <= 60;
+        // Unknown classification must not become a permanent filter exclusion.
+        isShorts = byRedirect;
       }
       durations[v.id] = { isShorts, seconds };
     }
@@ -188,10 +183,8 @@ export async function fetchRecentUploads(channelId, maxResults = 10) {
   const url = `${API_BASE}/activities?part=snippet,contentDetails&channelId=${channelId}&type=upload&maxResults=${fetchCount}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
   const data = await res.json();
+  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
 
-  if (data.error) {
-    throw new Error(data.error.message);
-  }
 
   return (data.items || [])
     .filter(item => item.snippet?.type === 'upload' && item.contentDetails?.upload?.videoId)
@@ -217,13 +210,11 @@ export async function fetchAllVideos(channelId, uploadsPlaylistId = null) {
   let pageToken = '';
 
   do {
-    const url = `${API_BASE}/playlistItems?part=snippet&playlistId=${uploadsId}&maxResults=50&key=${API_KEY}${pageToken ? `&pageToken=${pageToken}` : ''}`;
+    const url = `${API_BASE}/playlistItems?part=snippet,contentDetails&playlistId=${uploadsId}&maxResults=50&key=${API_KEY}${pageToken ? `&pageToken=${pageToken}` : ''}`;
     const res = await fetchWithTimeout(url);
     const data = await res.json();
+    if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
 
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
 
     const videoIds = data.items.map(item => item.snippet.resourceId.videoId);
     const shortsMap = await getVideoDurations(videoIds);
@@ -231,8 +222,9 @@ export async function fetchAllVideos(channelId, uploadsPlaylistId = null) {
     for (const item of data.items) {
       const { snippet } = item;
       const videoId = snippet.resourceId.videoId;
-      const isShorts = shortsMap[videoId] || false;
-      const publishedAt = new Date(snippet.publishedAt);
+      const metadata = shortsMap[videoId];
+      const isShorts = metadata?.isShorts;
+      const publishedAt = new Date(item.contentDetails?.videoPublishedAt || snippet.publishedAt);
 
       videos.push({
         videoId,
@@ -243,7 +235,8 @@ export async function fetchAllVideos(channelId, uploadsPlaylistId = null) {
         publishedAt,
         date: formatDate(publishedAt),
         time: formatTime(publishedAt),
-        videoType: isShorts ? 'shorts' : 'video',
+        videoType: isShorts == null ? null : isShorts ? 'shorts' : 'video',
+        duration: metadata?.seconds ?? null,
         videoUrl: getVideoUrl(videoId, isShorts),
       });
     }
@@ -263,6 +256,7 @@ export async function fetchVideoInfo(videoId) {
   const url = `${API_BASE}/videos?part=snippet,contentDetails&id=${videoId}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
   const data = await res.json();
+  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
 
   if (!data.items?.length) {
     return null;
@@ -272,7 +266,8 @@ export async function fetchVideoInfo(videoId) {
   const { snippet, contentDetails } = video;
   const seconds = parseDuration(contentDetails.duration);
   // 쇼츠는 최대 3분 — 3분 이하는 리다이렉트로 정확 판별 (getVideoDurations와 동일 규칙)
-  const isShorts = seconds > 0 && seconds <= 180 && (await checkShortsByRedirect(videoId) ?? seconds <= 60);
+  const isShorts = seconds > 0 && seconds <= 180 ? await checkShortsByRedirect(videoId) : false;
+  if (isShorts === null) return null;
   const publishedAt = new Date(snippet.publishedAt);
 
   return {
@@ -286,6 +281,7 @@ export async function fetchVideoInfo(videoId) {
     time: formatTime(publishedAt),
     videoType: isShorts ? 'shorts' : 'video',
     duration: seconds,
+    liveBroadcastContent: snippet.liveBroadcastContent || 'none',
     videoUrl: getVideoUrl(videoId, isShorts),
   };
 }

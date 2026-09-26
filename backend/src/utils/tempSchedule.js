@@ -1,3 +1,4 @@
+import { extractEpisode } from './youtubePolicy.js';
 /**
  * 예정(is_temp) 유튜브 일정 승격
  *
@@ -30,7 +31,22 @@ const MIN_TITLE_CHARS = 6;
 function comparableTitle(title) {
   return String(title || '')
     .toLowerCase()
+    .replace(/(?:ep(?:isode)?\s*\.?\s*(\d+)|(?:제\s*)?(\d+)\s*[화회](?![가-힣]))/g, (_, en, ko) => `ep${Number(en || ko)}`)
     .replace(/[^0-9a-z가-힣]/g, '');
+}
+
+export function canFillPendingVideo(pending, video) {
+  if (video.videoType === 'shorts' || /예고|티저|teaser|trailer|하이라이트|직캠/i.test(video.title)) return false;
+  if (pending.channel_id && pending.channel_id !== video.channelId) return false;
+  const expectedEpisode = extractEpisode(pending.title);
+  if (expectedEpisode !== null && expectedEpisode !== extractEpisode(video.title)) return false;
+  return true;
+}
+
+export function matchesPendingVideo(pending, video) {
+  if (!canFillPendingVideo(pending, video)) return false;
+  const title = comparableTitle(pending.title);
+  return title.length >= MIN_TITLE_CHARS && comparableTitle(video.title).includes(title);
 }
 
 /**
@@ -41,13 +57,13 @@ function comparableTitle(title) {
  * @returns {Promise<number|null>} 승격한 schedule_id, 없으면 null
  */
 export async function promoteTempSchedule(db, video) {
-  if (!video?.videoId || !video?.title) return null;
+  if (!video?.videoId || !video?.title || video.videoType === 'shorts') return null;
 
   const target = comparableTitle(video.title);
   if (target.length < MIN_TITLE_CHARS) return null;
 
   const [rows] = await db.query(
-    `SELECT s.id, s.title
+    `SELECT s.id, s.title, sy.channel_id
        FROM schedules s
        JOIN schedule_youtube sy ON sy.schedule_id = s.id
       WHERE s.is_temp = 1
@@ -60,13 +76,14 @@ export async function promoteTempSchedule(db, video) {
   if (rows.length === 0) return null;
 
   // 날짜가 가장 가까운 것부터 본다 — 같은 시리즈의 예정이 여러 개 깔려 있을 수 있다
-  const match = rows.find((r) => {
-    const pending = comparableTitle(r.title);
-    return pending.length >= MIN_TITLE_CHARS && target.includes(pending);
-  });
+  const match = rows.find(row => matchesPendingVideo(row, video));
   if (!match) return null;
 
-  await withTransaction(db, async (conn) => {
+  const promoted = await withTransaction(db, async (conn) => {
+    const [current] = await conn.query(
+      `SELECT s.id, s.title, sy.channel_id FROM schedules s JOIN schedule_youtube sy ON sy.schedule_id = s.id
+       WHERE s.id = ? AND s.is_temp = 1 AND sy.video_id IS NULL FOR UPDATE`, [match.id]);
+    if (!current.length || !matchesPendingVideo(current[0], video)) return false;
     await conn.query(
       'UPDATE schedules SET title = ?, date = ?, time = ?, is_temp = 0 WHERE id = ?',
       [video.title, video.date, video.time, match.id]
@@ -76,9 +93,10 @@ export async function promoteTempSchedule(db, video) {
       'UPDATE schedule_youtube SET video_id = ?, video_type = ?, channel_id = ?, channel_name = ? WHERE schedule_id = ?',
       [video.videoId, video.videoType, video.channelId ?? null, video.channelName ?? null, match.id]
     );
+    return true;
   });
 
-  return match.id;
+  return promoted ? match.id : null;
 }
 
 /**

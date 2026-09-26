@@ -12,7 +12,7 @@ const upload = (id, extra = {}) => ({
 async function fixture(t, uploads = [upload('one')], options = {}) {
   const state = { archived: new Map(), saved: new Map(), skipped: new Set(), schedules: new Map(), logs: [], processed: new Map() };
   const calls = { activities: 0, durations: 0, details: 0, promotions: 0, rollbacks: 0 };
-  const fail = { detail: null, insert: false, promote: false, publication: false };
+  const fail = { detail: null, insert: false, promote: false, publication: false, shortStatus: null };
   let nextId = 1;
   const query = async (rawSql, params = []) => {
     const sql = rawSql.replace(/\s+/g, ' ').trim();
@@ -44,7 +44,7 @@ async function fixture(t, uploads = [upload('one')], options = {}) {
       return [{}];
     }
     if (sql.startsWith('SELECT id FROM schedule_youtube') || sql.startsWith('SELECT id, schedule_id FROM schedule_youtube')) return [state.saved.has(params[0]) ? [{ id: state.saved.get(params[0]), schedule_id: state.saved.get(params[0]) }] : []];
-    if (sql.startsWith('SELECT s.id, s.title, sy.channel_id')) return [[...state.schedules.values()].filter(s => s.is_temp)];
+    if (sql.startsWith('SELECT s.id, s.title, sy.channel_id, s.date')) return [[...state.schedules.values()].filter(s => s.is_temp)];
     if (sql.startsWith('DELETE s FROM schedules')) { const deleted = state.schedules.delete(params[0]); return [{ affectedRows: deleted ? 1 : 0 }]; }
     if (sql.startsWith('SELECT sy.schedule_id')) return [[...state.schedules.values()].filter(s => s.is_temp && s.date === params[1]).map(s => ({ schedule_id: s.id, ...s }))];
     if (sql.startsWith('SELECT s.title, sy.video_type')) return [[...state.schedules.values()].filter(s => !s.is_temp).map(s => ({ title: s.title, videoType: 'video', duration: 1200 }))];
@@ -86,7 +86,7 @@ async function fixture(t, uploads = [upload('one')], options = {}) {
   } };
   t.mock.method(globalThis, 'fetch', async input => {
     const url = new URL(input);
-    if (url.hostname === 'www.youtube.com' && url.pathname.startsWith('/shorts/')) return { status: uploads.find(u => u.videoId === url.pathname.split('/').pop())?.short ? 200 : 302 };
+    if (url.hostname === 'www.youtube.com' && url.pathname.startsWith('/shorts/')) return { status: fail.shortStatus ?? (uploads.find(u => u.videoId === url.pathname.split('/').pop())?.short ? 200 : 302) };
     const ids = (url.searchParams.get('id') || '').split(',');
     let items;
     if (url.pathname.endsWith('/activities')) {
@@ -298,3 +298,15 @@ for (const manual of [false, true]) {
     assert.equal(f.state.schedules.size, 1);
   });
 }
+
+
+test('failed Shorts classification never enters skip/processed caches and retries successfully', async t => {
+  const f = await fixture(t, [upload('uncertain', { durationISO: 'PT30S' })], { excludeShorts: true });
+  f.fail.shortStatus = 429;
+  await f.run();
+  assert.equal(f.state.skipped.size, 0); assert.equal(f.state.processed.size, 0);
+  assert.equal(f.state.archived.size, 0); assert.equal(f.state.saved.size, 0);
+  f.fail.shortStatus = 302;
+  await f.run();
+  assert.equal(f.state.saved.size, 1);
+});

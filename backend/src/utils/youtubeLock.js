@@ -9,20 +9,21 @@ function releaseSlot() {
   const next = waiters.shift();
   if (next) next(); else active--;
 }
-// Serialize X and YouTube bot writes for one channel across processes.
-export async function withYoutubeChannelLock(db, channelId, work) {
+// Serialize ingestion of the same resource across processes.
+export async function withIngestionLock(db, key, work) {
   await takeSlot();
   let conn;
   try { conn = await db.getConnection(); } catch (err) { releaseSlot(); throw err; }
-  const key = `yt:${channelId}`;
   let locked = false;
   try {
     const [rows] = await conn.query('SELECT GET_LOCK(?, 30) AS acquired', [key]);
     locked = rows[0]?.acquired === 1;
-    if (!locked) throw new Error('YouTube channel is busy; retry on next poll');
+    if (!locked) throw new Error('Ingestion resource is busy; retry on next poll');
     return await work();
   } finally {
     try { if (locked) await conn.query('SELECT RELEASE_LOCK(?)', [key]); }
     finally { conn.release(); releaseSlot(); }
   }
 }
+
+export const withYoutubeChannelLock = (db, channelId, work) => withIngestionLock(db, `yt:${channelId}`, work);

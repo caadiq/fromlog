@@ -1,4 +1,4 @@
-import { withYoutubeChannelLock } from '../../utils/youtubeLock.js';
+import { withYoutubeChannelLock, withIngestionLock } from '../../utils/youtubeLock.js';
 import fp from 'fastify-plugin';
 import { fetchTweets, fetchAllTweets, fetchProfile as fetchNitterProfile, extractTitle, extractYoutubeVideoIds } from './scraper.js';
 import { fetchOgCard, extractFirstUrl } from './og.js';
@@ -90,16 +90,9 @@ async function xBotPlugin(fastify, opts) {
     return String(t || '').replace(/\s+/g, ' ').trim();
   }
 
-  /**
-   * 같은 리트윗이 이미 저장돼 있는지 — 앞부분이 겹치면 같은 글로 본다.
-   *
-   * 래퍼 형태는 본문이 잘려 오므로 전체 비교로는 절대 안 잡힌다(그래서 앞부분으로 본다).
-   * 다만 같은 공지를 문구만 바꿔 며칠 간격으로 다시 올리는 계정이 많아서,
-   * 앞부분을 넉넉히(래퍼가 잘리는 140자보다 짧게) 잡고 날짜도 하루 차이까지만 본다.
-   * 한 리트윗의 두 형태는 시각이 사실상 같으므로 이 범위로 충분하다.
-   */
+  /** Match complete bodies exactly; allow prefixes only for explicitly truncated wrappers. */
   async function findSameRetweet(tweet, username) {
-    const key = normBody(tweet.text).slice(0, 80);
+    const key = normBody(tweet.text);
     if (key.length < 15) return null;
 
     const date = formatDate(tweet.time);
@@ -114,11 +107,19 @@ async function xBotPlugin(fastify, opts) {
     // 짧은 쪽(잘린 래퍼)이 긴 쪽의 앞부분과 맞는지 — 어느 쪽이 먼저 저장됐든 잡힌다
     return rows.find((r) => {
       const stored = normBody(r.content);
-      return stored.startsWith(key) || key.startsWith(stored.slice(0, 80));
+      const incoming = normBody(tweet.text);
+      if (stored.length < 15) return false;
+      return stored === incoming
+        || (/…$/.test(stored) && incoming.startsWith(stored.slice(0, -1).trim()))
+        || (tweet.truncated && /…$/.test(incoming) && stored.startsWith(incoming.slice(0, -1).trim()));
     }) || null;
   }
 
-  async function saveTweet(tweet, username) {
+  function saveTweet(tweet, username) {
+    return withIngestionLock(fastify.db, `x:${tweet.id}`, () => saveTweetUnlocked(tweet, username));
+  }
+
+  async function saveTweetUnlocked(tweet, username) {
     // 중복 체크 (post_id로) - 트랜잭션 전에 수행
     const [existing] = await fastify.db.query(
       'SELECT id FROM schedule_x WHERE post_id = ?',
@@ -252,7 +253,7 @@ async function xBotPlugin(fastify, opts) {
    * 트윗에서 YouTube 링크 처리
    */
   async function processYoutubeLinks(tweet) {
-    const videoIds = extractYoutubeVideoIds(tweet.text);
+    const videoIds = extractYoutubeVideoIds(`${tweet.text || ''}\n${tweet.card?.url || ''}`);
     if (videoIds.length === 0) return 0;
 
     const managedChannels = await getManagedChannelIds(fastify.db);
@@ -264,8 +265,7 @@ async function xBotPlugin(fastify, opts) {
           'SELECT sy.id FROM schedule_youtube sy JOIN videos v ON v.video_id = sy.video_id WHERE sy.video_id = ?', [videoId]);
         if (done.length) continue;
         const video = await fetchVideoInfo(videoId);
-        if (!video) continue;
-
+        if (!video || !(video.duration > 0) || video.liveBroadcastContent === 'upcoming') continue;
 
         // X and channel bots share category policy and serialize writes.
         await withYoutubeChannelLock(fastify.db, video.channelId, async () => {

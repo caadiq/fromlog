@@ -32,3 +32,23 @@ test('settings round trip carries separate filters and duration; invalid duratio
   assert.equal(result.json().filter_mode, 'split');
   assert.equal((await app.inject({ method: 'POST', url: '/', payload: { ...payload, min_duration_seconds: -1 } })).statusCode, 400);
 });
+
+test('enabling archive Shorts clears prior completion and exclusion caches for that channel', async t => {
+  const app = Fastify(); t.after(() => app.close());
+  const calls = [];
+  app.decorate('authenticate', async () => {});
+  app.decorate('scheduler', { invalidateCache() {}, async stopBot() {}, async startBot() {} });
+  app.decorate('db', { async query(sql, params) {
+    calls.push({ sql, params });
+    if (sql.startsWith('SELECT')) return [[{ id: 1, channel_id: 'target', channel_name: 'Target', enabled: 1 }]];
+    return [{}];
+  } });
+  app.addSchema({ $id: 'Error', type: 'object', properties: { error: { type: 'string' } } });
+  await app.register(routes);
+  const response = await app.inject({ method: 'PUT', url: '/1', payload: { archive_shorts: true } });
+  assert.equal(response.statusCode, 200, response.body);
+  for (const table of ['youtube_bot_processed', 'youtube_skipped_videos']) {
+    const cleared = calls.find(call => call.sql === `DELETE FROM ${table} WHERE channel_id = ?`);
+    assert.deepEqual(cleared?.params, ['target']);
+  }
+});
