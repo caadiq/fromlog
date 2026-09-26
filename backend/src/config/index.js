@@ -33,6 +33,8 @@ export default {
   server: {
     port: parseInt(process.env.PORT) || 80,
     host: '0.0.0.0',
+    trustedProxyHosts: (process.env.TRUSTED_PROXY_HOSTS ?? 'fromlog-frontend,fromlog-frontend-prod,caddy')
+      .split(',').map(host => host.trim()).filter(Boolean),
   },
   image: {
     medium: { width: 800, quality: 85 },

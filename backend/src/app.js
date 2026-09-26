@@ -10,6 +10,7 @@ import rateLimit from '@fastify/rate-limit';
 import config from './config/index.js';
 import * as schemas from './schemas/index.js';
 import { nowKST } from './utils/date.js';
+import { createProxyTrust } from './utils/proxyTrust.js';
 
 // 플러그인
 import dbPlugin from './plugins/db.js';
@@ -28,12 +29,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export async function buildApp(opts = {}) {
+  const proxyTrust = createProxyTrust(config.server.trustedProxyHosts, {
+    onError: (host, error) => fastify.log.warn({ host, code: error.code }, '[proxy] trusted peer lookup failed'),
+  });
   const fastify = Fastify({
+    trustProxy: proxyTrust.trustProxy,
     logger: {
       level: opts.logLevel || 'info',
     },
     ...opts,
   });
+
+  await proxyTrust.refresh();
+  const proxyRefresh = setInterval(() => { void proxyTrust.refresh(); }, 15_000);
+  proxyRefresh.unref();
+  fastify.addHook('onClose', async () => { clearInterval(proxyRefresh); });
 
   // config 데코레이터 등록
   fastify.decorate('config', config);

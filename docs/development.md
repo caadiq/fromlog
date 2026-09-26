@@ -8,15 +8,26 @@
 - 인증 요청마다 관리자 계정 및 토큰 폐기 여부를 조회한다. 테이블 누락/DB 장애는 503으로 접근을 차단한다.
 - 로그아웃은 `POST /api/auth/logout` 성공 후 로컬 세션을 지운다. 서버가 이미 401을 반환한 경우에도 로컬 세션을 해제한다. 네트워크/서버 오류 시 재시도를 제공한다.
 - 토큰 원문은 DB에 저장하지 않으며, 만료된 폐기 기록은 로그아웃 후 정리한다. JWT 유효기간은 기존 설정을 따른다.
+- 인증 경계에서 JWT 서명의 정규 base64url 표기를 확인한다. 토큰 원문 해시와 기존 정규 토큰의 폐기 기록은 유지하며 jti 없는 기존 토큰도 지원한다.
 - 프론트 인증 검증 쿼리는 토큰별로 분리하고 세션 변경 시 쿼리를 취소·초기화한다. 401은 현재 토큰과 일치할 때만 로그아웃 처리한다.
 
 ```bash
 docker exec fromlog-backend npm run test:auth
+docker exec fromlog-frontend node --test test/proxy-forwarding.test.mjs
 docker exec fromlog-frontend npm run build
 ```
 
 인증 테스트는 DB/Google 대역·테스트 서명키를 사용하며 운영 계정·콘텐츠에 쓰지 않는다.
 라우트 전수 검사는 입력 스키마를 테스트 내에서 제거해 인증 preHandler를 독립적으로 검사한다.
+
+### 프록시 신뢰와 IP별 제한
+
+- `TRUSTED_PROXY_HOSTS`는 백엔드가 신뢰할 프록시 호스트의 쉼표 구분 목록이다. 기본값은 현재 Docker 구성의 `fromlog-frontend,fromlog-frontend-prod,caddy`다. 직접 연결만 사용하는 환경은 빈 문자열로 설정한다.
+- 시작 시 DNS로 확인한 **개별 IP만** 신뢰하고 15초마다 갱신한다. 갱신 시 사라지거나 조회에 실패한 호스트의 이전 주소를 제거한다. 컨테이너 재생성 직후 다음 DNS 갱신 전까지는 접속자별 제한이 일시적으로 합쳐질 수 있다.
+- 전체 Docker 대역이나 임의 `X-Forwarded-For`를 신뢰하지 않는다. Caddy → nginx(운영)/Vite(개발) → 백엔드 경로를 사용한다. 외부 ingress를 바꾸면 신뢰 목록과 헤더 전달 정책을 함께 재검증한다.
+- nginx의 기존 `$proxy_add_x_forwarded_for`와 Vite의 `xfwd: true`가 각 홉의 실제 연결 주소를 추가한다. 프론트엔드에 직접 접속하며 위조한 헤더도 실제 연결 주소에서 신뢰가 끊긴다.
+- `request.ip`를 사용하는 비밀번호·Google 로그인 제한과 다른 IP 기준 제한에 공통 적용된다. 같은 공인 IP를 쓰는 사용자끼리는 기존 IP 기준 정책상 제한을 공유한다.
+- 프록시 테스트는 격리 HTTP 서버로 실제 Vite 설정의 헤더 전달을 검사한다. 운영 로그인 제한을 소진하지 않는다.
 
 ## 앨범 수정 회귀 테스트
 

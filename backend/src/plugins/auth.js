@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin';
 import fastifyJwt from '@fastify/jwt';
 import config from '../config/index.js';
-import { authTokenHash } from '../utils/authSession.js';
+import { authTokenHash, hasCanonicalAuthSignature } from '../utils/authSession.js';
 
 async function authPlugin(fastify, opts) {
   // JWT 플러그인 등록
@@ -14,6 +14,9 @@ async function authPlugin(fastify, opts) {
 
   // 인증 데코레이터
   fastify.decorate('authenticate', async function (request, reply) {
+    if (!hasCanonicalAuthSignature(request)) {
+      return reply.status(401).send({ error: '인증이 필요합니다.' });
+    }
     try {
       await request.jwtVerify();
     } catch (err) {

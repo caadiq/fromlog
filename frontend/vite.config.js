@@ -20,10 +20,13 @@ export default defineConfig({
       "/api": {
         target: "http://fromlog-backend:80",
         changeOrigin: true,
+        // Preserve the real peer at this hop so direct callers cannot spoof XFF.
+        xfwd: true,
       },
       "/docs": {
         target: "http://fromlog-backend:80",
         changeOrigin: true,
+        xfwd: true,
       },
     },
   },

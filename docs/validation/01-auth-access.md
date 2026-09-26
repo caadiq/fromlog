@@ -1,6 +1,6 @@
 # 01. 로그인·접근 권한
 
-- 상태: 진행 중 — Codex Security 추가 검증에서 중간 위험도 2건 확인, 수정·재검증 필요
+- 상태: 완료 — Codex Security 추가 발견 2건 수정·재검증 완료 (운영 프론트 배포와 별개)
 - 검증일: 2026-09-26
 - 대상: PC·모바일 관리자 인증, 관리자 API, 앱 인증 경계
 - 방식: 소스 확인 + 격리 API 테스트 + 개발 사이트 브라우저 검증
@@ -36,7 +36,7 @@ JWT 보호 API 102개의 인증 훅을 확인했다. 공개 쓰기 API(로그인
 
 ### API 자동 테스트
 
-`docker exec fromlog-backend npm run test:auth`: **9/9 통과**.
+최초 검증의 `docker exec fromlog-backend npm run test:auth`: **9/9 통과**. 추가 발견 수정 후에는 아래 기록처럼 **14/14 통과**했다.
 
 - 토큰 없음·잘못된 서명·만료·필수 claim 누락·없는 관리자·사용자명 불일치 차단
 - 비밀번호 성공/실패, 로그인 시도 제한, Google audience·인증된 이메일·허용 목록 검사
@@ -91,7 +91,7 @@ JWT 보호 API 102개의 인증 훅을 확인했다. 공개 쓰기 API(로그인
 - 로컬 산출물: [보고서](/home/caadiq/.codex/state/plugins/codex-security/scans/fromlog/ca91e816a2f4a18e56fbbebd68615d3fdcb8ef2b_20260926T105951Z_f_8lpby1/report.md), [발견 사항](/home/caadiq/.codex/state/plugins/codex-security/scans/fromlog/ca91e816a2f4a18e56fbbebd68615d3fdcb8ef2b_20260926T105951Z_f_8lpby1/findings.json), [검사 범위](/home/caadiq/.codex/state/plugins/codex-security/scans/fromlog/ca91e816a2f4a18e56fbbebd68615d3fdcb8ef2b_20260926T105951Z_f_8lpby1/coverage.json), [스캔 정보](/home/caadiq/.codex/state/plugins/codex-security/scans/fromlog/ca91e816a2f4a18e56fbbebd68615d3fdcb8ef2b_20260926T105951Z_f_8lpby1/scan-manifest.json).
 - 도구의 연결 대화 4개 집계: 총 9,267,858 tokens (입력 9,225,367, 출력 42,491; 캐시 입력 8,840,576 포함). source는 codex_rollout이며, 이번 검사만의 순증 사용량으로 해석하지 않는다.
 
-### 수정 필요: 로그아웃 토큰의 동등한 표기 재사용 (중간 위험도)
+### 발견 1: 로그아웃 토큰의 동등한 표기 재사용 (중간 위험도, 후속 수정 완료)
 
 `backend/src/utils/authSession.js:3`은 토큰 원문을 해시하지만 서명 검증은 다른 표기도 동일한 서명 바이트로 해석한다. 이미 확보한 미만료 관리자 토큰은 로그아웃 이후 표기를 바꿔 폐기 조회를 피할 수 있다. 새로운 토큰을 위조하거나 서명키 없이 임의 계정으로 로그인하는 문제는 아니다.
 
@@ -100,7 +100,7 @@ JWT 보호 API 102개의 인증 훅을 확인했다. 공개 쓰기 API(로그인
 - 수정 방향: 검증된 세션 ID 기준 폐기 또는 엄격한 정규형 토큰 검증. 기존 폐기 기록과 jti 없는 토큰의 호환 정책도 필요하다.
 - 회귀 검증: 원본 및 동등한 표기를 모두 차단하고 다른 로그인 세션은 유지해야 한다.
 
-### 수정 필요: 프록시 뒤 사용자들이 로그인 제한을 공유 (중간 위험도)
+### 발견 2: 프록시 뒤 사용자들이 로그인 제한을 공유 (중간 위험도, 후속 수정 완료)
 
 `backend/src/app.js:30`의 기본 Fastify 설정은 프록시 신뢰를 설정하지 않아 `request.ip`가 실제 사용자 대신 프록시 주소가 된다. `backend/src/routes/auth.js:26`의 제한이 같은 프론트엔드를 쓰는 모든 사용자에게 적용되어, 비로그인 사용자가 제한을 소진하면 다른 관리자도 신규 로그인이 막힌다. 초과 요청은 차단 시간을 연장한다.
 
@@ -113,6 +113,49 @@ JWT 보호 API 102개의 인증 훅을 확인했다. 공개 쓰기 API(로그인
 
 - 실제 Google 계정 로그인·외부 edge의 차단 정책·실기기 앱은 검사하지 않았다.
 - 앱 운영 푸시 등록용 키의 배포/권한 정책은 기존 계획대로 7번/10번에서 검토한다.
-- 이번 스캔에서 애플리케이션 소스는 수정하지 않았다. 2건 모두 수정 대기이며 기존 1번 완료 판정은 보완 필요로 되돌렸다.
+- 스캔 당시 애플리케이션 소스는 수정하지 않았다. 당시 2건을 수정 대기로 두고 기존 1번 완료 판정을 보완 필요로 되돌렸다. 이후 수정 결과는 아래와 같다.
 - 기존 자동 테스트 9개와 브라우저 검사의 통과는 앞선 검사 범위에서 유효하지만, 이번 두 경계 조건은 그 테스트에 포함되지 않았다.
-- 다음 단계는 위 2건 수정·재검증이며, 그 후 2번 데이터·검색 정합성 검증으로 이동한다.
+- 후속 수정·재검증까지 완료했으므로 다음 작업은 2번 데이터·검색 정합성 검증이다.
+
+## 추가 발견 수정·재검증 — 2026-09-26
+
+결과: **fixed**. 변경 전 기준은 `efe6fa8c`이며, 완료된 원본 스캔 산출물은 변경하지 않았다. Codex Security Fix Finding 절차의 독립 사전 조사 및 수정 후 읽기 전용 우회·회귀 검토를 진행했다.
+
+별도 [수정 검증 보고서](/home/caadiq/.codex/state/plugins/codex-security/scans/fromlog/artifacts-7238b99c3c1a2489d1fb8ba9accdcdb2c8ba8000c3544c3b5d17821d61b9870f/artifacts/auth-remediation-20260926.md)를 저장했다. 원본 스캔은 발견 당시 기록이며 수정 완료 상태는 이 후속 기록으로 구분한다.
+
+### 수정 경계와 호환성
+
+1. **JWT 폐기 우회:** 공통 `authenticate`에서 서명 부분의 정규 base64url 표기를 확인한다. 패딩, 표준 base64 알파벳, 남는 비트 변경, 불필요한 문자를 거부한다. 서명에 포함된 header/payload를 재작성하지 않으며 기존 원문 SHA-256 폐기 키를 유지한다. 서명 검증기만 통과했던 동등 표기도 인증 경계에서는 401이 된다.
+2. **사용자별 로그인 제한:** Fastify가 개별 ingress IP만 신뢰하도록 공통 `createProxyTrust`를 추가했다. Docker 서비스 DNS를 시작 시/15초마다 확인하며 IPv4-mapped IPv6도 처리한다. 비밀번호·Google 경로 모두 실제 접속자 IP로 제한된다. Vite는 실제 연결 상대를 전달 헤더에 추가하고, nginx는 기존 설정을 유지한다.
+
+기존 정규 토큰·폐기 해시·jti 없는 토큰은 유지된다. 독립 검토에서 과거 비정규 토큰으로 로그아웃한 해시만 존재하면 정규 토큰을 막지 못하는 호환 경계도 재현했다. **수정 전 실제 DB의 미만료 폐기 기록은 0건**이어서 이번 적용에는 영향받는 과거 기록이 없었다. 해시만으로 과거 비정규 원문을 복원하는 마이그레이션을 했다고 주장하지 않는다. 다른 설치에서 미만료 기록이 존재하면 이 조건을 별도로 검토해야 한다.
+
+### 검증 단계와 결과
+
+| 단계 | 명령·확인 | 결과 |
+| --- | --- | --- |
+| 변경·문법 | `git diff --check`, 변경된 백엔드 JS 5개 `node --check` | 통과 |
+| 보안 재현·정상 회귀 | `docker exec fromlog-backend npm run test:auth` | 14/14 통과, 보호 API 102개 포함 |
+| 실제 개발 프록시 | `docker exec fromlog-frontend node --test test/proxy-forwarding.test.mjs` | 1/1 통과, `/api`·`/docs` 각각 헤더 없음/단일/다중 전달 주소 검사 |
+| 패키지 빌드 | `docker exec fromlog-frontend npm run build` | 통과, 기존 큰 번들·Browserslist 갱신 경고 |
+| 실행 중 서비스 | 개발·운영 `/api/auth/config`, 개발 비로그인 `/api/auth/verify` | 각각 200 / 200 / 401 |
+| 실제 프록시 경로 | 개발·운영 공개 config GET에 테스트용 위조 XFF·X-Real-IP 전달 후 해당 요청 로그만 대조 | 둘 다 위조 주소·프론트/Caddy 주소가 아닌 접속자 주소 기록 |
+| 독립 최종 검토 | 읽기 전용 검토자가 인증 14개·Vite 1개 재실행, 실제 DNS 확인 | 통과, 현재 적용을 막는 추가 우회·회귀 없음 |
+
+로그인 제한 소진은 격리 테스트에서만 실행했다. 실제 경로 검사는 공개 GET 2건으로 헤더 전달을 확인했으며 로그인·계정·콘텐츠에 쓰지 않았다. 접속자 IP나 자격증명은 문서에 기록하지 않는다.
+
+추가 자동 테스트는 다음을 증명한다.
+
+- 기존 verifier가 수락하는 대체 서명 표기 5종을 로그아웃 전후 모두 401로 차단한다. 정상 토큰은 로그아웃 전 200, 이후 401이다.
+- 기존 정규 폐기 해시, jti 없는 토큰, 별도 로그인 세션 및 대소문자 혼합 Bearer 접두사의 정상 처리를 유지한다.
+- 개발·운영 프록시 경로에서 사용자 A가 비밀번호/Google 제한을 소진해도 다른 IP의 B는 정상 로그인한다.
+- 위조된 왼쪽 전달 IP를 바꿔도 같은 실제 접속자의 제한은 유지한다. 백엔드·프론트엔드 직접 접속의 위조 전달 헤더로도 신뢰 경계를 넘지 못한다.
+- DNS 주소 교체·조회 실패·빈 신뢰 목록에서 이전 주소나 임의 전달 헤더를 신뢰하지 않는다.
+
+### 수정 파일과 반영 범위
+
+- 백엔드: `src/plugins/auth.js`, `src/utils/authSession.js`, `src/utils/proxyTrust.js`, `src/config/index.js`, `src/app.js`.
+- 개발 프록시: `frontend/vite.config.js`.
+- 회귀 검사: `backend/test/auth-access.test.js`, `backend/test/auth-proxy.test.js`, `frontend/test/proxy-forwarding.test.mjs`.
+- 공용 백엔드와 개발 Vite에는 자동 반영됐다. 운영 nginx 설정 변경·운영 프론트 재배포·추가 DB 변경은 없었다.
+- 이번 수정은 UI를 변경하지 않아 앞선 PC·모바일 브라우저 결과를 유지한다. 실제 Google OAuth 화면·실기기 앱은 앞서 적은 미검증 범위 그대로다.
