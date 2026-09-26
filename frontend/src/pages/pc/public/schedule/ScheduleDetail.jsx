@@ -1,7 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { getSchedule } from '@/api';
+import ContentState from '@/components/pc/public/ContentState';
 
 // 섹션 컴포넌트들
 import { YoutubeSection, XSection, VarietySection, EventSection, FansignSection, ConcertSection, TicketingSection, EtcSection, DefaultSection, decodeHtmlEntities } from './sections';
@@ -17,10 +18,10 @@ function PCScheduleDetail() {
     data: schedule,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['schedule', id],
     queryFn: () => getSchedule(id),
-    placeholderData: keepPreviousData,
     retry: false,
   });
 
@@ -28,7 +29,11 @@ function PCScheduleDetail() {
 
   if (isLoading) {
     // 높이는 부모(main.flex-1)에서 받는다 — 헤더 높이를 숫자로 박으면 실제 높이(74px)와 어긋나 스크롤이 생긴다
-    return <div className="min-h-0 flex-1 bg-paper" />;
+    return <ContentState>일정을 불러오는 중입니다.</ContentState>;
+  }
+
+  if (error && error.status !== 404) {
+    return <ContentState onRetry={() => refetch()}>일정을 불러오지 못했습니다.</ContentState>;
   }
 
   if (error || !schedule) {
@@ -83,7 +88,7 @@ function PCScheduleDetail() {
   const EditorialSection = EDITORIAL_SECTIONS[categoryName];
   if (EditorialSection) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-paper text-ink">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper text-ink [overflow-wrap:anywhere]">
         <EditorialSection schedule={schedule} />
       </div>
     );
@@ -91,7 +96,7 @@ function PCScheduleDetail() {
 
   // 기타 카테고리 — 에디토리얼 기본 섹션
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-paper text-ink">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper text-ink [overflow-wrap:anywhere]">
       <DefaultSection schedule={schedule} />
     </div>
   );

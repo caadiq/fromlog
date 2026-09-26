@@ -10,16 +10,17 @@
  * 쇼츠는 별도 카테고리로 분리돼 있으므로 일반 목록에서는 항상 제외한다.
  */
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { useDocumentTitle, useClickOutside } from '@/hooks';
 import { videoApi } from '@/api';
 import { fadeUp, stagger, Reveal } from '@/components/editorial';
 import { CATEGORY_META, VideoCard, videoUrl } from './Video';
-import { shortsThumb, onShortsThumbLoad, onShortsThumbError } from '@/utils';
 import VideoTitle from './VideoTitle';
+import VideoThumbnail from './VideoThumbnail';
+import ContentState from '@/components/pc/public/ContentState';
 
 const PAGE_SIZE = 24;
 
@@ -31,23 +32,19 @@ function ShortsCard({ video }) {
       href={videoUrl(video)}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block"
+      className="group block min-w-0 break-words"
     >
       <div className="relative overflow-hidden bg-canvas-deep" style={{ aspectRatio: '9/16' }}>
-        <img
-          src={shortsThumb(video.videoId)}
-          alt={video.title}
+        <VideoThumbnail video={video} shorts
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          onError={(e) => onShortsThumbError(e, video.videoId)}
-          onLoad={(e) => onShortsThumbLoad(e, video.videoId)}
         />
       </div>
       <VideoTitle
         title={video.title}
         className="mt-[9px] text-[13px] font-extrabold leading-[1.4] tracking-[-0.2px] text-ink"
       />
-      <span className="mt-[4px] block text-[12px] font-semibold text-mute">{video.channelName}</span>
+      <span className="mt-[4px] line-clamp-2 text-[13px] font-semibold text-mute">{video.channelName}</span>
     </motion.a>
   );
 }
@@ -56,28 +53,71 @@ function ShortsCard({ video }) {
 function ChannelSelect({ channels, value, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const menuRef = useRef(null);
+  const buttonRef = useRef(null);
+  const reduced = useReducedMotion();
+  const [placement, setPlacement] = useState({ maxHeight: 380, above: false });
+  const close = () => { setOpen(false); buttonRef.current?.focus({ preventScroll: true }); };
+  const menuKey = event => {
+    if (event.key === 'Escape') { event.preventDefault(); close(); }
+    if (event.key === 'Tab') setOpen(false);
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const nodes = [...menuRef.current.querySelectorAll('button')];
+      const index = nodes.indexOf(document.activeElement);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? nodes.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + nodes.length) % nodes.length;
+      nodes[next]?.focus();
+    }
+  };
+  useEffect(() => {
+    if (!open) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const below = window.innerHeight - rect.bottom - 12;
+    const headerBottom = document.querySelector('.pc-public header')?.getBoundingClientRect().bottom || 0;
+    const above = rect.top - Math.max(12, headerBottom + 8) - 4;
+    const dropAbove = below < Math.min(380, above);
+    setPlacement({ maxHeight: Math.max(0, Math.min(380, dropAbove ? above : below)), above: dropAbove });
+    const frame = requestAnimationFrame(() => (menuRef.current?.querySelector('[aria-selected="true"]') || menuRef.current?.querySelector('button'))?.focus({ preventScroll: true }));
+    const dismiss = event => {
+      if (menuRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    window.addEventListener('resize', dismiss);
+    window.addEventListener('scroll', dismiss, true);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('resize', dismiss); window.removeEventListener('scroll', dismiss, true); };
+  }, [open]);
 
   useClickOutside(ref, () => setOpen(false), open);
 
   const current = channels.find((c) => c.name === value);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative z-20">
       <button
         type="button"
+        ref={buttonRef} aria-haspopup="listbox" aria-expanded={open}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); }
+          if (event.key === 'Escape' && open) { event.preventDefault(); close(); }
+        }}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-w-[240px] items-center justify-between gap-3 border border-hairline bg-white px-4 py-2.5 text-[13.5px] font-extrabold text-ink transition-colors hover:border-ink"
+        className="flex w-[320px] max-w-full items-center justify-between gap-3 border border-hairline bg-white px-4 py-2.5 text-[13.5px] font-extrabold text-ink transition-colors hover:border-ink"
       >
         <span className="min-w-0 truncate">
           {current ? `${current.name} (${current.count})` : '전체 채널'}
         </span>
         <ChevronDown size={14} className={`shrink-0 text-mute transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
+      <AnimatePresence>
       {open && (
-        <div className="absolute left-0 top-[46px] z-20 max-h-[380px] w-[320px] overflow-y-auto border border-ink bg-white shadow-[0_24px_60px_rgba(20,22,19,0.16)]">
+        <motion.div ref={menuRef} role="listbox" aria-label="채널" onKeyDown={menuKey}
+          initial={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : -6 }} transition={{ duration: reduced ? 0 : 0.15 }}
+          style={{ maxHeight: placement.maxHeight, ...(placement.above ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }) }}
+          className="absolute left-0 z-20 w-full overflow-y-auto border border-ink bg-white shadow-[0_24px_60px_rgba(20,22,19,0.16)]">
           <button
             type="button"
-            onClick={() => { onChange(''); setOpen(false); }}
+            role="option" aria-selected={!value}
+            onClick={() => { onChange(''); close(); }}
             className={`w-full px-4 py-2.5 text-left text-[13.5px] font-bold transition-colors hover:bg-canvas ${
               !value ? 'bg-canvas text-ink' : 'text-esub'
             }`}
@@ -88,7 +128,8 @@ function ChannelSelect({ channels, value, onChange }) {
             <button
               key={c.name}
               type="button"
-              onClick={() => { onChange(c.name); setOpen(false); }}
+              role="option" aria-selected={value === c.name}
+              onClick={() => { onChange(c.name); close(); }}
               className={`flex w-full items-center justify-between gap-3 border-t border-hairline px-4 py-2.5 text-left text-[13.5px] font-bold transition-colors hover:bg-canvas ${
                 value === c.name ? 'bg-canvas text-ink' : 'text-esub'
               }`}
@@ -97,8 +138,9 @@ function ChannelSelect({ channels, value, onChange }) {
               <span className="shrink-0 text-[12px] text-mute">{c.count}</span>
             </button>
           ))}
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -112,7 +154,14 @@ function VideoList() {
   useDocumentTitle(`영상 - ${meta.ko}`);
 
   // 필터 상태
-  const [channel, setChannel] = useState('');
+  const [params, setParams] = useSearchParams();
+  const channel = params.get('channel') || '';
+  const setChannel = value => setParams(prev => {
+    const next = new URLSearchParams(prev);
+    if (value) next.set('channel', value);
+    else next.delete('channel');
+    return next;
+  });
 
   const baseParams = {
     ...(category ? { category } : {}),
@@ -122,7 +171,7 @@ function VideoList() {
     limit: PAGE_SIZE,
   };
 
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, error, isFetchNextPageError, refetch } = useInfiniteQuery({
     queryKey: ['videos', baseParams],
     queryFn: ({ pageParam = 0 }) => videoApi.getVideos({ ...baseParams, offset: pageParam }),
     getNextPageParam: (last) => (last.hasMore ? last.offset + last.limit : undefined),
@@ -144,7 +193,7 @@ function VideoList() {
   const sentinelRef = useRef(null);
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || !hasNextPage) return undefined;
+    if (!el || !hasNextPage || isFetchNextPageError) return undefined;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !isFetchingNextPage) fetchNextPage();
@@ -153,7 +202,7 @@ function VideoList() {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isFetchNextPageError]);
 
   // 월 구분 그룹핑
   const groups = useMemo(() => {
@@ -191,7 +240,7 @@ function VideoList() {
 
         {/* 필터 */}
         {hasFilter ? (
-          <Reveal className="mt-6 flex flex-wrap items-center gap-2 border-b border-hairline border-t-2 border-t-ink px-0.5 py-4">
+          <Reveal className="relative z-20 mt-6 flex flex-wrap items-center gap-2 border-b border-hairline border-t-2 border-t-ink px-0.5 py-4">
             <ChannelSelect channels={facets?.channels || []} value={channel} onChange={setChannel} />
           </Reveal>
         ) : (
@@ -211,6 +260,8 @@ function VideoList() {
               </div>
             ))}
           </div>
+        ) : error && !videos.length ? (
+          <ContentState onRetry={() => refetch()}>영상을 불러오지 못했습니다.</ContentState>
         ) : videos.length === 0 ? (
           <p className="py-24 text-center text-[14.5px] text-mute">조건에 맞는 영상이 없습니다.</p>
         ) : (
@@ -242,6 +293,9 @@ function VideoList() {
           ))
         )}
 
+        {isFetchNextPageError && (
+          <ContentState onRetry={() => fetchNextPage()}>다음 영상을 불러오지 못했습니다.</ContentState>
+        )}
         {/* 무한 스크롤 센티널 */}
         <div ref={sentinelRef} className="h-px" />
         {isFetchingNextPage && (

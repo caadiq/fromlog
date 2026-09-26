@@ -5,11 +5,12 @@
  * 실제로 잘린 제목에 한해 에디토리얼 톤의 툴팁을 직접 띄운다.
  * 카드가 grid/overflow 안에 있어 잘릴 수 있으므로 portal + fixed 배치.
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 function VideoTitle({ title, className = '' }) {
   const ref = useRef(null);
+  const tipRef = useRef(null);
   const [tip, setTip] = useState(null); // { x, y }
 
   const handleEnter = useCallback(() => {
@@ -22,6 +23,19 @@ function VideoTitle({ title, className = '' }) {
   }, []);
 
   const handleLeave = useCallback(() => setTip(null), []);
+  useLayoutEffect(() => {
+    if (!tip || !tipRef.current) return;
+    const rect = tipRef.current.getBoundingClientRect();
+    const y = Math.max(12, Math.min(tip.y, window.innerHeight - rect.height - 12));
+    if (y !== tip.y) setTip({ ...tip, y });
+  }, [tip]);
+  useEffect(() => {
+    if (!tip) return;
+    window.addEventListener('scroll', handleLeave, true);
+    window.addEventListener('resize', handleLeave);
+    window.addEventListener('keydown', handleLeave);
+    return () => { window.removeEventListener('scroll', handleLeave, true); window.removeEventListener('resize', handleLeave); window.removeEventListener('keydown', handleLeave); };
+  }, [tip, handleLeave]);
 
   return (
     <>
@@ -29,18 +43,18 @@ function VideoTitle({ title, className = '' }) {
         ref={ref}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
-        className={`line-clamp-2 ${className}`}
+        className={`line-clamp-2 break-words ${className}`}
       >
         {title}
       </b>
       {tip &&
         createPortal(
           <span
-            role="tooltip"
-            className="pointer-events-none fixed z-[100] max-w-[360px] border border-ink bg-ink px-3 py-2 text-[12.5px] font-semibold leading-[1.55] text-white shadow-[0_12px_30px_rgba(20,22,19,0.25)]"
+            ref={tipRef} role="tooltip"
+            className="pointer-events-none fixed z-[100] max-w-[360px] break-words border border-ink bg-ink px-3 py-2 text-[12.5px] font-semibold leading-[1.55] text-white shadow-[0_12px_30px_rgba(20,22,19,0.25)]"
             style={{
-              left: Math.min(tip.x, window.innerWidth - 372),
-              top: Math.min(tip.y, window.innerHeight - 80),
+              left: Math.max(12, Math.min(tip.x, window.innerWidth - 372)),
+              top: tip.y,
             }}
           >
             {title}

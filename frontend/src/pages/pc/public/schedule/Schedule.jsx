@@ -1,4 +1,5 @@
 import ScheduleSearchRow from '@/components/common/ScheduleSearchRow';
+import ContentState from '@/components/pc/public/ContentState';
 import { useScheduleSearchNavigation } from '@/hooks/common/useScheduleSearchNavigation';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +9,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { EditorialCalendar, BirthdayCard, DebutCard } from '@/components/pc/public';
 import { DebutCelebrationDialog, BirthdayCelebrationDialog, Tooltip, ScheduleLinkStrip } from '@/components/common';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 import { OutlineTitle, EASE } from '@/components/editorial';
 import { fireBirthdayConfetti, fireDebutConfetti } from '@/utils';
@@ -29,7 +30,18 @@ const OS_LIST_OPTIONS = {
 };
 
 /** 년월 선택 팝오버 (S_final_picker_pc 시안) */
-function YearMonthPopover({ year, month, onSelectYear, onSelectMonth }) {
+function YearMonthPopover({ year, month, onSelectYear, onSelectMonth, onClose }) {
+  const panel = useRef(null);
+  const reduced = useReducedMotion();
+  const [maxHeight, setMaxHeight] = useState(400);
+  useEffect(() => {
+    const measure = () => setMaxHeight(Math.max(80, window.innerHeight - (panel.current?.getBoundingClientRect().top || 0) - 20));
+    measure();
+    window.addEventListener('resize', measure);
+    const escape = event => { if (event.key === 'Escape') { event.preventDefault(); onClose(); } };
+    window.addEventListener('keydown', escape);
+    return () => { window.removeEventListener('resize', measure); window.removeEventListener('keydown', escape); };
+  }, [onClose]);
   const now = new Date();
   const [rangeStart, setRangeStart] = useState(MIN_YEAR + Math.floor((year - MIN_YEAR) / 4) * 4);
   const years = Array.from({ length: 4 }, (_, i) => rangeStart + i);
@@ -47,12 +59,13 @@ function YearMonthPopover({ year, month, onSelectYear, onSelectMonth }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: '-58%', y: -8, scale: 0.98 }}
+      ref={panel} role="dialog" aria-label="연도와 월 선택"
+      initial={{ opacity: reduced ? 1 : 0, x: '-58%', y: -8, scale: 0.98 }}
       animate={{ opacity: 1, x: '-58%', y: 0, scale: 1 }}
       exit={{ opacity: 0, x: '-58%', y: -6, scale: 0.98 }}
-      transition={{ duration: 0.22, ease: EASE }}
-      className="absolute left-1/2 top-[46px] z-20 w-[360px] border border-ink bg-white px-6 pb-[26px] pt-[22px] shadow-[0_24px_60px_rgba(20,22,19,0.16)]"
-      style={{ transformOrigin: '58% top' }}
+      transition={{ duration: reduced ? 0 : 0.22, ease: EASE }}
+      className="absolute left-1/2 top-[46px] z-20 w-[360px] overflow-y-auto border border-ink bg-white px-6 pb-[26px] pt-[22px] shadow-[0_24px_60px_rgba(20,22,19,0.16)]"
+      style={{ transformOrigin: '58% top', maxHeight }}
     >
       {/* 연도 범위 네비 */}
       <div className="mb-3.5 flex items-center justify-between">
@@ -209,7 +222,7 @@ function PCSchedule() {
   const month = currentDate.getMonth();
 
   // 월별 일정 데이터
-  const { data: schedules = [], isLoading: loading } = useQuery({
+  const { data: schedules = [], isLoading: loading, error: schedulesError, refetch: retrySchedules } = useQuery({
     queryKey: ['schedules', year, month + 1],
     queryFn: () => getSchedules(year, month + 1),
   });
@@ -883,7 +896,8 @@ function PCSchedule() {
             </button>
             <AnimatePresence>
               {showYmPicker && (
-                <YearMonthPopover year={year} month={month} onSelectYear={selectYmYear} onSelectMonth={selectYmMonth} />
+                <YearMonthPopover year={year} month={month} onSelectYear={selectYmYear} onSelectMonth={selectYmMonth}
+                  onClose={() => { setShowYmPicker(false); ymPickerRef.current?.querySelector('[aria-expanded]')?.focus(); }} />
               )}
             </AnimatePresence>
           </div>
@@ -986,6 +1000,8 @@ function PCSchedule() {
 
                 {loading ? (
                   <div className="py-24 text-center text-mute">로딩 중...</div>
+                ) : schedulesError ? (
+                  <ContentState onRetry={() => retrySchedules()}>일정을 불러오지 못했습니다.</ContentState>
                 ) : (
                   <OverlayScrollbarsComponent
                     element="div"

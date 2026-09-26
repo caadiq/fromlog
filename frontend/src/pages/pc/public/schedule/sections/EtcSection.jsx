@@ -32,7 +32,7 @@ function EtcSection({ schedule }) {
   };
 
   // D-day (지난 일정은 '종료')
-  const dday = calcDday(schedule.date);
+  const dday = schedule.datePrecision === 'month' ? null : calcDday(schedule.date);
   const ddayLabel = dday === null ? null : dday === 0 ? 'D-DAY' : dday > 0 ? `D-${dday}` : '종료';
   const ddayTone = dday !== null && dday < 0
     ? 'bg-canvas-deep text-mute'
@@ -43,7 +43,7 @@ function EtcSection({ schedule }) {
     k: 'DATE',
     v: (
       <>
-        {formatCrumbDate(schedule.date, null)}
+        {formatCrumbDate(schedule.date, null, schedule.datePrecision)}
         {ddayLabel && (
           <span className={`ml-2.5 inline-block px-2.5 py-[3px] text-[12.5px] font-extrabold tracking-k1 ${ddayTone}`}>
             {ddayLabel}
@@ -52,7 +52,7 @@ function EtcSection({ schedule }) {
       </>
     ),
   });
-  if (schedule.time) {
+  if (schedule.time && schedule.datePrecision !== 'month') {
     facts.push({ k: 'TIME', v: schedule.time.slice(0, 5) });
   }
   if (venue) {

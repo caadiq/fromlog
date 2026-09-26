@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { WEEKDAYS } from '@/constants';
 
 /**
@@ -15,6 +16,17 @@ function EditorialCalendar({
 }) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const reduced = useReducedMotion();
+  const monthIndex = year * 12 + month;
+  const [transition, setTransition] = useState({ monthIndex, direction: 1 });
+  if (transition.monthIndex !== monthIndex) {
+    setTransition({ monthIndex, direction: monthIndex > transition.monthIndex ? 1 : -1 });
+  }
+  const variants = {
+    enter: direction => ({ opacity: reduced ? 1 : 0, x: reduced ? 0 : direction * 20 }),
+    center: { opacity: 1, x: 0 },
+    exit: direction => ({ opacity: reduced ? 1 : 0, x: reduced ? 0 : direction * -20 }),
+  };
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
@@ -51,6 +63,11 @@ function EditorialCalendar({
 
   return (
     <div className={disabled ? 'pointer-events-none opacity-40 transition-opacity' : 'transition-opacity'}>
+      <div className="overflow-hidden">
+      <AnimatePresence mode="wait" initial={false} custom={transition.direction}>
+      <motion.div key={monthIndex} data-calendar-month={`${year}-${month + 1}`}
+        custom={transition.direction} variants={variants} initial="enter" animate="center" exit="exit"
+        transition={{ duration: reduced ? 0 : 0.08 }}>
       {/* 요일 */}
       <div className="mb-1.5 grid grid-cols-7">
         {WEEKDAYS.map((d, i) => (
@@ -87,6 +104,7 @@ function EditorialCalendar({
             <button
               key={dateStr}
               type="button"
+              disabled={disabled}
               onClick={() => onSelectDate(dateStr)}
               aria-label={`${month + 1}월 ${cell.day}일${isToday ? ' (오늘)' : ''}${dots.length > 0 ? ', 일정 있음' : ''}`}
               aria-pressed={isSelected}
@@ -115,6 +133,9 @@ function EditorialCalendar({
             </button>
           );
         })}
+      </div>
+      </motion.div>
+      </AnimatePresence>
       </div>
     </div>
   );
