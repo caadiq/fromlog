@@ -1,3 +1,4 @@
+import { hasLaterPublication, correctYoutubePublication } from '../../utils/youtubePublication.js';
 import { matchesVideoFilters as matchesTitleFilters, meetsDuration, nextEpisodeTitle } from '../../utils/youtubePolicy.js';
 import { withYoutubeChannelLock } from '../../utils/youtubeLock.js';
 import fp from 'fastify-plugin';
@@ -370,9 +371,30 @@ async function youtubeBotPlugin(fastify) {
       [ids]
     );
     const [archived] = await fastify.db.query(
-      'SELECT video_id, video_type, duration FROM videos WHERE video_id IN (?)',
+      "SELECT video_id, video_type, duration, DATE_FORMAT(published_at, '%Y-%m-%d %H:%i:%s') AS publication_time FROM videos WHERE video_id IN (?)",
       [ids]
     );
+    // Public-release metadata can settle after X has already imported the upload time.
+    // Run before the processed-ID shortcut, and verify the later time via videos.list.
+    if (!uploadsOverride) {
+      const archiveTimes = new Map(archived.map(row => [row.video_id, row]));
+      for (const upload of uploads) {
+        if (!hasLaterPublication(upload, archiveTimes.get(upload.videoId))) continue;
+        const video = await fetchVideoInfo(upload.videoId);
+        if (!video || video.channelId !== bot.channelId) continue;
+        const correction = await correctYoutubePublication(fastify.db, video);
+        if (!correction) continue;
+        for (const id of correction.scheduleIds) {
+          await syncScheduleById(fastify.meilisearch, fastify.db, id, fastify.redis);
+        }
+        await logActivity(fastify.db, {
+          actor: bot.id, action: 'update', category: 'schedule',
+          targetType: 'youtube_schedule', targetId: correction.scheduleIds[0],
+          summary: `YouTube 공개 시각 보정: ${video.title}`,
+          details: { videoId: video.videoId, ...correction },
+        });
+      }
+    }
     const [processed] = await fastify.db.query(
       'SELECT video_id, is_target, video_date FROM youtube_bot_processed WHERE channel_id = ? AND video_id IN (?)',
       [bot.channelId, ids]);

@@ -12,7 +12,7 @@ const upload = (id, extra = {}) => ({
 async function fixture(t, uploads = [upload('one')], options = {}) {
   const state = { archived: new Map(), saved: new Map(), skipped: new Set(), schedules: new Map(), logs: [], processed: new Map() };
   const calls = { activities: 0, durations: 0, details: 0, promotions: 0, rollbacks: 0 };
-  const fail = { detail: null, insert: false, promote: false };
+  const fail = { detail: null, insert: false, promote: false, publication: false };
   let nextId = 1;
   const query = async (rawSql, params = []) => {
     const sql = rawSql.replace(/\s+/g, ' ').trim();
@@ -24,7 +24,15 @@ async function fixture(t, uploads = [upload('one')], options = {}) {
     }
     if (sql.startsWith('SELECT video_id FROM schedule_youtube')) return [[...state.saved.keys()].filter(id => params[0].includes(id)).map(video_id => ({ video_id }))];
     if (sql.startsWith('SELECT video_id FROM youtube_skipped')) return [[...state.skipped].filter(id => params[0].includes(id)).map(video_id => ({ video_id }))];
-    if (sql.startsWith('SELECT video_id, video_type, duration FROM videos')) return [[...state.archived.values()].filter(row => params[0].includes(row.video_id))];
+    if (sql.startsWith('SELECT video_id, video_type, duration')) return [[...state.archived.values()].filter(row => params[0].includes(row.video_id))];
+    if (sql.startsWith('SELECT DATE_FORMAT(published_at')) return [[state.archived.get(params[0])].filter(Boolean)];
+    if (sql.startsWith('SELECT s.id FROM schedules s JOIN schedule_youtube')) return [[...state.schedules.values()].filter(s => state.saved.get(params[0]) === s.id && !s.is_temp && s.date === params[1] && s.time === params[2])];
+    if (sql.startsWith('UPDATE schedules SET date')) { Object.assign(state.schedules.get(params[2]), { date: params[0], time: params[1] }); return [{}]; }
+    if (sql.startsWith('UPDATE videos SET published_at')) {
+      if (fail.publication) { fail.publication = false; throw new Error('Publication update failed'); }
+      state.archived.get(params[1]).publication_time = params[0]; return [{}];
+    }
+    if (sql.startsWith('UPDATE youtube_bot_processed SET video_date')) { const row = state.processed.get(params[1]); if (row) row.video_date = params[0]; return [{}]; }
     if (sql.startsWith('INSERT IGNORE INTO videos')) {
       const [id, , , title, , video_type] = params;
       const exists = state.archived.has(id);
@@ -70,7 +78,7 @@ async function fixture(t, uploads = [upload('one')], options = {}) {
   const db = { query, async getConnection() {
     let backup;
     return { query,
-      async beginTransaction() { backup = structuredClone({ saved: state.saved, schedules: state.schedules }); },
+      async beginTransaction() { backup = structuredClone({ saved: state.saved, schedules: state.schedules, archived: state.archived, processed: state.processed }); },
       async commit() {},
       async rollback() { Object.assign(state, backup); calls.rollbacks++; },
       release() {},
@@ -267,3 +275,26 @@ test('today preview does not stop polling; later full episode does even if X alr
   assert.equal((await f.run()).foundTarget, true);
   assert.equal(f.state.schedules.size, 1);
 });
+
+for (const manual of [false, true]) {
+  test(`processed X import corrects publication time; manual schedule=${manual}`, async t => {
+    const f = await fixture(t, [upload('release', { publishedAt: '2026-09-25T12:00:02Z' })]);
+    f.state.archived.set('release', { video_id: 'release', publication_time: '2026-09-14 16:57:27', video_type: 'video' });
+    f.state.saved.set('release', 3998);
+    f.state.schedules.set(3998, { id: 3998, date: manual ? '2026-09-20' : '2026-09-14', time: '16:57:27', is_temp: false });
+    f.state.processed.set('release', { video_id: 'release', video_date: '2026-09-14', is_target: 1 });
+    f.fail.publication = true;
+    await assert.rejects(f.run(), /Publication update failed/);
+    assert.equal(f.state.archived.get('release').publication_time, '2026-09-14 16:57:27');
+    assert.equal(f.state.schedules.get(3998).date, manual ? '2026-09-20' : '2026-09-14');
+    await f.run();
+    assert.equal(f.state.archived.get('release').publication_time, '2026-09-25 21:00:02');
+    assert.equal(f.state.schedules.get(3998).date, manual ? '2026-09-20' : '2026-09-25');
+    assert.equal(f.state.schedules.get(3998).time, manual ? '16:57:27' : '21:00:02');
+    assert.equal(f.state.processed.get('release').video_date, '2026-09-25');
+    const calls = f.calls.details;
+    await f.run();
+    assert.equal(f.calls.details, calls, 'No repeated detail request once corrected');
+    assert.equal(f.state.schedules.size, 1);
+  });
+}
