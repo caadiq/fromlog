@@ -8,7 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 /// 다운로드 서비스 초기화
 Future<void> initDownloadService() async {
-  await FlutterDownloader.initialize(debug: false, ignoreSsl: true);
+  await FlutterDownloader.initialize(debug: false, ignoreSsl: false);
 }
 
 /// URL에서 파일 확장자 추출

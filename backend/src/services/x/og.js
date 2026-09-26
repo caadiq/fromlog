@@ -3,7 +3,7 @@
  * Nitter가 카드를 비워서 줄 때(주로 YouTube) fallback으로 사용.
  */
 
-const OG_TIMEOUT = 8000;
+import { fetchPublicText } from '../../utils/publicFetch.js';
 
 /**
  * HTML 엔티티 디코딩 (이미지 URL의 &amp; 등 처리)
@@ -42,19 +42,10 @@ function pickMeta(html, prop) {
  * @param {string} url - 대상 URL
  * @returns {Promise<object|null>} { url, title, description, destination, image } 또는 null
  */
-export async function fetchOgCard(url) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), OG_TIMEOUT);
+export async function fetchOgCard(url, { fetchText = fetchPublicText } = {}) {
   try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; fromis9-bot)' },
-      redirect: 'follow',
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) return null;
-
-    const html = await res.text();
+    const res = await fetchText(url);
+    const html = res.text;
     const title = pickMeta(html, 'og:title') || pickMeta(html, 'twitter:title');
     const image = pickMeta(html, 'og:image') || pickMeta(html, 'twitter:image');
     // 제목이나 이미지가 없으면 의미 있는 카드가 아님
@@ -76,7 +67,6 @@ export async function fetchOgCard(url) {
       image: image || null,
     };
   } catch {
-    clearTimeout(timeoutId);
     return null;
   }
 }
@@ -88,20 +78,12 @@ export async function fetchOgCard(url) {
  * @param {string} url - TikTok 영상 URL (vt.tiktok.com 단축 포함)
  * @returns {Promise<string|null>}
  */
-export async function fetchTiktokThumbnail(url) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), OG_TIMEOUT);
+export async function fetchTiktokThumbnail(url, { fetchText = fetchPublicText } = {}) {
   try {
-    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; fromis9-bot)' },
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) return null;
-    const json = await res.json();
+    const res = await fetchText(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { maxBytes: 256 * 1024 });
+    const json = JSON.parse(res.text);
     return json.thumbnail_url || null;
   } catch {
-    clearTimeout(timeoutId);
     return null;
   }
 }

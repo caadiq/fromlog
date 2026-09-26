@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import mysql from 'mysql2/promise';
+import https from 'node:https';
 import youtubePlugin from '../src/services/youtube/index.js';
 import xPlugin from '../src/services/x/index.js';
 import { promoteTempSchedule } from '../src/utils/tempSchedule.js';
@@ -28,6 +29,8 @@ test('isolated MariaDB bot ingestion contracts', { skip: process.env.BOT_AUDIT_D
   await db.query("INSERT INTO bot_youtube (channel_id, channel_name, enabled) VALUES ('channel', '테스트채널', 1)");
   const publishedAt = '2026-09-24T10:00:00Z';
   let video, html, detailFails;
+  // OG enrichment now uses a pinned native transport; never perform real I/O here.
+  t.mock.method(https, 'request', () => { throw Error('OG enrichment unavailable in this fixture'); });
   const post = (id = '100', text = '프로미스나인 소식', card = '') => `<div class="timeline-item " data-username="account"><a href="/account/status/${id}"></a><span class="tweet-date"><a title="Sep 24, 2026 · 10:00 AM UTC"></a></span><div class="tweet-content">${text}</div>${card}</div>`;
   t.mock.method(globalThis, 'fetch', async (input, opts = {}) => {
     const url = new URL(input);

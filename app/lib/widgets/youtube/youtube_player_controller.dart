@@ -21,6 +21,10 @@ import 'youtube_links.dart';
 /// 재생 상태 (유튜브 IFrame API 값 그대로)
 enum YtState { unstarted, ended, playing, paused, buffering, cued }
 
+// Preserve data as a JS string without allowing an HTML script-closing token.
+String youtubeScriptString(String value) =>
+    jsonEncode(value).replaceAll('<', r'\u003c');
+
 YtState _stateOf(int code) => switch (code) {
   0 => YtState.ended,
   1 => YtState.playing,
@@ -223,9 +227,9 @@ class YoutubeController extends ChangeNotifier {
         onReady: function (e) {
           var at = ${startAt.inMilliseconds / 1000};
           if ($autoPlay) {
-            e.target.loadVideoById({ videoId: '$videoId', startSeconds: at });
+            e.target.loadVideoById({ videoId: ${youtubeScriptString(videoId)}, startSeconds: at });
           } else {
-            e.target.cueVideoById({ videoId: '$videoId', startSeconds: at });
+            e.target.cueVideoById({ videoId: ${youtubeScriptString(videoId)}, startSeconds: at });
           }
           send({ e: 'ready', d: e.target.getDuration() });
           clearInterval(timer);

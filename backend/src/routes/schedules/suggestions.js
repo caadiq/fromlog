@@ -32,8 +32,8 @@ export default async function suggestionsRoutes(fastify) {
       querystring: {
         type: 'object',
         properties: {
-          q: { type: 'string', description: '검색어' },
-          limit: { type: 'integer', default: 10, description: '결과 개수' },
+          q: { type: 'string', maxLength: 255, description: '검색어' },
+          limit: { type: 'integer', minimum: 1, maximum: 20, default: 10, description: '결과 개수' },
         },
       },
       response: {
@@ -70,7 +70,7 @@ export default async function suggestionsRoutes(fastify) {
       querystring: {
         type: 'object',
         properties: {
-          limit: { type: 'integer', default: 10, description: '결과 개수' },
+          limit: { type: 'integer', minimum: 1, maximum: 20, default: 10, description: '결과 개수' },
         },
       },
       response: {
@@ -103,7 +103,7 @@ export default async function suggestionsRoutes(fastify) {
         type: 'object',
         required: ['query'],
         properties: {
-          query: { type: 'string', description: '검색어' },
+          query: { type: 'string', minLength: 1, maxLength: 255, description: '검색어' },
         },
       },
     },

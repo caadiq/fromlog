@@ -71,10 +71,13 @@ function KakaoMap({ lat, lng, name, className, level = 3 }) {
           map,
         });
         if (name) {
+          const label = document.createElement('div');
+          label.style.cssText = 'padding:4px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:9999px;font-size:12px;color:#374151;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,0.05);';
+          label.textContent = name;
           const overlay = new kakao.maps.CustomOverlay({
             position: center,
             yAnchor: 2.2,
-            content: `<div style="padding:4px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:9999px;font-size:12px;color:#374151;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,0.05);">${name}</div>`,
+            content: label,
           });
           overlay.setMap(map);
         }
