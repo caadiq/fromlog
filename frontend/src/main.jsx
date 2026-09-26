@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores';
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +17,20 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
     },
   },
+});
+
+// A previous administrator's cached data must not survive a session change.
+useAuthStore.subscribe((state, previous) => {
+  if (state.token !== previous.token) {
+    queryClient.cancelQueries();
+    queryClient.clear();
+  }
+});
+window.addEventListener('storage', event => {
+  if (event.key === 'auth-storage' || event.key === null) {
+    if (event.newValue === null) useAuthStore.getState().logout();
+    else useAuthStore.persist.rehydrate();
+  }
 });
 
 ReactDOM.createRoot(document.getElementById("root")).render(

@@ -1,5 +1,23 @@
 # 개발/배포 가이드
 
+## 관리자 인증·세션 검증
+
+2026-09-26: [1번 검증 결과](validation/01-auth-access.md).
+
+- 신규 환경은 인증 코드 실행 **전에** `backend/sql/revoked_admin_tokens.sql`을 DB에 적용한다. 기존 운영 DB에는 적용 완료했다.
+- 인증 요청마다 관리자 계정 및 토큰 폐기 여부를 조회한다. 테이블 누락/DB 장애는 503으로 접근을 차단한다.
+- 로그아웃은 `POST /api/auth/logout` 성공 후 로컬 세션을 지운다. 서버가 이미 401을 반환한 경우에도 로컬 세션을 해제한다. 네트워크/서버 오류 시 재시도를 제공한다.
+- 토큰 원문은 DB에 저장하지 않으며, 만료된 폐기 기록은 로그아웃 후 정리한다. JWT 유효기간은 기존 설정을 따른다.
+- 프론트 인증 검증 쿼리는 토큰별로 분리하고 세션 변경 시 쿼리를 취소·초기화한다. 401은 현재 토큰과 일치할 때만 로그아웃 처리한다.
+
+```bash
+docker exec fromlog-backend npm run test:auth
+docker exec fromlog-frontend npm run build
+```
+
+인증 테스트는 DB/Google 대역·테스트 서명키를 사용하며 운영 계정·콘텐츠에 쓰지 않는다.
+라우트 전수 검사는 입력 스키마를 테스트 내에서 제거해 인증 preHandler를 독립적으로 검사한다.
+
 ## 앨범 수정 회귀 테스트
 
 `backend/test/album-update.test.js`는 실제 MariaDB의 트랙 번호 UNIQUE 제약과

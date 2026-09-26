@@ -35,7 +35,7 @@ function loadGis() {
   });
 }
 
-export function useGoogleSignIn({ onSuccess, responsive = false }) {
+export function useGoogleSignIn({ onSuccess, responsive = false, suspended = false }) {
   const buttonRef = useRef(null);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
@@ -50,7 +50,7 @@ export function useGoogleSignIn({ onSuccess, responsive = false }) {
   const enabled = Boolean(config?.googleEnabled && config?.googleClientId);
 
   useEffect(() => {
-    if (!enabled || !buttonRef.current) return;
+    if (!enabled || suspended || !buttonRef.current) return;
     let cancelled = false;
 
     loadGis()
@@ -87,7 +87,7 @@ export function useGoogleSignIn({ onSuccess, responsive = false }) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, config?.googleClientId, onSuccess, responsive]);
+  }, [enabled, suspended, config?.googleClientId, onSuccess, responsive]);
 
   return { buttonRef, enabled, error, pending };
 }

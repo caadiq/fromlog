@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto';
+import { authTokenHash } from '../utils/authSession.js';
+import { formatDateTime } from '../utils/date.js';
+import { logActivity } from '../utils/log.js';
 import bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
 import { badRequest, unauthorized, serverError } from '../utils/error.js';
@@ -95,6 +99,7 @@ export default async function authRoutes(fastify, opts) {
       const token = fastify.jwt.sign({
         id: user.id,
         username: user.username,
+        jti: randomUUID(),
       });
 
       return {
@@ -175,7 +180,7 @@ export default async function authRoutes(fastify, opts) {
         return serverError(reply, '관리자 계정이 없습니다.');
       }
       const user = users[0];
-      const token = fastify.jwt.sign({ id: user.id, username: user.username });
+      const token = fastify.jwt.sign({ id: user.id, username: user.username, jti: randomUUID() });
       fastify.log.info(`[auth] 구글 로그인 성공: ${email}`);
       return {
         message: '로그인 성공',
@@ -185,6 +190,25 @@ export default async function authRoutes(fastify, opts) {
     } catch (err) {
       fastify.log.error(err);
       return serverError(reply, '로그인 처리 중 오류가 발생했습니다.');
+    }
+  });
+
+  // Revoke only the current JWT. Other devices remain signed in.
+  fastify.post('/logout', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    try {
+      await fastify.db.query(
+        'INSERT IGNORE INTO revoked_admin_tokens (token_hash, expires_at) VALUES (?, ?)',
+        [authTokenHash(request), formatDateTime(new Date(request.user.exp * 1000))]
+      );
+      // Expired JWTs are already rejected by jwtVerify and need no revocation row.
+      fastify.db.query('DELETE FROM revoked_admin_tokens WHERE expires_at <= NOW()')
+        .catch(err => fastify.log.warn({ err }, '[auth] revocation cleanup failed'));
+      logActivity(fastify.db, { actor: 'admin', action: 'update', category: 'auth',
+        targetType: 'admin_session', targetId: request.user.id, summary: '관리자 로그아웃' });
+      return { success: true };
+    } catch (err) {
+      fastify.log.error({ err }, '[auth] logout failed');
+      return serverError(reply, '로그아웃하지 못했습니다. 다시 시도해주세요.');
     }
   });
 

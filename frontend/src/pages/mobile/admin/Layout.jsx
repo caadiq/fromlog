@@ -1,6 +1,8 @@
+import AdminSessionStatus from '@/components/common/AdminSessionStatus';
+import { logoutSession } from '@/api/admin/auth';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Menu, X, Inbox, CalendarDays, Link2, ScrollText, Palette, Video, Bot, Home as HomeIcon, LogOut, ArrowUpRight } from 'lucide-react';
 import { useAuthStore } from '@/stores';
 import { useAdminAuth } from '@/hooks/pc/admin';
@@ -21,11 +23,11 @@ const focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outli
 
 export default function MobileAdminLayout({ children, headerContent, flush = false }) {
   const token = useAuthStore(s => s.token);
-  const logout = useAuthStore(s => s.logout);
+  const [logoutError, setLogoutError] = useState('');
+  const [signingOut, setSigningOut] = useState(false);
   const auth = useAdminAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const drawer = useRef(null);
   const menuButton = useRef(null);
@@ -66,15 +68,20 @@ export default function MobileAdminLayout({ children, headerContent, flush = fal
     closeMenu();
   };
   useDialogBackClose(menuOpen, closeMenu);
-  const signOut = () => {
-    closeMenu();
-    queryClient.removeQueries({ queryKey: ['admin'] });
-    queryClient.removeQueries({ queryKey: ['pending-schedules'] });
-    logout();
-    navigate('/admin', { replace: true });
+  const signOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    setLogoutError('');
+    try {
+      await logoutSession();
+      closeMenu();
+      navigate('/admin', { replace: true });
+    } catch (error) {
+      setLogoutError(error.message || '로그아웃하지 못했습니다. 다시 시도해주세요.');
+    } finally { setSigningOut(false); }
   };
   if (!token) return <Navigate to="/admin" replace />;
-  if (auth.isLoading || auth.isError) return <div className="flex min-h-dvh items-center justify-center bg-paper text-sm text-mute" role="status">로그인 확인 중...</div>;
+  if (!auth.isAuthenticated) return <AdminSessionStatus auth={auth} />;
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-paper text-ink">
@@ -101,7 +108,8 @@ export default function MobileAdminLayout({ children, headerContent, flush = fal
             <Link to="/admin/dashboard" onClick={event => navigateFromMenu(event, '/admin/dashboard')} aria-current={location.pathname === '/admin/dashboard' ? 'page' : undefined} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-bold ${location.pathname === '/admin/dashboard' ? 'bg-ink text-white' : 'hover:bg-white'} ${focus}`}><HomeIcon size={19} />홈</Link>
             {links.map(([label, to, Icon]) => <Link key={to} to={to} onClick={event => navigateFromMenu(event, to)} aria-current={location.pathname === to ? 'page' : undefined} className={`flex min-h-12 items-center gap-3 px-3 text-sm font-semibold ${location.pathname === to ? 'bg-ink text-white' : 'hover:bg-white'} ${focus}`}><Icon size={19} />{label}{label === '수집 큐' && count > 0 && <span className="ml-auto bg-ink px-2 py-0.5 text-xs text-white">{count}</span>}</Link>)}
           </nav>
-          <div className="mt-auto border-t border-hairline pt-5"><Link to="/" onClick={event => navigateFromMenu(event, '/')} className={`flex min-h-12 items-center gap-3 px-3 text-sm ${focus}`}><ArrowUpRight size={19} />사이트로 이동</Link><button onClick={signOut} className={`flex min-h-12 w-full items-center gap-3 px-3 text-sm ${focus}`}><LogOut size={19} />로그아웃</button></div>
+          {logoutError && <p role="alert" className="mt-4 px-3 text-sm text-red-700">{logoutError}</p>}
+          <div className="mt-auto border-t border-hairline pt-5"><Link to="/" onClick={event => navigateFromMenu(event, '/')} className={`flex min-h-12 items-center gap-3 px-3 text-sm ${focus}`}><ArrowUpRight size={19} />사이트로 이동</Link><button onClick={signOut} disabled={signingOut} className={`flex min-h-12 w-full items-center gap-3 px-3 text-sm ${focus}`}><LogOut size={19} />로그아웃</button></div>
         </div>
         </div>
       </dialog>

@@ -3,7 +3,8 @@
  * 워드마크 + ADMIN 배지 + 대문자 내비 + 계정/로그아웃
  */
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '@/stores';
+import { useState } from 'react';
+import { logoutSession } from '@/api/admin/auth';
 
 // 자주 쓰는 관리 메뉴만 상단에 둔다. 테마·로그는 대시보드에서 들어간다.
 const NAV = [
@@ -17,11 +18,18 @@ const NAV = [
 function AdminHeader({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const logout = useAuthStore((state) => state.logout);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/admin', { replace: true });
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
+  const handleLogout = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    setLogoutError('');
+    try {
+      await logoutSession();
+      navigate('/admin', { replace: true });
+    } catch (error) {
+      setLogoutError(error.message || '로그아웃하지 못했습니다. 다시 시도해주세요.');
+    } finally { setSigningOut(false); }
   };
 
   return (
@@ -47,10 +55,12 @@ function AdminHeader({ user }) {
         })}
       </nav>
       <div className="ml-auto flex items-center gap-4">
+        {logoutError && <span role="alert" className="text-[13px] text-red-700">{logoutError}</span>}
         <span className="text-[13.5px] text-esub">{user?.username} 님</span>
         <button
           type="button"
           onClick={handleLogout}
+          disabled={signingOut}
           className="border border-ink px-3.5 py-2 text-[12px] font-extrabold tracking-k15 text-ink transition-colors hover:bg-ink hover:text-white"
         >
           로그아웃

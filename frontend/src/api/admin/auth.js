@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores';
 /**
  * 관리자 인증 API
  */
@@ -54,4 +55,16 @@ export async function changePassword(currentPassword, newPassword) {
     method: 'POST',
     body: JSON.stringify({ currentPassword, newPassword }),
   });
+}
+
+/** Revoke the server session before clearing local authentication. */
+export async function logoutSession() {
+  const token = useAuthStore.getState().token;
+  if (!token) return;
+  try {
+    await fetchAuthApi('/auth/logout', { method: 'POST' });
+  } catch (error) {
+    if (error.status !== 401) throw error;
+  }
+  if (useAuthStore.getState().token === token) useAuthStore.getState().logout();
 }

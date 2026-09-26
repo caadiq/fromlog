@@ -79,6 +79,9 @@ export async function fetchAuthApi(endpoint, options = {}) {
       ...options.headers,
       Authorization: `Bearer ${token}`,
     },
+  }).catch(error => {
+    if (error.status === 401 && useAuthStore.getState().token === token) useAuthStore.getState().logout();
+    throw error;
   });
 }
 
@@ -109,6 +112,7 @@ export async function fetchFormData(endpoint, formData, method = 'POST', { requi
     body: formData,
   });
 
+  if (response.status === 401 && token && useAuthStore.getState().token === token) useAuthStore.getState().logout();
   return handleResponse(response);
 }
 

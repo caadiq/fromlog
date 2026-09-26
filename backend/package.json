@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "test:auth": "node --test test/auth-*.test.js",
     "test:album": "node --test test/album-update.test.js",
     "test:media": "node --test test/album-media.test.js",
     "test:youtube": "node --test test/youtube-*.test.js",

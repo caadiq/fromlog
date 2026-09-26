@@ -1,3 +1,5 @@
+import { useAdminAuth } from '@/hooks/pc/admin';
+import AdminSessionStatus from '@/components/common/AdminSessionStatus';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores';
 
@@ -10,6 +12,7 @@ import AdminLogin from '@/pages/pc/admin/login/Login';
  */
 function RequireAuth({ children }) {
   const { token, _hasHydrated } = useAuthStore();
+  const auth = useAdminAuth();
 
   // Hydration 완료 전에는 아무것도 렌더링하지 않음
   if (!_hasHydrated) {
@@ -20,6 +23,7 @@ function RequireAuth({ children }) {
     return <Navigate to="/admin" replace />;
   }
 
+  if (!auth.isAuthenticated) return <AdminSessionStatus auth={auth} />;
   return children;
 }
 import AdminDashboard from '@/pages/pc/admin/dashboard/Dashboard';

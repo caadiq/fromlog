@@ -28,7 +28,7 @@ function AdminLogin({ mobile = false }) {
     mutationFn: () => authApi.login(username, password),
     onSuccess: (data) => {
       loginStore(data.token, data.user);
-      navigate('/admin/dashboard');
+      navigate('/admin/dashboard', { replace: true });
     },
   });
 
@@ -41,11 +41,11 @@ function AdminLogin({ mobile = false }) {
   const handleGoogleSuccess = useCallback(
     (data) => {
       loginStore(data.token, data.user);
-      navigate('/admin/dashboard');
+      navigate('/admin/dashboard', { replace: true });
     },
     [loginStore, navigate]
   );
-  const google = useGoogleSignIn({ onSuccess: handleGoogleSuccess, responsive: mobile });
+  const google = useGoogleSignIn({ onSuccess: handleGoogleSuccess, responsive: mobile, suspended: checkingAuth });
 
   // 인증 확인 중 로딩 화면
   if (checkingAuth) {
