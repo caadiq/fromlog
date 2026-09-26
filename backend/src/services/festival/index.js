@@ -1,3 +1,9 @@
+import { withIngestionLock } from '../../utils/youtubeLock.js';
+import { withTransaction } from '../../utils/transaction.js';
+import { logActivity } from '../../utils/log.js';
+import { parseJsonColumn } from '../../utils/json.js';
+import { todayKST } from '../../utils/date.js';
+import { queueKey, hash, validateScheduleItems } from './items.js';
 /**
  * DC 일정 수집 봇 (구 축제 크롤러 대체)
  * DC 갤러리 "앞으로 일정" 최신 글을 긁어 Gemini로 구조화·분류·중복판단한 뒤,
@@ -29,12 +35,6 @@ const CHANNEL_NAME_SPLIT = /[:|\-–—/]/;
  * 생일카페·지하철 광고·서포트 같은 건 별개 일정이라 큐에 남겨야 한다.
  */
 const BIRTHDAY_EVENT = /생카|카페|광고|서포트|전시|팝업|나눔|컵홀더|파티|이벤트|지하철|버스|옥외|스크린/;
-
-/** 제목 정규화 (공백 제거 + 소문자) — 큐 dedup_key용 */
-function normalizeTitle(title) {
-  return String(title || '').replace(/\s+/g, '').toLowerCase();
-}
-
 
 /**
  * 유튜브 봇 한 대가 담당하는 시리즈 키를 뽑는다.
@@ -94,7 +94,7 @@ export async function markStaleItems(db, items, log = null) {
   const keys = new Set(
     items
       .filter(it => it?.title)
-      .map(it => `${it.date || 'nodate'}|${normalizeTitle(it.title)}`)
+      .map(queueKey)
   );
 
   const [rows] = await db.query(
@@ -116,8 +116,9 @@ export async function markStaleItems(db, items, log = null) {
   return { marked: gone.length, cleared: back.length };
 }
 
-async function festivalBotPlugin(fastify) {
+async function festivalBotPlugin(fastify, options = {}) {
   const { db } = fastify;
+  const notify = options.sendOpsAlert || sendOpsAlert;
 
   /** dedup 컨텍스트: 향후 기존 일정 목록 */
   async function fetchExistingSchedules() {
@@ -166,15 +167,17 @@ async function festivalBotPlugin(fastify) {
   /** 이 글을 이미 처리했는지 (festival_crawl_log 재사용) */
   async function isPostProcessed(postUrl) {
     const [rows] = await db.query(
-      'SELECT 1 FROM festival_crawl_log WHERE post_url = ? LIMIT 1',
-      [postUrl]
+      `SELECT 1 FROM festival_crawl_log WHERE post_url = ? AND status IN ('processed', 'no_event')
+       AND NOT EXISTS (SELECT 1 FROM bot_collection_runs WHERE post_url = ?) LIMIT 1`,
+      [postUrl, postUrl]
     );
     return rows.length > 0;
   }
 
-  async function logPost(postUrl, status, count = 0) {
-    await db.query(
-      `INSERT IGNORE INTO festival_crawl_log (post_url, status, result_count) VALUES (?, ?, ?)`,
+  async function logPost(conn, postUrl, status, count = 0) {
+    await conn.query(
+      `INSERT INTO festival_crawl_log (post_url, status, result_count) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE status = VALUES(status), result_count = VALUES(result_count)`,
       [postUrl, status, count]
     );
   }
@@ -185,12 +188,11 @@ async function festivalBotPlugin(fastify) {
    * - 다음 크롤에서 같은 제목에 날짜가 생기면 기존 '미정' 행을 날짜 채워 업데이트
    * - dedup_key 유니크로 재적재/무시항목 재등장 방지 (제목에 EP번호가 있어 회차 구분됨)
    */
-  async function enqueueItems(items, sourceRef, existing = []) {
+  async function enqueueItems(conn, items, sourceRef, existing = []) {
     let added = 0;
     let updated = 0;
     let skipped = 0;
     for (const it of items) {
-      const titleKey = normalizeTitle(it.title);
       const hasDate = !!it.date;
       const members = JSON.stringify(Array.isArray(it.members) ? it.members : []);
 
@@ -205,18 +207,18 @@ async function festivalBotPlugin(fastify) {
       }
       const dupHint = dup?.kind === 'suspect'
         ? `${dup.match.date} [${dup.match.category}] ${dup.match.title}`.slice(0, 255)
-        : null;
+        : it.is_duplicate ? `AI 중복 의심: ${it.dup_reason || '기존 일정 확인 필요'}`.slice(0, 255) : null;
 
       // 날짜가 생긴 경우: 같은 제목의 '미정' 대기 행이 있으면 채워서 업데이트
       if (hasDate) {
-        const [u] = await db.query(
+        const [u] = await conn.query(
           `SELECT id FROM bot_pending_schedules WHERE dedup_key = ? AND status = 'pending' AND created_schedule_id IS NULL LIMIT 1`,
-          [`nodate|${titleKey}`]
+          [queueKey({ title: it.title })]
         );
         if (u.length) {
-          const newKey = `${it.date}|${titleKey}`;
+          const newKey = queueKey(it);
           try {
-            const [result] = await db.query(
+            const [result] = await conn.query(
               // dup_hint도 같이 갱신한다 — 날짜가 정해져야 비로소 중복 판정이 되는데,
               // 여기서 안 넣으면 '미정'일 때 판정된 값(=항상 null)이 그대로 남아 표시가 안 뜬다
               `UPDATE bot_pending_schedules
@@ -228,7 +230,7 @@ async function festivalBotPlugin(fastify) {
           } catch (e) {
             // 이미 같은 날짜|제목 행이 있으면(중복) 미정 행 제거
             if (e.code === 'ER_DUP_ENTRY') {
-              await db.query("DELETE FROM bot_pending_schedules WHERE id = ? AND status = 'pending' AND created_schedule_id IS NULL", [u[0].id]);
+              await conn.query("DELETE FROM bot_pending_schedules WHERE id = ? AND status = 'pending' AND created_schedule_id IS NULL", [u[0].id]);
             } else {
               throw e;
             }
@@ -237,9 +239,18 @@ async function festivalBotPlugin(fastify) {
         }
       }
 
-      const dedupKey = hasDate ? `${it.date}|${titleKey}` : `nodate|${titleKey}`;
-      const [res] = await db.query(
-        `INSERT IGNORE INTO bot_pending_schedules
+      const dedupKey = queueKey(it);
+      const [[queued]] = await conn.query('SELECT id, status, created_schedule_id FROM bot_pending_schedules WHERE dedup_key = ? FOR UPDATE', [dedupKey]);
+      if (queued) {
+        if (queued.status === 'pending' && !queued.created_schedule_id) {
+          await conn.query(`UPDATE bot_pending_schedules SET time = ?, category_name = ?, members = ?, venue_name = ?, description = ?, raw = ?, source_ref = ?, dup_hint = ? WHERE id = ?`,
+            [it.time || null, it.category, members, it.venue_name || null, it.description || null, JSON.stringify(it), sourceRef, dupHint, queued.id]);
+          updated++;
+        }
+        continue;
+      }
+      const [res] = await conn.query(
+        `INSERT INTO bot_pending_schedules
            (source, source_ref, category_name, title, date, time, members, venue_name, description, raw, dup_hint, dedup_key)
          VALUES ('dc', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -266,45 +277,9 @@ async function festivalBotPlugin(fastify) {
    * @param {object} bot - { id, searchUrl }
    * @returns {{addedCount:number, total:number}}
    */
-  async function syncNewFestivals(bot) {
-    const apiKey = fastify.config.gemini?.apiKey;
-    if (!apiKey) {
-      fastify.log.warn('[dcbot] GEMINI_API_KEY 미설정 - 수집 건너뜀');
-      return { addedCount: 0, total: 0 };
-    }
-
-    // 1) 최신 글 가져오기
-    const post = await fetchLatestSchedulePost(bot.searchUrl, fastify.log);
-    if (!post) {
-      return { addedCount: 0, total: 0 };
-    }
-
-    // 2) 이미 처리한 글이면 Gemini 건너뜀
-    if (await isPostProcessed(post.postUrl)) {
-      fastify.log.info(`[dcbot] 이미 처리한 글 (${post.postNo}) - 건너뜀`);
-      return { addedCount: 0, total: 0 };
-    }
-
-    fastify.log.info(`[dcbot] 새 글 #${post.postNo} 파싱 (${post.body.length}자)`);
-
-    // 3) 기존 일정 dedup 컨텍스트
+  async function applyRun(run, bot) {
+    const items = validateScheduleItems(parseJsonColumn(run.extracted_items));
     const existing = await fetchExistingSchedules();
-    const year = new Date().getFullYear();
-
-    // 4) Gemini 추출·분류·중복판단
-    let items;
-    try {
-      items = await extractScheduleItems(post.body, existing, apiKey, year);
-    } catch (err) {
-      if (err.code === 'PARSE_FAILED') {
-        fastify.log.warn(`[dcbot] Gemini 비-JSON 응답 - 이 글 건너뜀: ${err.message}`);
-        await logPost(post.postUrl, 'error', 0);
-        return { addedCount: 0, total: 0 };
-      }
-      fastify.log.error(`[dcbot] Gemini 분석 실패: ${err.message}`);
-      throw err;
-    }
-
     // 5) 신규(중복 아님)만 큐에 적재 (날짜 미정 포함)
     //    유튜브는 담당 봇이 있는 시리즈만 뺀다 — 비정기·1회성 출연은 봇이 예측 못 하므로 사람이 봐야 한다
     const coveredSeries = await fetchCoveredYoutubeSeries();
@@ -326,38 +301,83 @@ async function festivalBotPlugin(fastify) {
     };
 
     const fresh = items.filter(
-      it => it && it.title && !it.is_duplicate && !coveredByBot(it) && !isMemberBirthday(it)
-    );
-    const { added, updated, skipped } = await enqueueItems(fresh, String(post.postNo), existing);
-
-    // 5-1) 최신 글에서 사라진 대기 항목 표시 (적재 뒤에 해야 방금 날짜가 채워진 행이 안 걸린다)
-    const { marked } = await markStaleItems(db, items, fastify.log);
-
-    // 6) 글 처리 완료 기록
-    await logPost(post.postUrl, (added + updated) > 0 ? 'processed' : 'no_event', added);
-
-    fastify.log.info(
-      `[dcbot] 추출 ${items.length} / 신규 ${fresh.length} / 큐 적재 ${added} / 날짜채움 ${updated} / 기존중복 제외 ${skipped} / 사라짐 표시 ${marked}`
+      it => it && it.title && !coveredByBot(it) && !isMemberBirthday(it)
     );
 
-    // 7) 새로 적재된 게 있으면 관리자에게 푸시
-    if (added > 0) {
+    const result = await withTransaction(db, async conn => {
+      const [[current]] = await conn.query('SELECT queued_at FROM bot_collection_runs WHERE id = ? FOR UPDATE', [run.id]);
+      if (current.queued_at) return { added: 0, updated: 0, skipped: 0 };
+      const counts = await enqueueItems(conn, fresh, run.post_url.split('/').pop(), existing);
+      await markStaleItems(conn, items, fastify.log);
+      await logPost(conn, run.post_url, counts.added + counts.updated > 0 ? 'processed' : 'no_event', counts.added);
+      await conn.query('UPDATE bot_collection_runs SET queued_at = NOW(), added_count = ?, notification_pending = ? WHERE id = ?', [counts.added, counts.added > 0 ? 1 : 0, run.id]);
+      return counts;
+    });
+    if (result.added || result.updated) await logActivity(db, {
+      actor: bot.id, action: 'sync_complete', category: 'sync',
+      summary: `일정 수집 큐 반영: 신규 ${result.added}건 / 정보 갱신 ${result.updated}건`,
+      details: { runId: run.id, ...result },
+    });
+    return { addedCount: result.added, total: items.length };
+  }
+
+  async function flushNotifications(bot) {
+    let failure = null;
+    const [runs] = await db.query('SELECT id, added_count FROM bot_collection_runs WHERE notification_pending = 1 ORDER BY created_at, id');
+    for (const run of runs) {
       try {
-        await sendOpsAlert(db, {
+        const result = await notify(db, {
           title: '새 일정 수집 대기',
-          body: `수집 대기 ${added}건이 큐에 등록됐어요. 관리자 페이지에서 검토·등록하세요.`,
-          data: { type: 'schedule_queue' },
+          body: `수집 대기 ${run.added_count}건이 큐에 등록됐어요. 관리자 페이지에서 검토·등록하세요.`,
+          data: { type: 'schedule_queue', eventId: run.id },
         });
+        if (result.skipped || result.failed > 0) throw new Error('큐 알림을 발송하지 못했습니다');
+        await db.query('UPDATE bot_collection_runs SET notification_pending = 0 WHERE id = ?', [run.id]);
       } catch (err) {
-        fastify.log.warn(`[dcbot] 푸시 발송 실패: ${err.message}`);
+        await logActivity(db, { actor: bot.id, action: 'error', category: 'sync',
+          summary: '큐는 저장됐지만 알림 발송 실패: 다음 수집 시 재시도', details: { runId: run.id, error: err.message } });
+        failure ||= err;
       }
     }
+    return failure;
+  }
 
-    return { addedCount: added, total: items.length };
+  async function syncNewFestivals(bot) {
+    // Resume durable work before fetching a newer post or spending another AI request.
+    let addedCount = 0, total = 0;
+    const [unfinished] = await db.query('SELECT * FROM bot_collection_runs WHERE queued_at IS NULL ORDER BY created_at, id');
+    for (const run of unfinished) {
+      const result = await applyRun(run, bot);
+      addedCount += result.addedCount; total += result.total;
+    }
+    const apiKey = fastify.config.gemini?.apiKey;
+    if (!apiKey) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
+    const post = await fetchLatestSchedulePost(bot.searchUrl, fastify.log);
+    if (!post || await isPostProcessed(post.postUrl)) return { addedCount, total };
+    const bodyHash = hash(post.body);
+    const runId = hash(`${post.postUrl}\n${bodyHash}`);
+    const [[known]] = await db.query('SELECT * FROM bot_collection_runs WHERE id = ?', [runId]);
+    if (known?.queued_at) return { addedCount, total };
+    let run = known;
+    if (!run) {
+      const existing = await fetchExistingSchedules();
+      const items = await extractScheduleItems(post.body, existing, apiKey, Number(todayKST().slice(0, 4)));
+      await db.query('INSERT INTO bot_collection_runs (id, post_url, body_hash, extracted_items) VALUES (?, ?, ?, ?)', [runId, post.postUrl, bodyHash, JSON.stringify(items)]);
+      run = { id: runId, post_url: post.postUrl, extracted_items: items };
+    }
+    const result = await applyRun(run, bot);
+    return { addedCount: addedCount + result.addedCount, total: total + result.total };
   }
 
   fastify.decorate('festivalBot', {
-    syncNewFestivals,
+    syncNewFestivals: bot => withIngestionLock(db, 'dc:collection', async () => {
+      let result, error;
+      try { result = await syncNewFestivals(bot); } catch (err) { error = err; }
+      const notificationError = await flushNotifications(bot);
+      if (error) throw error;
+      if (notificationError) throw notificationError;
+      return result;
+    }),
   });
 }
 

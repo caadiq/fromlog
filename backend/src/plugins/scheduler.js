@@ -2,7 +2,7 @@ import fp from 'fastify-plugin';
 import cron from 'node-cron';
 import staticBots from '../config/bots.js';
 import { syncAllSchedules } from '../services/meilisearch/index.js';
-import { nowKST } from '../utils/date.js';
+import { nowKST, toKST } from '../utils/date.js';
 import { logActivity } from '../utils/log.js';
 import { sendOpsAlert } from '../services/push.js';
 import { parseJsonColumn as safeParse } from '../utils/json.js';
@@ -103,6 +103,8 @@ export function describeBotError(bot, err) {
 async function schedulerPlugin(fastify, opts) {
   const tasks = new Map();
   const activeSyncs = new Set();
+  const generations = new Map();
+  const notify = opts?.sendOpsAlert || sendOpsAlert;
   const burstTimers = new Map();  // weekly 모드 내부 setInterval 핸들
   let cachedBots = null;
 
@@ -286,13 +288,11 @@ async function schedulerPlugin(fastify, opts) {
       lastCheckAt: nowKST(),
       totalAdded: (status.totalAdded || 0) + result.addedCount,
       consecutiveErrors: 0,
+      errorMessage: null,
+      lastAddedCount: result.addedCount,
     };
     if (setRunningStatus) {
       updateData.status = 'running';
-      updateData.errorMessage = null;
-    }
-    if (result.addedCount > 0) {
-      updateData.lastAddedCount = result.addedCount;
     }
     await updateStatus(botId, updateData);
     return result.addedCount;
@@ -317,9 +317,13 @@ async function schedulerPlugin(fastify, opts) {
   async function runSync(botId, bot, syncFn, { setRunningStatus = false } = {}) {
     if (activeSyncs.has(botId)) return { ok: true, addedCount: 0, foundTarget: false };
     activeSyncs.add(botId);
+    const generation = generations.get(botId);
+    const startedAt = Date.now();
     try {
       const result = await syncFn(bot);
+      if (generations.get(botId) !== generation) return { ok: true, addedCount: 0, foundTarget: false };
       const addedCount = await handleSyncResult(botId, result, { setRunningStatus });
+      await updateStatus(botId, { lastSyncDuration: Date.now() - startedAt });
       fastify.log.info(`[${botId}] 동기화 완료: ${addedCount}개 추가`);
       if (addedCount > 0) {
         logActivity(fastify.db, {
@@ -332,6 +336,7 @@ async function schedulerPlugin(fastify, opts) {
       }
       return { ok: true, addedCount, foundTarget: result?.foundTarget === true };
     } catch (err) {
+      if (generations.get(botId) !== generation) return { ok: false, err };
       const prev = await getStatus(botId);
       const consecutiveErrors = (prev.consecutiveErrors || 0) + 1;
       await updateStatus(botId, {
@@ -363,7 +368,7 @@ async function schedulerPlugin(fastify, opts) {
         try {
           const name = bot?.channelName || bot?.displayName || bot?.name || bot?.username || botId;
           const { reason, action } = describeBotError(bot, err);
-          const pushResult = await sendOpsAlert(fastify.db, {
+          const pushResult = await notify(fastify.db, {
             title: `봇 정지: ${name}`,
             body: `${reason} — ${action}`,
             data: { botId, kind: 'bot_stopped', reason, rawError: err.message },
@@ -390,28 +395,29 @@ async function schedulerPlugin(fastify, opts) {
    * 백로그(지난 날짜) 영상만 추가된 경우에는 계속 폴링한다 — 본편이 몇 분 늦게
    * 올라오는 경우를 놓치지 않기 위함 (2026-07-08 워크돌 미등록 사고 원인).
    */
-  async function startWeeklyBurst(botId, bot, syncFn) {
+  async function startWeeklyBurst(botId, bot, syncFn, resumeEndAt = null) {
     if (burstTimers.has(botId)) return; // 이미 실행 중이면 무시
 
     const intervalSeconds = Math.max(5, bot.weeklySchedule?.intervalSeconds || 30);
     const durationMinutes = Math.max(1, bot.weeklySchedule?.durationMinutes || 30);
-    const endAt = Date.now() + durationMinutes * 60 * 1000;
+    const endAt = resumeEndAt ?? Date.now() + durationMinutes * 60 * 1000;
+    const session = { timer: null, endAt };
 
     fastify.log.info(`[${botId}] 주간 폴링 시작 (간격 ${intervalSeconds}초, 최대 ${durationMinutes}분)`);
 
     const stopBurst = (reason) => {
       const handle = burstTimers.get(botId);
-      if (!handle) return;
+      if (handle !== session) return;
       clearInterval(handle.timer);
       burstTimers.delete(botId);
       fastify.log.info(`[${botId}] 주간 폴링 종료: ${reason}`);
     };
 
     const tick = async () => {
-      if (!burstTimers.has(botId)) return;
+      if (burstTimers.get(botId) !== session) return;
       if (Date.now() >= endAt) { stopBurst('최대 지속시간 초과'); return; }
       const result = await runSync(botId, bot, syncFn, { setRunningStatus: true });
-      if (!burstTimers.has(botId)) return; // runSync 중 자동 정지 등으로 정리됐을 수 있음
+      if (burstTimers.get(botId) !== session) return; // Ignore completions from a replaced burst.
       if (result.ok && result.foundTarget) {
         stopBurst('당일 영상 발견 (stopOnFound)');
         return;
@@ -422,19 +428,21 @@ async function schedulerPlugin(fastify, opts) {
     };
 
     // 타이머 먼저 등록 → tick에서 burstTimers.has 체크로 중복/중단 판별
-    const timer = setInterval(tick, intervalSeconds * 1000);
-    burstTimers.set(botId, { timer, endAt });
+    session.timer = setInterval(tick, intervalSeconds * 1000);
+    burstTimers.set(botId, session);
     await tick();
   }
 
   /**
    * 봇 시작
    */
-  async function startBot(botId, { runImmediately = true } = {}) {
+  async function startBot(botId, { runImmediately = true, resetErrors = true } = {}) {
     const bot = await findBot(botId);
     if (!bot) {
       throw new Error(`봇을 찾을 수 없습니다: ${botId}`);
     }
+
+    generations.set(botId, (generations.get(botId) || 0) + 1);
 
     // 기존 태스크가 있으면 정지
     if (tasks.has(botId)) {
@@ -466,11 +474,23 @@ async function schedulerPlugin(fastify, opts) {
 
     tasks.set(botId, task);
     // 수동 시작은 새 출발 — 자동 정지로 누적된 연속 실패 카운터/에러 초기화
-    await updateStatus(botId, { status: 'running', consecutiveErrors: 0, errorMessage: null });
+    await updateStatus(botId, { status: 'running', ...(resetErrors ? { consecutiveErrors: 0, errorMessage: null } : {}) });
     fastify.log.info(`[${botId}] 스케줄 시작 (cron: ${bot.cron})`);
 
-    // 즉시 1회 실행: meilisearch와 weekly 모드는 제외 (weekly는 지정 시각에만)
+    // Resume the latest scheduled window, including one crossing midnight.
     // runImmediately=false면 생략 (설정 수정에 따른 재시작 등 — 응답 블로킹 방지)
+    if (runImmediately && bot.weeklySchedule) {
+      const now = toKST(new Date());
+      const [h, m] = bot.weeklySchedule.startTime.split(':').map(Number);
+      const daysSinceStart = (now.day() - Number(bot.weeklySchedule.dayOfWeek) + 7) % 7;
+      let scheduled = now.subtract(daysSinceStart, 'day').hour(h).minute(m).second(0).millisecond(0);
+      if (scheduled.valueOf() > Date.now()) scheduled = scheduled.subtract(7, 'day');
+      const start = scheduled.valueOf();
+      const end = start + Math.max(1, bot.weeklySchedule.durationMinutes || 30) * 60000;
+      if (Date.now() >= start && Date.now() < end) {
+        await startWeeklyBurst(botId, bot, syncFn, end);
+      }
+    }
     if (runImmediately && bot.type !== 'meilisearch' && !bot.weeklySchedule) {
       await runSync(botId, bot, syncFn, { setRunningStatus: false });
     }
@@ -480,6 +500,7 @@ async function schedulerPlugin(fastify, opts) {
    * 봇 정지
    */
   async function stopBot(botId) {
+    generations.set(botId, (generations.get(botId) || 0) + 1);
     if (tasks.has(botId)) {
       tasks.get(botId).stop();
       tasks.delete(botId);
@@ -503,10 +524,12 @@ async function schedulerPlugin(fastify, opts) {
     for (const bot of allBots) {
       if (bot.enabled) {
         try {
-          await startBot(bot.id);
+          await startBot(bot.id, { resetErrors: false });
         } catch (err) {
           fastify.log.error(`[${bot.id}] 시작 실패: ${err.message}`);
         }
+      } else {
+        await updateStatus(bot.id, { status: 'stopped' });
       }
     }
 
@@ -517,6 +540,7 @@ async function schedulerPlugin(fastify, opts) {
    */
   async function stopAll() {
     for (const [botId, task] of tasks) {
+      generations.set(botId, (generations.get(botId) || 0) + 1);
       task.stop();
       await updateStatus(botId, { status: 'stopped' });
     }

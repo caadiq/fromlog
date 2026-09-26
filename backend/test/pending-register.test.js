@@ -13,8 +13,8 @@ import { createTempYoutubeSchedule } from '../src/utils/tempSchedule.js';
 if (!process.env.PENDING_TEST_HOST) throw new Error('Set PENDING_TEST_HOST to an isolated MariaDB with fromlog_test_pending.');
 const db = mysql.createPool({ host: process.env.PENDING_TEST_HOST, user: 'root', password: process.env.PENDING_TEST_PASSWORD || '', database: 'fromlog_test_pending', connectionLimit: 6 });
 let api, png, originalSend;
-let uploads, failUpload;
-const search = { index: () => ({ addDocuments: async () => {} }) };
+let uploads, failUpload, failSearch;
+const search = { waitForTask: async () => ({ status: 'succeeded' }), index: () => ({ addDocuments: async () => { if (failSearch) throw new Error('Search outage'); return { taskUid: 1 }; } }) };
 
 before(async () => {
   const statements = [
@@ -50,7 +50,7 @@ before(async () => {
 });
 
 beforeEach(async () => {
-  uploads = []; failUpload = false;
+  uploads = []; failUpload = false; failSearch = false;
   for (const trigger of ['fail_link', 'fail_completion']) await db.query(`DROP TRIGGER IF EXISTS ${trigger}`);
   for (const table of ['bot_pending_schedules', 'schedules', 'images', 'event_venues', 'logs']) await db.query(`DELETE FROM ${table}`);
   await db.query("INSERT INTO bot_pending_schedules (id, category_name, title, date) VALUES (1, '기타', '큐 등록 테스트', '2026-09-06')");
@@ -233,4 +233,15 @@ test('omitting time preserves the collected time', async () => {
   assert.equal(response.statusCode, 201);
   const [[schedule]] = await db.query('SELECT time FROM schedules WHERE id = ?', [response.json().id]);
   assert.equal(schedule.time, '19:00:00');
+});
+
+
+test('search failure reports the saved ID and a retry indexes the same completed schedule', async () => {
+  failSearch = true;
+  const failed = await register();
+  assert.equal(failed.statusCode, 503); assert.equal((await queue()).status, 'registered');
+  const id = failed.json().createdScheduleId;
+  failSearch = false;
+  const retried = await register(); await expectOneSchedule(retried);
+  assert.equal(retried.json().id, id);
 });

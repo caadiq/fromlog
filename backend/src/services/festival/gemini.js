@@ -1,3 +1,4 @@
+import { validateScheduleItems } from './items.js';
 /**
  * DC "앞으로 일정" 본문 → Gemini로 구조화 + 카테고리 분류 + 기존 일정 dedup
  * (구 블로그 url_context 방식 대체. 본문 텍스트를 직접 프롬프트로 전달)
@@ -90,7 +91,6 @@ async function callGemini(prompt, apiKey) {
       }),
       signal: controller.signal,
     });
-    clearTimeout(timeoutId);
     if (!res.ok) {
       const errText = await res.text();
       const err = new Error(`Gemini API 오류 ${res.status}: ${errText.slice(0, 200)}`);
@@ -99,9 +99,10 @@ async function callGemini(prompt, apiKey) {
     }
     return await res.json();
   } catch (err) {
-    clearTimeout(timeoutId);
     if (err.name === 'AbortError') throw new Error('Gemini API 요청 타임아웃');
     throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -142,5 +143,8 @@ export async function extractScheduleItems(bodyText, existing, apiKey, year) {
     err.code = 'PARSE_FAILED';
     throw err;
   }
-  return parseJsonArray(text);
+  if (result.candidates?.[0]?.finishReason && result.candidates[0].finishReason !== 'STOP') {
+    throw Object.assign(new Error('Gemini 응답이 완성되지 않았습니다'), { code: 'PARSE_FAILED' });
+  }
+  return validateScheduleItems(parseJsonArray(text));
 }

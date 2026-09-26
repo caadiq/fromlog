@@ -221,7 +221,12 @@ export default async function pendingRoutes(fastify) {
         createdScheduleId: scheduleId,
       });
     }
-    await syncScheduleById(meilisearch, db, scheduleId, redis);
+    const indexed = await syncScheduleById(meilisearch, db, scheduleId, redis);
+    if (!indexed) {
+      await logActivity(db, { actor: 'admin', action: 'error', category: 'schedule', targetType: 'queue_register', targetId: scheduleId,
+        summary: '큐 일정 저장 완료, 검색 반영 실패: 다시 시도 필요' });
+      return reply.code(503).send({ error: '일정은 저장됐지만 검색 반영에 실패했습니다. 다시 시도하면 같은 일정의 검색 정보만 갱신합니다.', createdScheduleId: scheduleId });
+    }
     reply.code(registration.created ? 201 : 200);
     return { id: scheduleId };
   });

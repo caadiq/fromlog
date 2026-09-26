@@ -8,18 +8,18 @@ const FETCH_TIMEOUT = 15000;
 // DC 모바일은 브라우저 UA를 요구
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1';
 
-async function fetchWithTimeout(url, timeout = FETCH_TIMEOUT) {
+async function fetchText(url, timeout = FETCH_TIMEOUT) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   try {
     const res = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': UA } });
-    clearTimeout(timeoutId);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res;
+    return await res.text();
   } catch (err) {
-    clearTimeout(timeoutId);
     if (err.name === 'AbortError') throw new Error('요청 타임아웃');
     throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -34,23 +34,34 @@ export function decodeUrl(url) {
 
 /** 검색 목록에서 최신 글 번호 추출 */
 async function findLatestPostNo(listUrl, log) {
-  const html = await (await fetchWithTimeout(listUrl)).text();
-  const m = html.match(/board\/[a-z0-9_]+\/(\d+)/i);
-  if (!m) {
-    log?.warn?.('[dcbot] 목록에서 게시글을 찾지 못함');
-    return null;
+  const html = await fetchText(listUrl);
+  const slug = boardSlug(listUrl);
+  const ids = [...html.matchAll(new RegExp(`(?:https://m\\.dcinside\\.com)?/board/${slug}/(\\d+)(?:[?"'#/]|$)`, 'gi'))].map(m => m[1]);
+  if (!ids.length) {
+    if (/검색\s*결과가?\s*없|검색된\s*게시물이\s*없/.test(html)) return null;
+    throw new Error('DC 목록에서 일정 게시글을 확인하지 못했습니다');
   }
-  return m[1];
+  return ids.sort((a, b) => BigInt(a) < BigInt(b) ? 1 : -1)[0];
 }
 
 /** 게시글 본문 텍스트 추출 (광고 script 제거, 일정 구간만) */
 function extractBodyText(html) {
-  const m = html.match(/<div[^>]*class="[^"]*(?:thum-txtin|write_div)[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/);
-  let body = m ? m[1] : html;
+  const opening = /<div\b[^>]*class=["'][^"']*\b(?:thum-txtin|write_div)\b[^"']*["'][^>]*>/i.exec(html);
+  if (!opening) throw new Error('DC 게시글 본문 영역을 찾지 못했습니다');
+  const start = opening.index + opening[0].length;
+  const tags = /<\/?div\b[^>]*>/gi;
+  tags.lastIndex = start;
+  let depth = 1, end = -1, tag;
+  while ((tag = tags.exec(html))) {
+    depth += /^<\//.test(tag[0]) ? -1 : 1;
+    if (!depth) { end = tag.index; break; }
+  }
+  if (end < 0) throw new Error('DC 게시글 본문이 완성되지 않았습니다');
+  let body = html.slice(start, end);
   body = body
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<br\s*\/?>|<\/(?:p|div|li)>/gi, '\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
@@ -79,13 +90,14 @@ export async function fetchLatestSchedulePost(listUrl, log = null) {
 
   const slug = boardSlug(listUrl);
   const postUrl = `https://m.dcinside.com/board/${slug}/${postNo}`;
-  const html = await (await fetchWithTimeout(postUrl)).text();
-  const title = (html.match(/<span class="tit">([^<]+)<\/span>/) || [])[1]?.trim() || '앞으로 일정';
+  const html = await fetchText(postUrl);
+  const subject = (html.match(/<span\b[^>]*class=["'][^"']*\btitle_subject\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) || [])[1];
+  const metaTitle = (html.match(/<meta\b[^>]*property=["']og:title["'][^>]*content="([^"]*)"[^>]*>/i) || [])[1];
+  const title = (subject || metaTitle)?.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').trim() || '앞으로 일정';
   const body = extractBodyText(html);
 
   if (!body || body.length < 20) {
-    log?.warn?.(`[dcbot] 본문 추출 실패 (post ${postNo})`);
-    return null;
+    throw new Error(`DC 게시글 본문이 비어 있거나 너무 짧습니다 (${postNo})`);
   }
   return { postNo, postUrl, title, body };
 }
