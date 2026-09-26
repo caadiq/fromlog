@@ -643,6 +643,19 @@ const SCHEDULE_LIST_SQL = `
   LEFT JOIN albums al ON sa.album_id = al.id
 `;
 
+/** Load ranked search hits through the same joins/formatter as calendar rows. */
+export async function getSchedulesByIds(db, ids) {
+  const results = [];
+  for (let offset = 0; offset < ids.length; offset += 500) {
+    const batch = ids.slice(offset, offset + 500);
+    const [rows] = await db.query(
+      `${SCHEDULE_LIST_SQL} WHERE s.id IN (${batch.map(() => '?').join(',')})`, batch
+    );
+    results.push(...formatSchedules(rows));
+  }
+  return results;
+}
+
 /**
  * 월별 일정 조회 (생일 포함)
  * @param {object} db - 데이터베이스 연결
@@ -653,7 +666,7 @@ const SCHEDULE_LIST_SQL = `
 export async function getMonthlySchedules(db, year, month, redis = null) {
   const run = async () => {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+  const endDate = new Date(Date.UTC(year, month, 0)).toISOString().split('T')[0];
 
   // 일정 조회
   const [rawSchedules] = await db.query(
@@ -685,9 +698,9 @@ export async function getMonthlySchedules(db, year, month, redis = null) {
 
   for (const member of birthdays) {
     const birthDate = new Date(member.birth_date);
-    if (year < birthDate.getFullYear()) continue;
+    if (year < birthDate.getUTCFullYear()) continue;
 
-    const birthdayDate = new Date(year, birthDate.getMonth(), birthDate.getDate());
+    const birthdayDate = new Date(Date.UTC(year, birthDate.getUTCMonth(), birthDate.getUTCDate()));
 
     schedules.push({
       id: `birthday-${year}-${member.name_en.toLowerCase()}`,
@@ -707,7 +720,7 @@ export async function getMonthlySchedules(db, year, month, redis = null) {
     const anniversaryYear = year - debutYear;
 
     if (year >= debutYear) {
-      const debutDate = new Date(year, DEBUT_DATE.month - 1, DEBUT_DATE.day);
+      const debutDate = new Date(Date.UTC(year, DEBUT_DATE.month - 1, DEBUT_DATE.day));
 
       if (year === debutYear) {
         // 데뷔 당일

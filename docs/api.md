@@ -203,6 +203,8 @@ X 게시물 일정의 이미지를 원본 화질(name=orig)로 프록시 스트�
 
 ※ `search`, `startDate`, `year/month` 중 하나는 필수
 
+검색 응답은 `{ schedules, total, offset, limit, hasMore }`입니다. 일정은 월별 조회와 같은 DB 포맷을 사용하며 `datePrecision`(`day`/`month`), `source.url`, `albumFolder`, `concertSeriesId`, 행사 정보를 보존합니다. 월 단위 일정의 `date`는 저장용 월 첫날이며 UI는 일·요일 대신 날짜 미정으로 표시합니다. 관련도 동점은 날짜·시간·ID 내림차순입니다. 검색 서비스 장애는 빈 결과가 아닌 오류 응답으로 반환합니다. 내부 후보 상한은 색인 설정과 같은 10,000건입니다.
+
 **월별 조회 응답:**
 ```json
 {
@@ -1114,6 +1116,8 @@ OpenAPI JSON 스펙
 ### GET /admin/videos (관리자)
 아카이브 목록. Query: `category` · `channel` · `q`(제목 검색) · `type`(video|shorts) · `limit` · `offset`
 
+공개·관리자 영상 응답의 `publishedAt`은 KST 벽시계 문자열 `YYYY-MM-DD HH:mm`입니다. UTC 타임스탬프로 재해석하지 않습니다. `members`는 JSON 문자열이 아닌 배열(공개 API의 미지정 값은 null)입니다. 페이지 정렬은 `published_at DESC, id DESC`로 고정합니다.
+
 ### GET /admin/videos/preview?url= (관리자)
 URL로 영상 정보 미리보기. 추천 카테고리(`suggestedCategory`), 중복(`alreadyExists`),
 5인 체제 컷 위반(`beforeCutoff`)을 등록 전에 알려준다.
@@ -1124,6 +1128,8 @@ URL로 영상 정보 미리보기. 추천 카테고리(`suggestedCategory`), 중
 
 ### PUT /admin/videos/:videoId (관리자)
 카테고리·타입 수정. body: `{ "category": "music", "video_type": "shorts" }`
+
+영상 형식을 바꾸면 같은 video ID의 일정 형식도 하나의 트랜잭션에서 변경하고 월별 캐시를 무효화합니다. YouTube 일정 수정에서도 보관함 형식을 함께 변경합니다. 수동 YouTube 일정 생성은 일정·상세·영상 보관함 저장 실패 시 함께 롤백합니다.
 
 ### DELETE /admin/videos/:videoId (관리자)
 아카이브에서 삭제.

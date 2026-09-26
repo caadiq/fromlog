@@ -8,7 +8,7 @@ import useScheduleStore from '@/stores/useScheduleStore';
 import * as schedulesApi from '@/api/admin/schedules';
 import { useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
 
-export function useScheduleSearch() {
+export function useScheduleSearch(selectedCategories = []) {
   // Zustand 스토어에서 검색 상태 가져오기
   const {
     searchInput,
@@ -28,12 +28,13 @@ export function useScheduleSearch() {
   const { suggestions, isLoadingSuggestions } = useSuggestions(originalSearchQuery);
 
   // 무한 스크롤 검색 — 공용 훅 (관리자 API 사용)
-  const { searchResults, loadMoreRef, hasNextPage, isFetchingNextPage, searchLoading } =
+  const { searchResults, loadMoreRef, hasNextPage, isFetchingNextPage, searchLoading, searchError, retrySearch } =
     useInfiniteScheduleSearch({
       searchApi: schedulesApi.searchSchedules,
       queryKey: 'adminScheduleSearch',
       searchTerm,
       enabled: isSearchMode,
+      selectedCategories,
     });
 
   // 검색 실행
@@ -135,6 +136,8 @@ export function useScheduleSearch() {
     isLoadingSuggestions,
     searchResults,
     searchLoading,
+    searchError,
+    retrySearch,
     hasNextPage,
     isFetchingNextPage,
 

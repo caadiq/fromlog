@@ -1,3 +1,5 @@
+import { updateVideoType } from '../../services/video-type.js';
+import { withTransaction } from '../../utils/transaction.js';
 import { fetchVideoInfo } from '../../services/youtube/api.js';
 import { addOrUpdateSchedule } from '../../services/meilisearch/index.js';
 import { archiveVideo, inferCategory } from '../../services/videos.js';
@@ -120,28 +122,31 @@ export default async function youtubeRoutes(fastify) {
         return conflict(reply, '이미 등록된 영상입니다.');
       }
 
-      // schedules 테이블에 저장
-      const [result] = await db.query(
-        'INSERT INTO schedules (category_id, title, date, time) VALUES (?, ?, ?, ?)',
-        [YOUTUBE_CATEGORY_ID, title, date, time || null]
-      );
-      const scheduleId = result.insertId;
+      const scheduleId = await withTransaction(db, async connection => {
+        // schedules 테이블에 저장
+        const [result] = await connection.query(
+          'INSERT INTO schedules (category_id, title, date, time) VALUES (?, ?, ?, ?)',
+          [YOUTUBE_CATEGORY_ID, title, date, time || null]
+        );
+        const scheduleId = result.insertId;
 
-      // schedule_youtube 테이블에 저장
-      await db.query(
-        'INSERT INTO schedule_youtube (schedule_id, video_id, video_type, channel_id, channel_name) VALUES (?, ?, ?, ?, ?)',
-        [scheduleId, videoId, videoType || 'video', channelId, channelName]
-      );
+        // schedule_youtube 테이블에 저장
+        await connection.query(
+          'INSERT INTO schedule_youtube (schedule_id, video_id, video_type, channel_id, channel_name) VALUES (?, ?, ?, ?, ?)',
+          [scheduleId, videoId, videoType || 'video', channelId, channelName]
+        );
 
-      // 영상 아카이브에도 적재 (영상 페이지 데이터원 — 카테고리는 봇/제목 기준 추론)
-      await archiveVideo(db, {
-        videoId,
-        channelId,
-        channelName,
-        title,
-        category: await inferCategory(db, channelId, title),
-        videoType: videoType || 'video',
-        publishedAt: `${date} ${time || '00:00:00'}`,
+        // 영상 아카이브에도 적재 (영상 페이지 데이터원 — 카테고리는 봇/제목 기준 추론)
+        await archiveVideo(connection, {
+          videoId,
+          channelId,
+          channelName,
+          title,
+          category: await inferCategory(connection, channelId, title),
+          videoType: videoType || 'video',
+          publishedAt: `${date} ${time || '00:00:00'}`,
+        });
+        return scheduleId;
       });
 
       // Meilisearch 동기화
@@ -201,7 +206,7 @@ export default async function youtubeRoutes(fastify) {
     try {
       // 일정 존재 확인
       const [schedules] = await db.query(
-        'SELECT id, title, date, time FROM schedules WHERE id = ? AND category_id = ?',
+        'SELECT s.id, s.title, s.date, s.time, sy.video_id FROM schedules s LEFT JOIN schedule_youtube sy ON sy.schedule_id = s.id WHERE s.id = ? AND s.category_id = ?',
         [id, YOUTUBE_CATEGORY_ID]
       );
       if (schedules.length === 0) {
@@ -210,10 +215,13 @@ export default async function youtubeRoutes(fastify) {
 
       // 영상 유형 수정
       if (videoType) {
-        await db.query(
-          'UPDATE schedule_youtube SET video_type = ? WHERE schedule_id = ?',
-          [videoType, id]
-        );
+        await withTransaction(db, async connection => {
+          if (schedules[0].video_id) {
+            await updateVideoType(connection, schedules[0].video_id, videoType);
+          } else {
+            await connection.query('UPDATE schedule_youtube SET video_type = ? WHERE schedule_id = ?', [videoType, id]);
+          }
+        });
       }
 
       // YouTube 채널 정보 조회

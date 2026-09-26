@@ -22,7 +22,7 @@ async function categoryLabels(db) {
 }
 
 /** row → 응답 형식 */
-function formatVideo(row) {
+export function formatVideo(row) {
   return {
     videoId: row.video_id,
     title: row.title,
@@ -31,7 +31,7 @@ function formatVideo(row) {
     videoType: row.video_type,
     duration: row.duration ?? null,
     publishedAt: row.published_at
-      ? new Date(row.published_at).toISOString().slice(0, 16).replace('T', ' ')
+      ? (row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at)).slice(0, 16).replace('T', ' ')
       : null,
     members: parseJsonColumn(row.members, null),
   };
@@ -56,7 +56,7 @@ export default async function videosRoutes(fastify) {
     const [featRows] = await db.query(
       `SELECT * FROM videos
        WHERE video_type = 'video' AND category IN ('official', 'sp', 'variety')
-       ORDER BY published_at DESC LIMIT 1`
+       ORDER BY published_at DESC, id DESC LIMIT 1`
     );
     const featured = featRows.length > 0 ? formatVideo(featRows[0]) : null;
 
@@ -68,7 +68,7 @@ export default async function videosRoutes(fastify) {
       const [rows] = await db.query(
         `SELECT * FROM videos
          WHERE category = ? AND video_type = 'video'
-         ORDER BY published_at DESC LIMIT 4`,
+         ORDER BY published_at DESC, id DESC LIMIT 4`,
         [cat]
       );
       sections[cat] = rows.map(formatVideo);
@@ -76,7 +76,7 @@ export default async function videosRoutes(fastify) {
 
     // 쇼츠 레일 — 최신 6개
     const [shortsRows] = await db.query(
-      "SELECT * FROM videos WHERE video_type = 'shorts' ORDER BY published_at DESC LIMIT 6"
+      "SELECT * FROM videos WHERE video_type = 'shorts' ORDER BY published_at DESC, id DESC LIMIT 6"
     );
 
     // 카테고리별 개수 — 쇼츠는 별도 섹션이라 카테고리 집계에서 제외
@@ -144,7 +144,7 @@ export default async function videosRoutes(fastify) {
       `SELECT COUNT(*) total FROM videos ${whereSql}`, params
     );
     const [rows] = await db.query(
-      `SELECT * FROM videos ${whereSql} ORDER BY published_at DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM videos ${whereSql} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
 

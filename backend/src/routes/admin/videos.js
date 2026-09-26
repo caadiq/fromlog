@@ -1,3 +1,7 @@
+import { updateVideoType } from '../../services/video-type.js';
+import { withTransaction } from '../../utils/transaction.js';
+import { invalidatePattern } from '../../utils/cache.js';
+import { formatVideo } from '../videos.js';
 import { fetchVideoInfo } from '../../services/youtube/api.js';
 import { archiveVideo, inferCategory, ARCHIVE_MIN_DATE } from '../../services/videos.js';
 import { errorResponse } from '../../schemas/index.js';
@@ -55,7 +59,7 @@ export default async function videosAdminRoutes(fastify) {
     const [[{ total }]] = await db.query(`SELECT COUNT(*) total FROM videos ${whereSql}`, params);
     const [rows] = await db.query(
       `SELECT video_id, channel_id, channel_name, title, category, video_type, published_at, members
-       FROM videos ${whereSql} ORDER BY published_at DESC LIMIT ? OFFSET ?`,
+       FROM videos ${whereSql} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?`,
       [...params, Number(limit), Number(offset)]
     );
     const [channels] = await db.query(
@@ -64,14 +68,9 @@ export default async function videosAdminRoutes(fastify) {
     return {
       total,
       videos: rows.map((r) => ({
-        videoId: r.video_id,
+        ...formatVideo(r),
         channelId: r.channel_id,
-        channelName: r.channel_name,
-        title: r.title,
-        category: r.category,
-        videoType: r.video_type,
-        publishedAt: r.published_at,
-        members: r.members || [],
+        members: formatVideo(r).members || [],
       })),
       channels: channels.map((c) => c.channel_name),
     };
@@ -203,11 +202,14 @@ export default async function videosAdminRoutes(fastify) {
     const [rows] = await db.query('SELECT title FROM videos WHERE video_id = ?', [videoId]);
     if (rows.length === 0) return notFound(reply, '영상을 찾을 수 없습니다.');
 
-    const sets = [];
-    const params = [];
-    if (category) { sets.push('category = ?'); params.push(category); }
-    if (video_type) { sets.push('video_type = ?'); params.push(video_type); }
-    await db.query(`UPDATE videos SET ${sets.join(', ')} WHERE video_id = ?`, [...params, videoId]);
+    await withTransaction(db, async connection => {
+      if (category) await connection.query('UPDATE videos SET category = ? WHERE video_id = ?', [category, videoId]);
+      if (video_type) await updateVideoType(connection, videoId, video_type);
+    });
+    if (video_type && fastify.redis) {
+      try { await invalidatePattern(fastify.redis, 'schedule:monthly:*'); }
+      catch (err) { fastify.log.warn(`일정 캐시 무효화 실패: ${err.message}`); }
+    }
 
     logActivity(db, {
       actor: 'admin', action: 'update', category: 'video',

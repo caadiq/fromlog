@@ -172,6 +172,9 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
       }
       client.invalidateQueries({ queryKey: ['admin', 'stats'] });
       invalidateSchedules(client);
+      client.invalidateQueries({ queryKey: ['videos'] });
+      client.invalidateQueries({ queryKey: ['videosHome'] });
+      client.invalidateQueries({ queryKey: ['admin', 'videos'] });
       client.invalidateQueries({ queryKey: ['admin', 'mobile'] });
       client.invalidateQueries({ queryKey: ['admin', 'logs'] });
       if (category === '예능') client.invalidateQueries({ queryKey: ['broadcasters'] });

@@ -5,7 +5,8 @@ import { decodeHtmlEntities, getScheduleTime, highlightTerm } from '@/utils';
 export default function ScheduleSearchRow({ schedule, term, onClick, color, category, compact = false }) {
   const date = new Date(`${schedule.date}T00:00:00`);
   const validDate = !Number.isNaN(date.getTime());
-  const time = getScheduleTime(schedule);
+  const monthOnly = schedule.datePrecision === 'month';
+  const time = monthOnly ? null : getScheduleTime(schedule);
   return (
     <button type="button" onClick={() => onClick?.(schedule)}
       className={`flex w-full items-center border-b border-hairline text-left transition-colors hover:bg-canvas focus-visible:outline-primary ${compact ? 'gap-4 py-5' : 'gap-[26px] px-0.5 py-6'}`}>
@@ -14,10 +15,10 @@ export default function ScheduleSearchRow({ schedule, term, onClick, color, cate
           {validDate ? date.getFullYear() : '날짜'}
         </span>
         <span className={`mb-[7px] mt-1 block font-extrabold leading-[1.2] tracking-[-1px] ${compact ? 'text-[24px]' : 'text-[34px]'}`}>
-          {validDate ? `${date.getMonth() + 1}.${date.getDate()}` : '미정'}
+          {validDate ? monthOnly ? `${date.getMonth() + 1}월` : `${date.getMonth() + 1}.${date.getDate()}` : '미정'}
         </span>
         <span className={`block whitespace-nowrap text-mute ${compact ? 'text-[12px]' : 'text-[13px]'}`}>
-          {validDate ? WEEKDAYS[date.getDay()] : ''}{time ? ` · ${time}` : ''}
+          {monthOnly ? '날짜 미정' : validDate ? WEEKDAYS[date.getDay()] : ''}{time ? ` · ${time}` : ''}
         </span>
       </span>
       <span className="min-w-0 flex-1">

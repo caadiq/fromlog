@@ -71,6 +71,8 @@ function Schedules() {
     isLoadingSuggestions,
     searchResults,
     searchLoading,
+    searchError,
+    retrySearch,
     hasNextPage,
     isFetchingNextPage,
     handleSearch,
@@ -79,7 +81,7 @@ function Schedules() {
     handleSuggestionSelect,
     handleKeyDown: handleSearchKeyDown,
     loadMoreRef,
-  } = useScheduleSearch();
+  } = useScheduleSearch(selectedCategories);
 
   // 로컬 상태 (페이지 이동 시 유지할 필요 없는 것들)
   const { toast, setToast } = useToast();
@@ -820,6 +822,12 @@ function Schedules() {
               </AnimatePresence>
             </div>
 
+            {isSearchMode && searchError && (
+              <div role="alert" className="py-6 text-center text-[14px] text-mute">
+                <p>검색 결과를 불러오지 못했습니다.</p>
+                <button type="button" className="mt-3 border border-hairline px-4 py-2 text-ink" onClick={() => retrySearch()}>다시 시도</button>
+              </div>
+            )}
             {loading ? (
               <div className="py-24 text-center text-[14.5px] text-mute">로딩 중...</div>
             ) : filteredSchedules.length === 0 && undatedSchedules.length === 0 ? (

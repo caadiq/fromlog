@@ -89,6 +89,9 @@ function YouTubeEditForm() {
 
       // 쓰기가 끝난 자리에서 무효화 — 목록·공개 달력·상세·검색이 함께 갱신된다
       invalidateSchedules(queryClient);
+      queryClient.invalidateQueries({ queryKey: ['videos'] });
+      queryClient.invalidateQueries({ queryKey: ['videosHome'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'videos'] });
       sessionStorage.setItem(
         'scheduleToast',
         JSON.stringify({

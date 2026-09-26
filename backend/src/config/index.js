@@ -49,6 +49,8 @@ export default {
     user: process.env.DB_USER || 'fromis9',
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'fromis9',
+    // Preserve SQL wall-clock values consistently regardless of the Node process timezone.
+    timezone: 'Z',
     connectionLimit: 10,
     waitForConnections: true,
   },

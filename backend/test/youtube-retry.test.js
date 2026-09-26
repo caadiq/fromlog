@@ -103,7 +103,7 @@ async function fixture(t, uploads = [upload('one')], options = {}) {
     } else throw new Error('Unexpected network request');
     return { json: async () => ({ items }) };
   });
-  const fastify = { db, redis: null, meilisearch: { index: () => ({ deleteDocument: async () => ({}), addDocuments: async () => ({}) }) }, log: { info() {} }, decorate(key, value) { this[key] = value; } };
+  const fastify = { db, redis: null, meilisearch: { waitForTask: async () => ({ status: 'succeeded' }), index: () => ({ deleteDocument: async () => ({ taskUid: 1 }), addDocuments: async () => ({ taskUid: 2 }) }) }, log: { info() {} }, decorate(key, value) { this[key] = value; } };
   await youtubeBotPlugin(fastify);
   const bot = { id: 'retry-test', channelId: 'channel', channelName: '워크돌', titleFilters: [], addToSchedule: true, ...options };
   return { state, calls, fail, save: video => fastify.youtubeBot.saveVideo(video, bot), run: () => fastify.youtubeBot.syncNewVideos(bot) };

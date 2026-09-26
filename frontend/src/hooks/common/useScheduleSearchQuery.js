@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
 import { getSuggestions } from '@/api';
@@ -16,6 +16,8 @@ export function useSuggestions(query, { debounceMs = 200 } = {}) {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    setIsLoadingSuggestions(false);
     if (!query || query.trim().length === 0) {
       setSuggestions([]);
       return;
@@ -23,14 +25,15 @@ export function useSuggestions(query, { debounceMs = 200 } = {}) {
     const id = setTimeout(async () => {
       setIsLoadingSuggestions(true);
       try {
-        setSuggestions(await getSuggestions(query));
+        const results = await getSuggestions(query);
+        if (active) setSuggestions(results);
       } catch {
-        setSuggestions([]);
+        if (active) setSuggestions([]);
       } finally {
-        setIsLoadingSuggestions(false);
+        if (active) setIsLoadingSuggestions(false);
       }
     }, debounceMs);
-    return () => clearTimeout(id);
+    return () => { active = false; clearTimeout(id); };
   }, [query, debounceMs]);
 
   return { suggestions, isLoadingSuggestions };
@@ -46,7 +49,7 @@ export function useSuggestions(query, { debounceMs = 200 } = {}) {
  * @param {string} p.searchTerm 확정된 검색어
  * @param {boolean} p.enabled 검색 모드 여부
  */
-export function useInfiniteScheduleSearch({ searchApi, queryKey, searchTerm, enabled }) {
+export function useInfiniteScheduleSearch({ searchApi, queryKey, searchTerm, enabled, selectedCategories = [] }) {
   const { ref: loadMoreRef, inView } = useInView({ threshold: 0, rootMargin: '100px' });
 
   const {
@@ -54,9 +57,13 @@ export function useInfiniteScheduleSearch({ searchApi, queryKey, searchTerm, ena
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetching,
     isLoading: searchLoading,
+    isError: searchError,
+    refetch: retrySearch,
   } = useInfiniteQuery({
     queryKey: [queryKey, searchTerm],
+    initialPageParam: 0,
     queryFn: ({ pageParam = 0 }) => searchApi(searchTerm, { offset: pageParam, limit: SEARCH_LIMIT }),
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.offset + lastPage.schedules.length : undefined,
@@ -78,14 +85,14 @@ export function useInfiniteScheduleSearch({ searchApi, queryKey, searchTerm, ena
     return [...map.values()];
   }, [searchResults]);
 
-  // 하단 감지 시 다음 페이지 — inView 전환(false→true)에서만 (중복 요청 방지)
-  const prevInViewRef = useRef(false);
+  // Continue while the sentinel remains visible, including short/filtered pages.
+  const needsFilteredPage = selectedCategories.length > 0
+    && !searchResults.some(row => selectedCategories.includes(row.category_id));
   useEffect(() => {
-    if (inView && !prevInViewRef.current && hasNextPage && !isFetchingNextPage && enabled && searchTerm) {
+    if ((inView || needsFilteredPage) && hasNextPage && !isFetching && !searchError && enabled && searchTerm) {
       fetchNextPage();
     }
-    prevInViewRef.current = inView;
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage, enabled, searchTerm]);
+  }, [inView, needsFilteredPage, hasNextPage, isFetching, searchError, fetchNextPage, enabled, searchTerm]);
 
   return {
     searchResults,
@@ -94,5 +101,7 @@ export function useInfiniteScheduleSearch({ searchApi, queryKey, searchTerm, ena
     hasNextPage,
     isFetchingNextPage,
     searchLoading,
+    searchError,
+    retrySearch,
   };
 }

@@ -1,3 +1,4 @@
+import { invalidateSchedules } from '@/utils/invalidate';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, SlidersHorizontal, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
@@ -62,6 +63,7 @@ function VideosContent() {
     goToPage(page);
   };
   const refresh = message => {
+    invalidateSchedules(client);
     client.invalidateQueries({ queryKey: ['admin', 'videos'] });
     client.invalidateQueries({ queryKey: ['videos'] });
     client.invalidateQueries({ queryKey: ['videosHome'] });

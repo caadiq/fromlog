@@ -1,3 +1,5 @@
+import { cacheKeys, invalidatePattern } from '../../utils/cache.js';
+import { syncScheduleById } from '../../services/meilisearch/index.js';
 import { errorResponse } from '../../schemas/index.js';
 import { badRequest, notFound } from '../../utils/error.js';
 import { logActivity } from '../../utils/log.js';
@@ -7,7 +9,22 @@ import { logActivity } from '../../utils/log.js';
  * (Express → Fastify 마이그레이션 때 누락됐던 쓰기 라우트 복원)
  */
 export default async function scheduleCategoriesRoutes(fastify) {
-  const { db } = fastify;
+  const { db, redis, meilisearch } = fastify;
+
+  async function refreshCategories(categoryId = null) {
+    if (redis) {
+      try {
+        await redis.del(cacheKeys.categories);
+        await invalidatePattern(redis, 'schedule:monthly:*');
+      } catch (err) {
+        fastify.log.warn(`카테고리 캐시 무효화 실패: ${err.message}`);
+      }
+    }
+    if (categoryId !== null && meilisearch) {
+      const [rows] = await db.query('SELECT id FROM schedules WHERE category_id = ?', [categoryId]);
+      for (const row of rows) await syncScheduleById(meilisearch, db, row.id);
+    }
+  }
 
   /**
    * POST /api/admin/schedule-categories
@@ -57,6 +74,7 @@ export default async function scheduleCategoriesRoutes(fastify) {
       summary: `카테고리 생성: ${name}`,
     });
 
+    await refreshCategories();
     return { message: '카테고리가 생성되었습니다.', id: result.insertId, sort_order: nextOrder };
   });
 
@@ -105,6 +123,8 @@ export default async function scheduleCategoriesRoutes(fastify) {
         id,
       ]
     );
+
+    await refreshCategories(id);
 
     logActivity(db, {
       actor: 'admin', action: 'update', category: 'schedule',
@@ -162,6 +182,7 @@ export default async function scheduleCategoriesRoutes(fastify) {
       summary: `카테고리 삭제: ${existing[0].name}`,
     });
 
+    await refreshCategories();
     return { message: '카테고리가 삭제되었습니다.' };
   });
 
@@ -223,6 +244,7 @@ export default async function scheduleCategoriesRoutes(fastify) {
       summary: `카테고리 순서 변경 (${orders.length}개)`,
     });
 
+    await refreshCategories();
     return { message: '순서가 업데이트되었습니다.' };
   });
 }

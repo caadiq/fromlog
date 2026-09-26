@@ -1,3 +1,4 @@
+import { invalidateSchedules } from '@/utils/invalidate';
 /**
  * 관리자 영상 아카이브 관리
  * 봇이 못 잡는 영상(설명란 없는 쇼츠 등) 수동 등록과 오분류 개별 수정·삭제.
@@ -34,8 +35,9 @@ const TYPE_FILTER_OPTIONS = [
 ];
 
 function formatDate(v) {
-  const d = new Date(v);
-  return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
+  if (!v) return '날짜 미정';
+  const [year, month, day] = v.slice(0, 10).split('-').map(Number);
+  return `${year}. ${month}. ${day}.`;
 }
 
 /** 영상 수동 등록 다이얼로그 — URL 붙여넣기 → 미리보기 → 카테고리 확인 → 등록 */
@@ -255,7 +257,12 @@ function Videos() {
     ...(data?.channels || []).map((c) => ({ value: c, label: c })),
   ];
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin', 'videos'] });
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'videos'] });
+    queryClient.invalidateQueries({ queryKey: ['videos'] });
+    queryClient.invalidateQueries({ queryKey: ['videosHome'] });
+    invalidateSchedules(queryClient);
+  };
 
   const handleCategoryChange = async (video, newCategory) => {
     if (newCategory === video.category) return;

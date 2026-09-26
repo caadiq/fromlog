@@ -219,6 +219,8 @@ function PCSchedule() {
     searchResults,
     searchCategories,
     loadMoreRef,
+    searchError,
+    retrySearch,
     hasNextPage,
     isFetchingNextPage,
     searchLoading: isSearchLoading,
@@ -227,6 +229,7 @@ function PCSchedule() {
     queryKey: 'scheduleSearch',
     searchTerm,
     enabled: isSearchMode,
+    selectedCategories,
   });
 
   // 오늘 생일 폭죽
@@ -734,6 +737,12 @@ function PCSchedule() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: EASE, delay: searchTerm ? 0 : 0.16 }}
           >
+{searchError && (
+              <div role="alert" className="py-6 text-center text-[14px] text-mute">
+                <p>검색 결과를 불러오지 못했습니다.</p>
+                <button type="button" className="mt-3 border border-hairline px-4 py-2 text-ink" onClick={() => retrySearch()}>다시 시도</button>
+              </div>
+            )}
             {searchTerm && filteredSchedules.length > 0 ? (
               <>
                 <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
@@ -787,7 +796,7 @@ function PCSchedule() {
               </>
             ) : searchTerm ? (
               <div className="py-24 text-center text-mute">
-                {isSearchLoading ? '검색 중...' : `'${searchTerm}' 검색 결과가 없습니다`}
+                {!searchError && (isSearchLoading || isFetchingNextPage ? '검색 중...' : `'${searchTerm}' 검색 결과가 없습니다`)}
               </div>
             ) : recentSearches.length > 0 ? (
               <div>

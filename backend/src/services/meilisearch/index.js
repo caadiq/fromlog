@@ -6,8 +6,9 @@
  * - 일정 동기화
  */
 import Inko from 'inko';
-import config, { CATEGORY_IDS } from '../../config/index.js';
+import config from '../../config/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { getSchedulesByIds } from '../schedule.js';
 import { invalidatePattern } from '../../utils/cache.js';
 
 // 일정 쓰기 시 월별 일정 캐시 무효화 (redis가 주어진 호출에 한함)
@@ -94,7 +95,7 @@ async function resolveSchoolNames(db, query) {
 export async function searchSchedules(meilisearch, db, query, options = {}) {
   const { limit = 100, offset = 0 } = options;
   // 내부 검색 한도 (여러 검색어 병합 및 유사도 필터링 전 충분한 결과 확보)
-  const SEARCH_LIMIT = 1000;
+  const SEARCH_LIMIT = 10000;
 
   try {
     const index = meilisearch.index(INDEX_NAME);
@@ -143,7 +144,15 @@ export async function searchSchedules(meilisearch, db, query, options = {}) {
       .filter(hit => hit._rankingScore >= MIN_SCORE);
 
     // 유사도 순 정렬
-    filteredHits.sort((a, b) => (b._rankingScore || 0) - (a._rankingScore || 0));
+    filteredHits.sort((a, b) => (b._rankingScore || 0) - (a._rankingScore || 0)
+      || String(b.date).localeCompare(String(a.date))
+      || String(b.time || '').localeCompare(String(a.time || ''))
+      || Number(b.id) - Number(a.id));
+
+    // Use the same current DB representation as the calendar; omit deleted index hits.
+    const current = await getSchedulesByIds(db, filteredHits.map(hit => hit.id));
+    const byId = new Map(current.map(schedule => [Number(schedule.id), schedule]));
+    filteredHits = filteredHits.filter(hit => byId.has(Number(hit.id)));
 
     const total = filteredHits.length;
 
@@ -151,7 +160,7 @@ export async function searchSchedules(meilisearch, db, query, options = {}) {
     const paginatedHits = filteredHits.slice(offset, offset + limit);
 
     // 응답 형식 변환
-    const formattedHits = paginatedHits.map(formatScheduleResponse);
+    const formattedHits = paginatedHits.map(hit => byId.get(Number(hit.id)));
 
     return {
       hits: formattedHits,
@@ -162,38 +171,8 @@ export async function searchSchedules(meilisearch, db, query, options = {}) {
     };
   } catch (err) {
     logger.error(`검색 오류: ${err.message}`);
-    return { hits: [], total: 0, offset: 0, limit, hasMore: false };
+    throw err;
   }
-}
-
-/**
- * 검색 결과 응답 형식 변환
- * schedule.js의 공통 포맷과 동일한 구조 반환
- * (Meilisearch 인덱스 필드명이 다르므로 별도 매핑 필요)
- */
-function formatScheduleResponse(hit) {
-  // source 객체 구성 (Meilisearch에는 URL 없음)
-  let source = null;
-  if (hit.category_id === CATEGORY_IDS.YOUTUBE && hit.source_name) {
-    source = { name: hit.source_name, url: null };
-  } else if (hit.category_id === CATEGORY_IDS.X) {
-    source = { name: hit.source_name || '', url: null };
-  } else if (hit.category_id === CATEGORY_IDS.EVENT && hit.source_name) {
-    source = { name: hit.source_name, url: null };
-  }
-
-  return {
-    id: hit.id,
-    title: hit.title,
-    date: hit.date,
-    time: hit.time || null,
-    category: {
-      id: hit.category_id,
-      name: hit.category_name,
-      color: hit.category_color,
-    },
-    source,
-  };
 }
 
 /**
@@ -205,7 +184,7 @@ export async function addOrUpdateSchedule(meilisearch, schedule, redis = null) {
 
     const document = buildScheduleDocument(schedule);
 
-    await index.addDocuments([document]);
+    await waitForIndexTask(meilisearch, await index.addDocuments([document]));
     logger.info(`일정 추가/업데이트: ${schedule.id}`);
   } catch (err) {
     logger.error(`문서 추가 오류: ${err.message}`);
@@ -231,7 +210,7 @@ export async function syncScheduleById(meilisearch, db, scheduleId, redis = null
     const document = buildScheduleDocument(rows[0]);
 
     const index = meilisearch.index(INDEX_NAME);
-    await index.addDocuments([document]);
+    await waitForIndexTask(meilisearch, await index.addDocuments([document]));
     logger.info(`일정 동기화: ${scheduleId}`);
     await invalidateMonthlyCache(redis);
     return true;
@@ -248,7 +227,7 @@ export async function syncScheduleById(meilisearch, db, scheduleId, redis = null
 export async function deleteSchedule(meilisearch, scheduleId, redis = null) {
   try {
     const index = meilisearch.index(INDEX_NAME);
-    await index.deleteDocument(scheduleId);
+    await waitForIndexTask(meilisearch, await index.deleteDocument(scheduleId));
     logger.info(`일정 삭제: ${scheduleId}`);
   } catch (err) {
     logger.error(`문서 삭제 오류: ${err.message}`);
@@ -282,7 +261,7 @@ export async function syncAllSchedules(meilisearch, db) {
     // DB에 없는 문서 삭제
     const idsToDelete = meiliIds.filter(id => !dbIds.has(id));
     if (idsToDelete.length > 0) {
-      await index.deleteDocuments(idsToDelete);
+      await waitForIndexTask(meilisearch, await index.deleteDocuments(idsToDelete));
       logger.info(`${idsToDelete.length}개 문서 삭제`);
     }
 
@@ -290,13 +269,13 @@ export async function syncAllSchedules(meilisearch, db) {
     const documents = schedules.map(buildScheduleDocument);
 
     // 일괄 추가
-    await index.addDocuments(documents);
+    if (documents.length) await waitForIndexTask(meilisearch, await index.addDocuments(documents));
     logger.info(`${documents.length}개 일정 동기화 완료`);
 
     return documents.length;
   } catch (err) {
     logger.error(`동기화 오류: ${err.message}`);
-    return 0;
+    throw err;
   }
 }
 
@@ -313,62 +292,19 @@ export async function getVersion(meilisearch) {
   }
 }
 
-/**
- * 인덱스 삭제 후 재생성
- */
-async function recreateIndex(meilisearch) {
-  const index = meilisearch.index(INDEX_NAME);
-
-  try {
-    // 인덱스 삭제
-    const deleteTask = await meilisearch.deleteIndex(INDEX_NAME);
-    await meilisearch.waitForTask(deleteTask.taskUid);
-    logger.info('기존 인덱스 삭제 완료');
-  } catch (err) {
-    // 인덱스가 없으면 무시
-  }
-
-  // 인덱스 재생성
-  const createTask = await meilisearch.createIndex(INDEX_NAME, { primaryKey: 'id' });
-  await meilisearch.waitForTask(createTask.taskUid);
-
-  // 설정 복원
-  await index.updateSearchableAttributes([
-    'title', 'source_name', 'category_name',
-  ]);
-  await index.updateFilterableAttributes(['category_id', 'date']);
-  await index.updateSortableAttributes(['date', 'time']);
-  await index.updateRankingRules([
-    'words', 'typo', 'proximity', 'attribute', 'exactness', 'date:desc',
-  ]);
-  await index.updateTypoTolerance({
-    enabled: true,
-    minWordSizeForTypos: { oneTypo: 2, twoTypos: 4 },
-  });
-  await index.updatePagination({ maxTotalHits: 10000 });
-
-  logger.info('인덱스 재생성 완료');
-}
-
-/**
- * 동기화 (오류 시 인덱스 재생성 후 재시도)
- */
+/** Retry without deleting a healthy index after a transient database failure. */
 export async function syncWithRetry(meilisearch, db) {
   try {
-    const count = await syncAllSchedules(meilisearch, db);
-    if (count > 0) return count;
-
-    // 0개면 오류일 수 있으므로 재시도
-    throw new Error('동기화 결과 0개');
+    return await syncAllSchedules(meilisearch, db);
   } catch (err) {
-    logger.warn(`동기화 실패, 인덱스 재생성 후 재시도: ${err.message}`);
+    logger.warn(`동기화 재시도: ${err.message}`);
+    return await syncAllSchedules(meilisearch, db);
+  }
+}
 
-    try {
-      await recreateIndex(meilisearch);
-      return await syncAllSchedules(meilisearch, db);
-    } catch (retryErr) {
-      logger.error(`재시도 실패: ${retryErr.message}`);
-      return 0;
-    }
+async function waitForIndexTask(meilisearch, task) {
+  const result = await meilisearch.waitForTask(task.taskUid, { timeOutMs: 10000 });
+  if (result.status !== 'succeeded') {
+    throw new Error(result.error?.message || `Search index task ${result.status}`);
   }
 }

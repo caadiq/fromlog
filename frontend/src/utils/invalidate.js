@@ -20,6 +20,8 @@ export function invalidateSchedules(queryClient) {
   queryClient.invalidateQueries({ queryKey: ['adminSchedules'] });      // 관리자 월별 목록
   queryClient.invalidateQueries({ queryKey: ['schedules'] });           // 공개 달력 · 다가오는 일정
   queryClient.invalidateQueries({ queryKey: ['schedule'] });            // 일정 상세 (= 수정 폼 초기값)
+  queryClient.invalidateQueries({ queryKey: ['scheduleSearch'] });
+  queryClient.invalidateQueries({ queryKey: ['mobileScheduleSearch'] });
   queryClient.invalidateQueries({ queryKey: ['adminScheduleSearch'] }); // 관리자 검색 결과
 }
 

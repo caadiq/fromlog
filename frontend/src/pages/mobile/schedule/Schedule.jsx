@@ -179,6 +179,8 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
     searchResults,
     searchCategories,
     loadMoreRef,
+    searchError,
+    retrySearch,
     hasNextPage,
     isFetchingNextPage,
     searchLoading,
@@ -187,6 +189,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
     queryKey: 'mobileScheduleSearch',
     searchTerm,
     enabled: isSearchMode,
+    selectedCategories,
   });
 
   // 검색 결과 카테고리 필터 적용
@@ -934,11 +937,17 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
             </div>
 
             <div className="mx-[22px] border-t-2 border-ink pb-16">
-              {searchLoading ? (
+{searchError && (
+              <div role="alert" className="py-6 text-center text-[14px] text-mute">
+                <p>검색 결과를 불러오지 못했습니다.</p>
+                <button type="button" className="mt-3 border border-hairline px-4 py-2 text-ink" onClick={() => retrySearch()}>다시 시도</button>
+              </div>
+            )}
+            {searchLoading || isFetchingNextPage && filteredSearchResults.length === 0 ? (
                 <div className="py-20 text-center text-[14.5px] text-mute">검색 중...</div>
               ) : filteredSearchResults.length === 0 ? (
                 <div className="py-20 text-center text-[14.5px] text-mute">
-                  '{searchTerm}' 검색 결과가 없습니다
+                  {!searchError && `'${searchTerm}' 검색 결과가 없습니다`}
                 </div>
               ) : (
                 <>
