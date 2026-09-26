@@ -1,3 +1,5 @@
+import ScheduleSearchRow from '@/components/common/ScheduleSearchRow';
+import { useScheduleSearchNavigation } from '@/hooks/common/useScheduleSearchNavigation';
 import { getMonthCategories } from '@/utils/schedule';
 import { CalendarPanel, YearMonthPanel } from '@/components/mobile/schedule/CalendarPanels';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -27,7 +29,6 @@ import {
   decodeHtmlEntities,
   fireBirthdayConfetti,
   fireDebutConfetti,
-  highlightTerm,
   isNoticeSchedule,
 } from '@/utils';
 import { getSchedules, searchSchedules } from '@/api';
@@ -39,7 +40,7 @@ import {
 } from '@/components/mobile';
 import { DebutCelebrationDialog, BirthdayCelebrationDialog, ScheduleLinkPanel, useScheduleLinks } from '@/components/common';
 import { EASE } from '@/components/editorial';
-import { useDocumentTitle, useDialogBackClose, useRecentSearches, useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
+import { useDocumentTitle, useRecentSearches, useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
 
 const GREEN = 'rgb(var(--c-primary))';
 
@@ -87,49 +88,8 @@ function EventRow({ schedule, onClick, dashed = false, subtitle: subtitleOverrid
 
 /** 검색 결과 행 (S_final_search_mobile 시안) */
 function SearchRow({ schedule, term, onClick }) {
-  const d = new Date(`${schedule.date}T00:00:00`);
-  const time = getScheduleTime(schedule);
-  const title = decodeHtmlEntities(schedule.title);
   const { color, name } = getCategoryInfo(schedule);
-  // 검색 결과에서는 제목 대신 날짜를 물들인다 (제목의 검색어 강조와 색이 겹치지 않게)
-  const notice = isNoticeSchedule(schedule);
-
-  return (
-    <button
-      type="button"
-      onClick={() => onClick?.(schedule)}
-      className="flex w-full items-center gap-[13px] border-b border-hairline px-0.5 py-[15px] text-left"
-    >
-      <span className="w-[74px] shrink-0">
-        <span
-          className="block text-[11.5px] font-bold text-mute"
-          style={{ fontVariantNumeric: 'tabular-nums' }}
-        >
-          {d.getFullYear()}
-        </span>
-        <b
-          className={`block whitespace-nowrap text-[14.5px] font-extrabold tracking-[-0.3px] ${
-            notice ? 'text-notice' : ''
-          }`}
-          style={{ fontVariantNumeric: 'tabular-nums' }}
-        >
-          {d.getMonth() + 1}.{d.getDate()} {WEEKDAYS[d.getDay()]}
-        </b>
-        {time && <span className="mt-0.5 block text-[13px] font-bold text-mute">{time}</span>}
-      </span>
-      <span className="min-w-0 flex-1">
-        <b className="line-clamp-2 w-full min-w-0 text-[14.5px] font-bold leading-snug tracking-[-0.2px]">
-          {highlightTerm(title, term)}
-        </b>
-        {schedule.source?.name && (
-          <span className="mt-0.5 block text-[12.5px] text-mute">{schedule.source.name}</span>
-        )}
-      </span>
-      <span className="whitespace-nowrap text-[12px] font-extrabold" style={{ color }}>
-        {name}
-      </span>
-    </button>
-  );
+  return <ScheduleSearchRow compact schedule={schedule} term={term} onClick={onClick} color={color} category={name} />;
 }
 
 /**
@@ -139,6 +99,8 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
   // 관리자(onMenuClick 전달)면 '일정 관리', 공개면 '일정'
   useDocumentTitle(onMenuClick ? '일정 관리' : '일정');
 
+  const { isSearchMode, searchInput, setSearchInput, searchTerm, setSearchTerm,
+    setIsSearchMode, backFromSearch } = useScheduleSearchNavigation();
   const navigate = useNavigate();
   const [fabOpen, setFabOpen] = useState(false);
 
@@ -173,9 +135,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
     navigate(`/schedule/${schedule.id}`);
   }, [navigate, onCardClick]);
 
-  const [isSearchMode, setIsSearchMode] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+
   const [showPanel, setShowPanel] = useState(false); // 인라인 달력 패널
   const [showLinks, setShowLinks] = useState(false); // 고정 링크 패널 (달력과 배타)
   const { links: scheduleLinks, hasUrgent } = useScheduleLinks();
@@ -197,25 +157,14 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
   const [showBirthdayDialog, setShowBirthdayDialog] = useState(false);
   const [birthdayInfo, setBirthdayInfo] = useState({ title: '', memberImage: '', date: '' });
 
-  // 검색 상태 정리 (모드 종료 공통)
-  const clearSearchState = useCallback(() => {
-    setIsSearchMode(false);
-    setSearchInput('');
-    setOriginalSearchQuery('');
-    setSearchTerm('');
-    setShowSuggestions(false);
-  }, []);
-
-  // 검색 모드 — 브라우저 뒤로가기로 복귀 (useDialogBackClose가 히스토리 담당)
-  useDialogBackClose(isSearchMode, clearSearchState);
   const enterSearchMode = () => {
     setIsSearchMode(true);
     closePanels();
   };
-
-  // 검색 모드 종료 (← 버튼)
   const exitSearchMode = () => {
-    clearSearchState();
+    setOriginalSearchQuery('');
+    setShowSuggestions(false);
+    backFromSearch();
   };
 
   // 달력 월 변경
@@ -575,7 +524,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
               <button
                 type="button"
                 onClick={exitSearchMode}
-                aria-label="검색 닫기"
+                aria-label={searchTerm ? '검색어 지우고 돌아가기' : '검색 닫기'}
                 className="-m-1 shrink-0 p-1 text-mute"
               >
                 <ArrowLeft size={22} strokeWidth={2.2} />

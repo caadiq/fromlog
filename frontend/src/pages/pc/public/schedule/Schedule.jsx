@@ -1,3 +1,5 @@
+import ScheduleSearchRow from '@/components/common/ScheduleSearchRow';
+import { useScheduleSearchNavigation } from '@/hooks/common/useScheduleSearchNavigation';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowLeft, X, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
@@ -9,12 +11,12 @@ import { DebutCelebrationDialog, BirthdayCelebrationDialog, Tooltip, ScheduleLin
 import { motion, AnimatePresence } from 'framer-motion';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 import { OutlineTitle, EASE } from '@/components/editorial';
-import { fireBirthdayConfetti, fireDebutConfetti, highlightTerm } from '@/utils';
+import { fireBirthdayConfetti, fireDebutConfetti } from '@/utils';
 import { getSchedules, searchSchedules } from '@/api';
 import { useScheduleStore } from '@/stores';
 import { getTodayKST, getScheduleTime, decodeHtmlEntities, isNoticeSchedule } from '@/utils';
 import { MIN_YEAR, DETAIL_NAV_CATEGORY_IDS, WEEKDAYS, WEEKDAYS_LONG } from '@/constants';
-import { useDocumentTitle, useDialogBackClose, useRecentSearches, useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
+import { useDocumentTitle, useRecentSearches, useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
 
 /** PC 헤더 높이 */
 const HEADER_H = 74;
@@ -152,45 +154,8 @@ function EventRow({ schedule, onClick, dashed = false, subtitle: subtitleOverrid
 
 /** 검색 결과 행 (S_final_search_pc 시안) */
 function SearchRow({ schedule, term, onClick, getCategoryColor, getCategoryName }) {
-  const d = new Date(`${schedule.date}T00:00:00`);
-  const time = getScheduleTime(schedule);
-  const title = decodeHtmlEntities(schedule.title);
-  // 검색 결과에서는 제목 대신 날짜를 물들인다.
-  // 제목의 검색어 강조도 초록이라, 제목까지 칠하면 검색어가 묻혀버린다.
-  const notice = isNoticeSchedule(schedule);
-
-  return (
-    <Tooltip text={title} showOnlyOnOverflow className="block w-full">
-      <button
-        type="button"
-        onClick={() => onClick?.(schedule)}
-        className="grid w-full grid-cols-[140px_1fr_140px_90px] items-center border-b border-hairline px-1 py-[19px] text-left transition-colors hover:bg-canvas"
-      >
-      <span
-        className={`text-[17.5px] font-extrabold tracking-[-0.3px] ${notice ? 'text-notice' : ''}`}
-        style={{ fontVariantNumeric: 'tabular-nums' }}
-      >
-        {d.getFullYear()}. {d.getMonth() + 1}. {d.getDate()}. {WEEKDAYS[d.getDay()]}
-        {time && <span className="mt-0.5 block text-[14.5px] font-bold tracking-k15 text-mute">{time}</span>}
-      </span>
-      <span
-        data-tooltip-overflow
-        className="line-clamp-2 min-w-0 pr-8 text-[18px] font-bold leading-snug tracking-[-0.2px]"
-      >
-        {highlightTerm(title, term)}
-      </span>
-      <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[15px] text-mute">
-        {schedule.source?.name || ''}
-      </span>
-      <span
-        className="whitespace-nowrap text-right text-[14.5px] font-extrabold tracking-[0.5px]"
-        style={{ color: getCategoryColor(schedule.category_id, schedule) }}
-      >
-        {getCategoryName(schedule.category_id, schedule)}
-      </span>
-      </button>
-    </Tooltip>
-  );
+  return <ScheduleSearchRow schedule={schedule} term={term} onClick={onClick}
+    color={getCategoryColor(schedule.category_id, schedule)} category={getCategoryName(schedule.category_id, schedule)} />;
 }
 
 /**
@@ -199,6 +164,8 @@ function SearchRow({ schedule, term, onClick, getCategoryColor, getCategoryName 
 function PCSchedule() {
   useDocumentTitle('일정');
 
+  const { isSearchMode, searchInput, setSearchInput, searchTerm, setSearchTerm,
+    setIsSearchMode, backFromSearch } = useScheduleSearchNavigation();
   const navigate = useNavigate();
   const scrollContainerRef = useRef(null);
   const searchContainerRef = useRef(null);
@@ -211,12 +178,6 @@ function PCSchedule() {
     setSelectedDate: setStoredSelectedDate,
     selectedCategories,
     setSelectedCategories,
-    isSearchMode,
-    setIsSearchMode,
-    searchInput,
-    setSearchInput,
-    searchTerm,
-    setSearchTerm,
   } = useScheduleStore();
 
   // 초기값 설정
@@ -411,7 +372,9 @@ function PCSchedule() {
     let above = parseFloat(getComputedStyle(parent).paddingTop) || 0;
     for (const child of parent.children) {
       if (child === grid) break;
-      above += child.getBoundingClientRect().height;
+      const style = getComputedStyle(child);
+      above += child.getBoundingClientRect().height
+        + (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);
     }
     const available = window.innerHeight - HEADER_H - above;
 
@@ -430,15 +393,30 @@ function PCSchedule() {
     // 생기지 않고, 모자라면 모자란 만큼만 스크롤된다(= 화면을 줄일수록 조금씩 늘어남).
     // 화면을 넘지 않도록 헤더 아래 높이로 한 번 더 제한한다.
     const belowHeader = window.innerHeight - HEADER_H;
-    const next = Math.round(Math.max(available, Math.min(calendarNatural, belowHeader)));
-    setSpreadMaxH((prev) => (prev !== null && Math.abs(prev - next) < 2 ? prev : next));
+    const next = Math.floor(Math.max(available, Math.min(calendarNatural, belowHeader)));
+    setSpreadMaxH((prev) => (prev !== null && prev === next ? prev : next));
   }, []);
 
   useEffect(() => {
     const raf = requestAnimationFrame(measureSpread);
+    // Links and fonts may finish loading after the schedule query.
+    const observer = new ResizeObserver(measureSpread);
+    const parent = spreadRef.current?.parentElement;
+    const observeContents = () => {
+      if (parent) for (const child of parent.children) {
+        if (child !== spreadRef.current) observer.observe(child);
+      }
+      if (calContentRef.current) observer.observe(calContentRef.current);
+      measureSpread();
+    };
+    observeContents();
+    const mutations = new MutationObserver(observeContents);
+    if (parent) mutations.observe(parent, { childList: true });
     window.addEventListener('resize', measureSpread);
     return () => {
       cancelAnimationFrame(raf);
+      observer.disconnect();
+      mutations.disconnect();
       window.removeEventListener('resize', measureSpread);
     };
   }, [measureSpread, currentYearMonth, loading, isSearchMode]);
@@ -553,39 +531,14 @@ function PCSchedule() {
     setShowYmPicker(false);
   };
 
-  // 검색 상태 정리 (모드 종료 공통)
-  const clearSearchState = useCallback(() => {
-    setIsSearchMode(false);
-    setSearchInput('');
-    setOriginalSearchQuery('');
-    setSearchTerm('');
-    setShowSuggestions(false);
-    setSelectedSuggestionIndex(-1);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0;
-    }
-  }, [setIsSearchMode, setSearchInput, setSearchTerm]);
-
-  // 검색 모드 — 브라우저 뒤로가기로 복귀 (useDialogBackClose가 히스토리 담당)
-  useDialogBackClose(isSearchMode, clearSearchState);
   const enterSearchMode = () => {
     setIsSearchMode(true);
   };
-
-  // 검색 모드 종료 (← 버튼, Escape)
   const exitSearchMode = () => {
-    clearSearchState();
+    setOriginalSearchQuery('');
+    setShowSuggestions(false);
+    backFromSearch();
   };
-
-  // 일정 페이지를 벗어나면 검색 상태 초기화 (다른 페이지 갔다 돌아왔을 때 검색 화면이 남지 않도록)
-  useEffect(() => {
-    return () => {
-      setIsSearchMode(false);
-      setSearchInput('');
-      setSearchTerm('');
-    };
-  }, [setIsSearchMode, setSearchInput, setSearchTerm]);
-
 
   // 검색 실행
   const executeSearch = () => {
@@ -623,7 +576,7 @@ function PCSchedule() {
             <button
               type="button"
               onClick={exitSearchMode}
-              aria-label="검색 닫기"
+              aria-label={searchTerm ? '검색어 지우고 돌아가기' : '검색 닫기'}
               className="-m-1 shrink-0 p-1 text-mute transition-colors hover:text-ink"
             >
               <ArrowLeft size={30} strokeWidth={2.2} />
@@ -673,6 +626,7 @@ function PCSchedule() {
                 type="button"
                 onClick={() => {
                   setSearchInput('');
+                  setSearchTerm('');
                   setOriginalSearchQuery('');
                   setShowSuggestions(false);
                 }}
