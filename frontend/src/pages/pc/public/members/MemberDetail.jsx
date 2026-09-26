@@ -5,13 +5,15 @@ import { Loading, Lightbox } from '@/components/common';
 import { motion } from 'framer-motion';
 import { FactSheet, SectionHeader, fadeUp, stagger, Reveal } from '@/components/editorial';
 import { nextBirthday } from '@/utils';
+import ContentState from '@/components/pc/public/ContentState';
+import ContentImage from '@/components/editorial/ContentImage';
 
 /**
  * PC 멤버 상세 — 에디토리얼 리뉴얼 신설 (design-drafts/M_final_detail_pc 시안)
  */
 function MemberDetail() {
   const { name } = useParams();
-  const { data: members = [], isLoading } = useMembers();
+  const { data: members = [], isLoading, isError, refetch } = useMembers();
 
   const activeMembers = useMemo(() => members.filter((m) => !m.is_former), [members]);
   const member = useMemo(
@@ -19,7 +21,7 @@ function MemberDetail() {
     [members, name]
   );
 
-  const { data: photoData } = useMemberPhotos(member?.name_en);
+  const { data: photoData, isError: photosError, refetch: refetchPhotos } = useMemberPhotos(member?.name_en);
   const photos = photoData?.photos || [];
 
   useDocumentTitle(member?.name);
@@ -28,6 +30,7 @@ function MemberDetail() {
   const [lightbox, setLightbox] = useState({ open: false, index: 0 });
 
   if (isLoading) return <Loading />;
+  if (isError) return <ContentState onRetry={refetch}>멤버 정보를 불러오지 못했습니다.</ContentState>;
   if (!member) {
     return (
       <div className="flex flex-1 items-center justify-center bg-paper py-40 text-mute">
@@ -44,14 +47,14 @@ function MemberDetail() {
         {/* 프로필 스프레드 */}
         <div className="grid grid-cols-[0.92fr_1.08fr] border-b border-hairline">
           <div className="relative border-r border-hairline">
-            <img
+            <ContentImage
               src={member.image_medium || member.image_url}
               alt={member.name}
               className="block h-full min-h-[640px] w-full object-cover"
               style={{ filter: 'saturate(1.02)' }}
             />
           </div>
-          <div className="flex flex-col py-[64px] pl-[64px]">
+          <div className="flex min-w-0 break-words flex-col py-[64px] pl-[64px]">
             <div className="text-[13px] font-extrabold tracking-k25 text-mute">
               <Link to="/members" className="hover:text-ink">MEMBERS</Link>
               <i className="not-italic mx-2 text-primary">/</i>
@@ -99,6 +102,7 @@ function MemberDetail() {
         </div>
 
         {/* RECENT PHOTOS — 멤버 태깅 컨셉 포토 자동 */}
+        {photosError && <ContentState onRetry={refetchPhotos}>사진을 불러오지 못했습니다.</ContentState>}
         {photos.length > 0 && (
           <>
             <Reveal className="flex items-baseline justify-between pb-[22px] pt-14">
@@ -116,10 +120,11 @@ function MemberDetail() {
                   variants={fadeUp}
                   key={p.id}
                   type="button"
+                  aria-label={`${member.name} 사진 ${i + 1} 크게 보기`}
                   onClick={() => setLightbox({ open: true, index: i })}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <img
+                  <ContentImage
                     src={p.medium_url || p.thumb_url}
                     alt=""
                     className="block aspect-[0.8] w-full object-cover"
@@ -133,7 +138,7 @@ function MemberDetail() {
               ))}
             </Reveal>
             <Lightbox
-              images={photos.map((p) => p.medium_url)}
+              images={photos.map((p) => p.medium_url || p.thumb_url)}
               currentIndex={lightbox.index}
               isOpen={lightbox.open}
               onClose={() => setLightbox((l) => ({ ...l, open: false }))}

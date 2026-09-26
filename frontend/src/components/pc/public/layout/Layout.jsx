@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, MotionConfig } from 'framer-motion';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 import Header from './Header';
 import Footer from './Footer';
@@ -28,7 +28,8 @@ function Layout({ children }) {
   // 헤더까지 함께 가로 스크롤됨(줄바꿈 방지). 헤더는 sticky top-0이라 세로 스크롤 시 고정.
   return (
     // 가로+세로 오버레이 스크롤. 세로바는 뷰포트 끝에 항상 보임.
-    <OverlayScrollbarsComponent element="div" className="h-dvh" options={OS_OPTIONS}>
+    <MotionConfig reducedMotion="user">
+    <OverlayScrollbarsComponent element="div" className="pc-public h-dvh" options={OS_OPTIONS}>
       <div className="min-w-[1100px] min-h-dvh flex flex-col">
         <Header />
         <main className="flex-1 flex flex-col">
@@ -45,6 +46,7 @@ function Layout({ children }) {
         </main>
       </div>
     </OverlayScrollbarsComponent>
+    </MotionConfig>
   );
 }
 

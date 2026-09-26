@@ -1,7 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import ContentState from '@/components/pc/public/ContentState';
+import ContentImage from '@/components/editorial/ContentImage';
 import { useMembers, useAlbums, useUpcomingSchedules, useDocumentTitle } from '@/hooks';
 import { OutlineTitle, SectionHeader, CategoryLabel, fadeUp, stagger, Reveal } from '@/components/editorial';
 import { FEATURED_CATEGORY_IDS, WEEKDAYS } from '@/constants';
@@ -36,12 +38,14 @@ function pickRandom(photos, count = 10) {
 function HeroSlides({ hero, members }) {
   const slides = useMemo(() => (hero?.photos?.length ? pickRandom(hero.photos) : []), [hero]);
   const [idx, setIdx] = useState(0);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    if (slides.length < 2) return undefined;
+    setIdx(0);
+    if (slides.length < 2 || reduceMotion) return undefined;
     const t = setInterval(() => setIdx((i) => (i + 1) % slides.length), 5500);
     return () => clearInterval(t);
-  }, [slides]);
+  }, [slides, reduceMotion]);
 
 
   // 폴백: 사진이 하나도 없으면 멤버 사진
@@ -56,7 +60,7 @@ function HeroSlides({ hero, members }) {
     >
       {slides.length > 0 ? (
         slides.map((url, i) => (
-          <img
+          <ContentImage
             key={url}
             src={url}
             alt=""
@@ -68,7 +72,7 @@ function HeroSlides({ hero, members }) {
         ))
       ) : (
         fallback && (
-          <img src={fallback} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <ContentImage src={fallback} alt="" className="absolute inset-0 h-full w-full object-cover" />
         )
       )}
       {slides.length > 1 && (
@@ -97,7 +101,7 @@ function MembersSkeleton() {
       {Array.from({ length: 5 }).map((_, i) => (
         <div
           key={i}
-          className={`flex-1 px-[22px] pb-[30px] pt-[26px] ${i < 4 ? 'border-r border-hairline' : ''}`}
+          className={`min-w-0 flex-1 break-words px-[22px] pb-[30px] pt-[26px] ${i < 4 ? 'border-r border-hairline' : ''}`}
         >
           <SkelBlock className="h-[14px] w-6" />
           <SkelBlock className="mt-4 aspect-[0.85] w-full" />
@@ -148,9 +152,9 @@ function ScheduleSkeleton() {
 function Home() {
   useDocumentTitle();
 
-  const { data: members = [], isLoading: membersLoading } = useMembers();
-  const { data: allAlbums = [], isLoading: albumsLoading } = useAlbums();
-  const { data: upcomingSchedules = [], isLoading: schedulesLoading } = useUpcomingSchedules(3);
+  const { data: members = [], isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
+  const { data: allAlbums = [], isLoading: albumsLoading, isError: albumsError, refetch: refetchAlbums } = useAlbums();
+  const { data: upcomingSchedules = [], isLoading: schedulesLoading, isError: schedulesError, refetch: refetchSchedules } = useUpcomingSchedules(3);
   const { data: hero } = useHeroSlides();
 
   const activeMembers = useMemo(() => members.filter((m) => !m.is_former), [members]);
@@ -203,15 +207,15 @@ function Home() {
         variants={stagger}
       >
         {[
-          { num: String(activeMembers.length || 5), label: 'MEMBERS' },
-          { num: String(allAlbums.length || '—'), label: 'ALBUMS' },
+          { num: membersLoading || membersError ? '—' : String(activeMembers.length), label: 'MEMBERS' },
+          { num: albumsLoading || albumsError ? '—' : String(allAlbums.length), label: 'ALBUMS' },
           { num: '2018. 01. 24', label: 'DEBUT' },
           ...(stripAlbum ? [{ num: stripAlbum.num, label: stripAlbum.label }] : []),
         ].map((s, i, arr) => (
           <motion.div
             key={s.label}
             variants={fadeUp}
-            className={`flex-1 py-6 text-center ${i < arr.length - 1 ? 'border-r border-hairline' : ''}`}
+            className={`min-w-0 flex-1 break-words px-2 py-6 text-center ${i < arr.length - 1 ? 'border-r border-hairline' : ''}`}
           >
             <b className="block text-[30px] font-extrabold tracking-[-1px]">{s.num}</b>
             <span className="text-[13px] font-bold tracking-k25 text-mute">{s.label}</span>
@@ -227,21 +231,21 @@ function Home() {
             전체보기 →
           </Link>
         </Reveal>
-        {membersLoading && activeMembers.length === 0 ? (
+        {membersError ? <ContentState onRetry={refetchMembers}>멤버 정보를 불러오지 못했습니다.</ContentState> : membersLoading && activeMembers.length === 0 ? (
           <MembersSkeleton />
-        ) : (
+        ) : activeMembers.length === 0 ? <ContentState>등록된 멤버가 없습니다.</ContentState> : (
         <Reveal className="flex border-t-2 border-ink" variants={stagger}>
           {activeMembers.map((m, i) => (
             <MotionLink
               key={m.id}
-              to="/members"
+              to={`/members/${(m.name_en || '').toLowerCase()}`}
               variants={fadeUp}
-              className={`flex-1 px-[22px] pb-[30px] pt-[26px] transition-colors hover:bg-canvas ${
+              className={`min-w-0 flex-1 break-words px-[22px] pb-[30px] pt-[26px] transition-colors hover:bg-canvas ${
                 i < activeMembers.length - 1 ? 'border-r border-hairline' : ''
               }`}
             >
               <span className="text-[13.5px] font-bold text-faint">{String(i + 1).padStart(2, '0')}</span>
-              <img
+              <ContentImage
                 src={m.image_thumb || m.image_medium}
                 alt={m.name}
                 className="mt-4 block aspect-[0.85] w-full object-cover"
@@ -263,15 +267,15 @@ function Home() {
             전체보기 →
           </Link>
         </Reveal>
-        {albumsLoading && albums.length === 0 ? (
+        {albumsError ? <ContentState onRetry={refetchAlbums}>앨범을 불러오지 못했습니다.</ContentState> : albumsLoading && albums.length === 0 ? (
           <AlbumsSkeleton />
-        ) : (
+        ) : albums.length === 0 ? <ContentState>등록된 앨범이 없습니다.</ContentState> : (
         <Reveal className="grid grid-cols-[1.25fr_1fr_1fr] gap-[26px]" variants={stagger}>
           {albums.map((a, i) =>
             i === 0 ? (
-              <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="relative block">
+              <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="relative block min-w-0 break-words">
                 {a.cover_medium_url || a.cover_original_url ? (
-                  <img
+                  <ContentImage
                     src={a.cover_medium_url || a.cover_original_url}
                     alt={a.title}
                     className="block aspect-square w-full object-cover"
@@ -290,9 +294,9 @@ function Home() {
                 </div>
               </MotionLink>
             ) : (
-              <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="block">
+              <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="block min-w-0 break-words">
                 {a.cover_medium_url || a.cover_original_url ? (
-                  <img
+                  <ContentImage
                     src={a.cover_medium_url || a.cover_original_url}
                     alt={a.title}
                     className="block aspect-square w-full object-cover"
@@ -320,9 +324,9 @@ function Home() {
             전체보기 →
           </Link>
         </Reveal>
-        {schedulesLoading && upcomingSchedules.length === 0 ? (
+        {schedulesError ? <ContentState onRetry={refetchSchedules}>일정을 불러오지 못했습니다.</ContentState> : schedulesLoading && upcomingSchedules.length === 0 ? (
           <ScheduleSkeleton />
-        ) : (
+        ) : upcomingSchedules.length === 0 ? <ContentState>예정된 일정이 없습니다.</ContentState> : (
         <Reveal className="border-t-2 border-ink">
           {datedSchedules.map((s) => {
             const d = new Date(s.date);

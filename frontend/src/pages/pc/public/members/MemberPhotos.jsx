@@ -4,19 +4,20 @@ import { useMembers, useDocumentTitle, useMemberAllPhotos } from '@/hooks';
 import { Loading, Lightbox } from '@/components/common';
 import { JustifiedGallery } from '@/components/editorial/JustifiedGallery';
 import { TYPE_LABEL } from '@/constants';
+import ContentState from '@/components/pc/public/ContentState';
 
 /**
  * PC 멤버 갤러리 — 멤버가 포함된 컨셉 포토 전체 (단체·유닛 포함, justified)
  */
 function MemberPhotos() {
   const { name } = useParams();
-  const { data: members = [] } = useMembers();
+  const { data: members = [], isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
   const member = useMemo(
     () => members.find((m) => (m.name_en || '').toLowerCase() === (name || '').toLowerCase()),
     [members, name]
   );
 
-  const { data, isLoading } = useMemberAllPhotos(member?.name_en);
+  const { data, isLoading, isError, refetch } = useMemberAllPhotos(member?.name_en);
   const photos = useMemo(
     () =>
       (data?.photos || []).map((p) => ({
@@ -36,7 +37,11 @@ function MemberPhotos() {
 
   const [lightbox, setLightbox] = useState({ open: false, index: 0 });
 
-  if (isLoading || !member) return <Loading />;
+  if (membersLoading) return <Loading />;
+  if (membersError) return <ContentState onRetry={refetchMembers}>멤버 정보를 불러오지 못했습니다.</ContentState>;
+  if (!member) return <ContentState>멤버를 찾을 수 없습니다.</ContentState>;
+  if (isLoading) return <Loading />;
+  if (isError) return <ContentState onRetry={refetch}>사진을 불러오지 못했습니다.</ContentState>;
 
   const typeCounts = photos.reduce((acc, p) => {
     acc[p.photo_type] = (acc[p.photo_type] || 0) + 1;
@@ -68,6 +73,7 @@ function MemberPhotos() {
           ].map((f) => (
             <button
               key={f.key}
+              aria-pressed={filter === f.key}
               onClick={() => setFilter(f.key)}
               className={`border px-[18px] py-[9px] text-[13px] font-extrabold tracking-k15 transition-colors ${
                 filter === f.key
@@ -81,6 +87,7 @@ function MemberPhotos() {
         </div>
 
         <div className="pt-[34px]">
+          {filtered.length === 0 && <ContentState>등록된 사진이 없습니다.</ContentState>}
           <JustifiedGallery
             photos={filtered}
             onPhotoClick={(p, i) => setLightbox({ open: true, index: i })}
@@ -88,7 +95,7 @@ function MemberPhotos() {
         </div>
 
         <Lightbox
-          images={filtered.map((p) => p.medium_url)}
+          images={filtered.map((p) => p.medium_url || p.thumb_url)}
           currentIndex={lightbox.index}
           isOpen={lightbox.open}
           onClose={() => setLightbox((l) => ({ ...l, open: false }))}

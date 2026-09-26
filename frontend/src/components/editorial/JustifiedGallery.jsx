@@ -4,6 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import ContentImage from './ContentImage';
 
 /** justified 행 구성 — 목표 높이 기준으로 사진을 행에 채움 */
 export function buildJustifiedRows(photos, containerWidth = 1160, targetHeight = 340, gap = 16) {
@@ -88,11 +89,12 @@ export function JustifiedGallery({
                 <button
                   key={p.id}
                   type="button"
+                  aria-label={`${p.caption || '사진'} ${flatIndex(p) + 1} 크게 보기`}
                   onClick={() => onPhotoClick(p, flatIndex(p))}
                   className="group relative block shrink-0 overflow-hidden text-left transition-all duration-300 hover:z-10 hover:scale-[1.05] hover:shadow-xl"
                   style={{ width: row.height * p.ratio, height: row.height }}
                 >
-                  <img
+                  <ContentImage
                     src={p.medium_url || p.thumb_url}
                     alt=""
                     className="block h-full w-full object-cover"

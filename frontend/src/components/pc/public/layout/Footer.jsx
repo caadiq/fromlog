@@ -13,7 +13,7 @@ function Footer() {
           © {new Date().getFullYear()} fromlog.caadiq.co.kr
         </p>
         <p className="flex items-baseline gap-6">
-          <span className="text-[11.5px] font-extrabold tracking-k2 text-mute">CONTACT</span>
+          <span className="text-[12.5px] font-extrabold tracking-k2 text-mute">CONTACT</span>
           <a
             href="mailto:caadiq@gmail.com"
             className="border-b border-faint pb-0.5 text-[14px] font-extrabold text-ink transition-colors hover:border-ink"

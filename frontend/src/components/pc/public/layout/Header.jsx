@@ -33,7 +33,7 @@ function Header() {
         </NavLink>
 
         {/* 네비게이션 */}
-        <nav className="ml-[60px] flex items-center gap-[34px]">
+        <nav aria-label="주 메뉴" className="ml-[60px] flex items-center gap-[34px]">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
@@ -54,6 +54,7 @@ function Header() {
           <div className="flex items-center gap-4">
             <a
               href={SOCIAL_LINKS.youtube}
+              aria-label="프로미스나인 유튜브 (새 창)"
               target="_blank"
               rel="noopener noreferrer"
               className="text-mute transition-colors hover:text-ink"
@@ -62,6 +63,7 @@ function Header() {
             </a>
             <a
               href={SOCIAL_LINKS.instagram}
+              aria-label="프로미스나인 인스타그램 (새 창)"
               target="_blank"
               rel="noopener noreferrer"
               className="text-mute transition-colors hover:text-ink"
@@ -70,6 +72,7 @@ function Header() {
             </a>
             <a
               href={SOCIAL_LINKS.twitter}
+              aria-label="프로미스나인 X (새 창)"
               target="_blank"
               rel="noopener noreferrer"
               className="text-mute transition-colors hover:text-ink"

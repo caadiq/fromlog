@@ -4,6 +4,8 @@ import { useMembers, useDocumentTitle } from '@/hooks';
 import { Loading } from '@/components/common';
 import { motion } from 'framer-motion';
 import { OutlineTitle, fadeUp, stagger, Reveal } from '@/components/editorial';
+import ContentState from '@/components/pc/public/ContentState';
+import ContentImage from '@/components/editorial/ContentImage';
 
 /**
  * PC 멤버 목록 — 에디토리얼 리뉴얼 (design-drafts/M_final_list_pc 시안)
@@ -14,10 +16,11 @@ const MotionLink = motion(Link);
 function Members() {
   useDocumentTitle('멤버');
 
-  const { data: members = [], isLoading } = useMembers();
+  const { data: members = [], isLoading, isError, refetch } = useMembers();
   const activeMembers = useMemo(() => members.filter((m) => !m.is_former), [members]);
 
   if (isLoading) return <Loading />;
+  if (isError) return <ContentState onRetry={refetch}>멤버 정보를 불러오지 못했습니다.</ContentState>;
 
   return (
     <div className="flex-1 bg-paper text-ink">
@@ -28,13 +31,14 @@ function Members() {
         </div>
 
         {/* 균등 3열 × 2줄 그리드 */}
+        {activeMembers.length === 0 && <ContentState>등록된 멤버가 없습니다.</ContentState>}
         <Reveal className="mt-10 grid grid-cols-3 border-b border-hairline" variants={stagger}>
           {activeMembers.map((m, i) => (
             <MotionLink
               key={m.id}
               variants={fadeUp}
               to={`/members/${(m.name_en || '').toLowerCase()}`}
-              className={`group block cursor-pointer border-hairline pb-[30px] pl-[22px] pr-[22px] pt-[26px] transition-colors hover:bg-canvas ${
+              className={`group block min-w-0 break-words cursor-pointer border-hairline pb-[30px] pl-[22px] pr-[22px] pt-[26px] transition-colors hover:bg-canvas ${
                 i % 3 !== 2 ? 'border-r' : ''
               } ${i < 3 ? 'border-b' : ''}`}
             >
@@ -42,7 +46,7 @@ function Members() {
                 {String(i + 1).padStart(2, '0')}
               </span>
               <div className="mt-4 overflow-hidden">
-                <img
+                <ContentImage
                   src={m.image_medium || m.image_url}
                   alt={m.name}
                   className="block aspect-[0.82] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
