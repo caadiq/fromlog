@@ -1,9 +1,10 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 테마 컬러 설정
  * - 자동: 커버가 있는 최신 앨범에서 대표색 추출
  * - 수동: 관리자가 직접 색 지정 (가독성 보정 적용)
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { RefreshCw, Sparkles, Palette as PaletteIcon } from 'lucide-react';
@@ -68,11 +69,13 @@ function Theme() {
   const { toast, setToast } = useToast();
   useDocumentTitle('테마 컬러');
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch, error: loadError } = useQuery({
     queryKey: ['admin', 'theme'],
     queryFn: adminThemeApi.getAdminTheme,
   });
 
+  const initialized = useRef(false);
+  const busy = useRef(false);
   const [mode, setMode] = useState('auto');
   const [manualColor, setManualColor] = useState('#548360');
   const [saving, setSaving] = useState(false);
@@ -80,13 +83,16 @@ function Theme() {
 
   // 서버 값으로 초기화
   useEffect(() => {
-    if (!data) return;
+    if (!data || initialized.current) return;
+    initialized.current = true;
     setMode(data.mode || 'auto');
     setManualColor(data.manualColor || data.resolved?.primary || '#548360');
   }, [data]);
 
   const handleSave = async () => {
-    if (saving) return;
+    if (busy.current) return;
+    if (mode === 'manual' && !/^#[0-9a-f]{6}$/i.test(manualColor)) { setToast({ type: 'error', message: '색상 코드를 #RRGGBB 형식으로 입력해주세요.' }); return; }
+    busy.current = true;
     setSaving(true);
     try {
       const resolved = await adminThemeApi.updateTheme({ mode, manualColor });
@@ -96,21 +102,22 @@ function Theme() {
     } catch (err) {
       setToast({ type: 'error', message: err.message || '저장 중 오류가 발생했습니다.' });
     } finally {
-      setSaving(false);
+      busy.current = false; setSaving(false);
     }
   };
 
   const handleReextract = async () => {
-    if (reextracting) return;
+    if (busy.current) return;
+    busy.current = true;
     setReextracting(true);
     try {
       const res = await adminThemeApi.reextractColors(true);
       await refetch();
-      setToast({ type: 'success', message: `${res.updated}개 앨범 색을 다시 추출했습니다.` });
+      setToast({ type: res.failed ? 'error' : 'success', message: `${res.updated}개 앨범 색을 다시 추출했습니다.${res.failed ? ` ${res.failed}개 실패: 다시 시도해주세요.` : ''}` });
     } catch (err) {
       setToast({ type: 'error', message: err.message || '재추출 중 오류가 발생했습니다.' });
     } finally {
-      setReextracting(false);
+      busy.current = false; setReextracting(false);
     }
   };
 
@@ -122,6 +129,8 @@ function Theme() {
         ? data?.manualPalette
         : null // 수동색을 바꿨으면 저장 전까지 보정 결과 미확정
       : autoPalette;
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={refetch} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>
@@ -140,7 +149,7 @@ function Theme() {
             <button
               type="button"
               onClick={handleReextract}
-              disabled={reextracting}
+              disabled={reextracting || saving}
               className="flex items-center gap-1.5 border border-ink px-3.5 py-2 text-[12.5px] font-extrabold tracking-k1 text-ink transition-colors hover:bg-ink hover:text-white disabled:opacity-50"
             >
               <RefreshCw size={13} className={reextracting ? 'animate-spin' : ''} />
@@ -276,7 +285,7 @@ function Theme() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || reextracting}
                 className="bg-ink px-8 py-3 text-[13.5px] font-extrabold tracking-k1 text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {saving ? '저장 중...' : '저장'}

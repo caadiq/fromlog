@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 응원법 편집 — 구간 지정 + 싱크
  *
@@ -70,7 +71,7 @@ function FanchantEditor() {
   const listRef = useRef(null);
   const loadedRef = useRef(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['fanchant-admin', trackId],
     queryFn: () => getFanchantAdmin(trackId),
     enabled: isAuthenticated,
@@ -446,6 +447,8 @@ function FanchantEditor() {
   if (isLoading) {
     return <AdminLayout user={user}><div className="flex h-60 items-center justify-center text-[14px] text-mute">로딩 중...</div></AdminLayout>;
   }
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 앨범 사진 관리 페이지
  */
@@ -138,7 +139,7 @@ function AdminAlbumPhotos() {
   });
 
   // 컨셉 포토 목록 로드
-  const { data: photos = [], refetch: refetchPhotos } = useQuery({
+  const { data: photos = [], refetch: refetchPhotos, error: photosError } = useQuery({
     queryKey: ['admin', 'album', albumId, 'photos'],
     queryFn: () => adminAlbumApi.getAlbumPhotos(albumId),
     enabled: isAuthenticated && !!albumId,
@@ -146,7 +147,7 @@ function AdminAlbumPhotos() {
   });
 
   // 티저 이미지 목록 로드
-  const { data: teasers = [], refetch: refetchTeasers } = useQuery({
+  const { data: teasers = [], refetch: refetchTeasers, error: teasersError } = useQuery({
     queryKey: ['admin', 'album', albumId, 'teasers'],
     queryFn: () => adminAlbumApi.getAlbumTeasers(albumId),
     enabled: isAuthenticated && !!albumId,
@@ -643,6 +644,8 @@ function AdminAlbumPhotos() {
       </AdminLayout>
     );
   }
+
+  if (albumError || photosError || teasersError) return <AdminLayout><AdminQueryState onRetry={fetchAlbumData} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

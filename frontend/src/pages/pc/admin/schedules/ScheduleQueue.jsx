@@ -1,7 +1,11 @@
+import useAdminModal from '@/hooks/common/useAdminModal';
+import { useDialogBackClose } from '@/hooks/common';
+import ConfirmDialog from '@/components/pc/admin/common/ConfirmDialog';
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 수집 큐(검토 대기) — DC봇이 적재한 신규 일정 후보를 검토·등록·무시.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,7 +49,7 @@ function ScheduleQueue() {
   const { toast, setToast } = useToast();
   useDocumentTitle('수집 큐');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['pending-schedules'],
     queryFn: getPending,
     enabled: isAuthenticated,
@@ -54,6 +58,11 @@ function ScheduleQueue() {
 
   const [editing, setEditing] = useState(null); // 등록 다이얼로그 대상
   const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
+  const panelRef = useRef(null);
+  const [dismissing, setDismissing] = useState(null);
+  const [dismissBusy, setDismissBusy] = useState(false);
+  const [dismissError, setDismissError] = useState('');
   const [venueDialogOpen, setVenueDialogOpen] = useState(false);
   const [posterFiles, setPosterFiles] = useState([]); // [{id, file, preview}]
   const [postUrls, setPostUrls] = useState([]);
@@ -83,11 +92,15 @@ function ScheduleQueue() {
   };
 
   const closeEditor = () => {
+    if (busy.current) return false;
     setEditing(null);
     setPosterFiles([]);
     setPostUrls([]);
     setUrlInput('');
   };
+
+  useDialogBackClose(Boolean(editing), () => venueDialogOpen ? false : closeEditor());
+  useAdminModal(Boolean(editing) && !venueDialogOpen, panelRef, closeEditor);
 
   const addUrl = () => {
     const url = urlInput.trim();
@@ -98,17 +111,21 @@ function ScheduleQueue() {
   const removeUrl = (index) => setPostUrls(postUrls.filter((_, i) => i !== index));
 
   const handleDismiss = async (id) => {
+    if (busy.current) return;
+    busy.current = true; setDismissBusy(true); setDismissError('');
     try {
       await dismissPending(id);
       refresh();
       setToast({ type: 'success', message: '큐에서 무시했습니다.' });
+      setDismissing(null);
     } catch (err) {
-      setToast({ type: 'error', message: err.message || '실패했습니다.' });
-    }
+      setDismissError(err.message || '실패했습니다.');
+    } finally { busy.current = false; setDismissBusy(false); }
   };
 
   const handleRegister = async () => {
-    if (!editing) return;
+    if (!editing || busy.current || !editing.title.trim()) return;
+    busy.current = true;
     setSaving(true);
     try {
       const payload = {
@@ -130,6 +147,7 @@ function ScheduleQueue() {
       posterFiles.forEach((item) => formData.append('posters', item.file));
 
       await registerPending(editing.id, formData);
+      busy.current = false;
       closeEditor();
       refresh();
       // 큐는 sessionStorage 토스트로 이동하지 않으므로 목록 무효화를 여기서 직접 한다
@@ -138,7 +156,7 @@ function ScheduleQueue() {
     } catch (err) {
       setToast({ type: 'error', message: err.message || '등록에 실패했습니다.' });
     } finally {
-      setSaving(false);
+      busy.current = false; setSaving(false);
     }
   };
 
@@ -146,6 +164,8 @@ function ScheduleQueue() {
   // 장소·포스터·링크를 쓰는 건 기타·행사뿐.
   // 유튜브는 영상만 있는 예정 일정이고, 예능은 방송사·내용만 받는다 (서버도 그렇게 처리한다)
   const hasDetailFields = isRegisterable && (editing.category === '기타' || editing.category === '행사');
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>
@@ -255,7 +275,7 @@ function ScheduleQueue() {
                     등록
                   </button>
                   <button
-                    onClick={() => handleDismiss(it.id)}
+                    disabled={Boolean(it.createdScheduleId)} onClick={() => { setDismissError(''); setDismissing(it); }}
                     className="border border-hairline px-4 py-2 text-[12.5px] font-extrabold tracking-k1 text-mute transition-colors hover:border-ink hover:text-ink"
                   >
                     무시
@@ -268,6 +288,9 @@ function ScheduleQueue() {
         </motion.div>
       </div>
 
+      <ConfirmDialog isOpen={Boolean(dismissing)} loading={dismissBusy} title="일정 무시" confirmText="무시"
+        onClose={() => !busy.current && setDismissing(null)} onConfirm={() => handleDismiss(dismissing.id)}
+        message={<>{dismissing?.title} 일정을 무시할까요?{dismissError && <p role="alert" className="mt-2 text-red-700">{dismissError}</p>}</>} />
       {/* 등록 다이얼로그.
           뒷배경을 눌러 닫는 동작은 넣지 않는다 — 입력칸에서 글자를 드래그하다가
           손을 배경에서 떼면 그게 배경 클릭으로 잡혀, 적어둔 내용이 통째로 날아갔다.
@@ -281,6 +304,7 @@ function ScheduleQueue() {
             className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4"
           >
             <motion.div
+              ref={panelRef} role="dialog" aria-modal="true" aria-label="일정 등록" tabIndex={-1}
               initial={{ opacity: 0, y: 16, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -289,7 +313,7 @@ function ScheduleQueue() {
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-[19px] font-extrabold tracking-[-0.3px] text-ink">일정 등록</h2>
-                <button onClick={closeEditor} className="text-faint hover:text-ink">
+                <button onClick={closeEditor} disabled={saving} aria-label="닫기" className="text-faint hover:text-ink">
                   <X size={19} />
                 </button>
               </div>
@@ -526,10 +550,10 @@ function ScheduleQueue() {
               </div>
 
               <div className="mt-8 flex justify-end gap-2.5">
-                <button onClick={closeEditor} className={F.btn}>
+                <button onClick={closeEditor} disabled={saving} className={F.btn}>
                   취소
                 </button>
-                <button onClick={handleRegister} disabled={saving || !isRegisterable || !editing.date || (editing.category === '예능' && !editing.broadcaster?.trim())} className={F.btnInk}>
+                <button onClick={handleRegister} disabled={saving || !editing.title.trim() || !isRegisterable || !editing.date || (editing.category === '예능' && !editing.broadcaster?.trim())} className={F.btnInk}>
                   {saving ? '등록 중...' : '등록'}
                 </button>
               </div>

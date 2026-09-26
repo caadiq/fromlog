@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 티켓팅 폼 (인라인 생성 + standalone 편집 겸용) — 에디토리얼 리뉴얼
  * - 생성: 공연명 + 선예매/일반예매를 한 번에 입력 → 일정 세트 자동 생성
@@ -127,7 +128,7 @@ function TicketingForm({ inline = false }) {
   const removeUrl = (index) => setPostUrls(postUrls.filter((_, i) => i !== index));
 
   // 편집 모드: 기존 일정 로드
-  const { data: existing } = useQuery({
+  const { data: existing, error: loadError, refetch: retryLoad, isLoading: loadPending } = useQuery({
     queryKey: ['schedule', id],
     queryFn: () => getSchedule(id),
     enabled: isEditMode,
@@ -171,6 +172,7 @@ function TicketingForm({ inline = false }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!eventName.trim()) return setToast({ type: 'error', message: isEditMode ? '제목을 입력해주세요.' : '공연/행사명을 입력해주세요.' });
 
     setSaving(true);
@@ -468,6 +470,8 @@ function TicketingForm({ inline = false }) {
   );
 
   if (inline) return inner;
+
+  if (loadError || loadPending) return <AdminLayout><AdminQueryState loading={loadPending} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

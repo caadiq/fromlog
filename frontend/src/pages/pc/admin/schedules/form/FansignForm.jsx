@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 팬사인회 폼 (인라인 생성 + standalone 편집 겸용) — 에디토리얼 리뉴얼
  * - format: offline(대면) | online(영상통화) | both(대면+영상통화)
@@ -56,7 +57,7 @@ function FansignForm({ inline = false }) {
   const removeUrl = (index) => setPostUrls(postUrls.filter((_, i) => i !== index));
 
   // 편집 모드: 기존 팬사인회 로드
-  const { data: existing } = useQuery({
+  const { data: existing, error: loadError, refetch: retryLoad, isLoading: loadPending } = useQuery({
     queryKey: ['schedule', id],
     queryFn: () => getSchedule(id),
     enabled: isEditMode,
@@ -76,6 +77,7 @@ function FansignForm({ inline = false }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!title.trim()) return setToast({ type: 'error', message: '제목을 입력해주세요.' });
     if (!date) return setToast({ type: 'error', message: '날짜를 선택해주세요.' });
 
@@ -289,6 +291,8 @@ function FansignForm({ inline = false }) {
   );
 
   if (inline) return inner;
+
+  if (loadError || loadPending) return <AdminLayout><AdminQueryState loading={loadPending} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

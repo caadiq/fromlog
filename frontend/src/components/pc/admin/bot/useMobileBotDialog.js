@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import './mobileBotDialog.css';
+import useAdminModal from '@/hooks/common/useAdminModal';
 
 // Adapt the shared forms to the visual viewport without duplicating bot settings.
 export default function useMobileBotDialog(open, mobile, onClose) {
   const ref = useRef(null);
   const close = useRef(onClose);
   close.current = onClose;
+  useAdminModal(open && !mobile, ref, onClose);
   useEffect(() => {
     if (!open || !mobile || !ref.current) return;
     const node = ref.current;

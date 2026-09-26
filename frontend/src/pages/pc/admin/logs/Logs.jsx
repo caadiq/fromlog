@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 활동 로그 — 에디토리얼 리뉴얼 (design-drafts/ADM_logs 시안)
  */
@@ -51,7 +52,7 @@ function Logs() {
   const categories = categoryData?.categories || [];
 
   // 로그 API 호출
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['admin', 'logs', { page: currentPage, category: selectedCategories.join(','), actor: actorFilter === 'all' ? '' : actorFilter, search: debouncedSearch, from: dateFrom, to: dateTo }],
     queryFn: () => adminLogApi.getLogs({
       page: currentPage,
@@ -67,7 +68,7 @@ function Logs() {
 
   const logs = data?.logs || [];
   const total = data?.total || 0;
-  const totalPages = data?.totalPages || 0;
+  const totalPages = Math.max(1, data?.totalPages || 1);
 
   // 페이지 변경 시 입력 필드 동기화
   useEffect(() => { setPageInput(String(currentPage)); }, [currentPage]);
@@ -109,6 +110,8 @@ function Logs() {
   };
 
   const hasActiveFilters = searchQuery || selectedCategories.length > 0 || actorFilter !== 'all' || dateFrom || dateTo;
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

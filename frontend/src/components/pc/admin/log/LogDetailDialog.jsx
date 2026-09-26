@@ -1,6 +1,8 @@
 /**
  * 로그 상세 다이얼로그 — 에디토리얼 리뉴얼
  */
+import { useRef } from 'react';
+import useAdminModal from '@/hooks/common/useAdminModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Bot } from 'lucide-react';
 import { ACTION_STYLES, ACTION_LABELS, CATEGORY_LABELS, parseSummary, formatDateTime, hasDetails } from './constants';
@@ -40,6 +42,8 @@ export { ActorBadge, Summary };
 export default function LogDetailDialog({ log, onClose }) {
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
   useDialogBackClose(!!log, onClose);
+  const panelRef = useRef(null);
+  useAdminModal(Boolean(log), panelRef, onClose);
 
   return (
     <AnimatePresence>
@@ -53,11 +57,12 @@ export default function LogDetailDialog({ log, onClose }) {
             onClick={onClose}
           />
           <motion.div
+            ref={panelRef} role="dialog" aria-modal="true" aria-label="활동 로그 상세" tabIndex={-1}
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="relative mx-4 w-full max-w-lg border border-ink bg-white"
+            className="relative mx-4 w-full max-w-lg max-h-[calc(100dvh-32px)] overflow-y-auto border border-ink bg-white outline-none"
           >
             {/* 헤더 */}
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
@@ -73,7 +78,7 @@ export default function LogDetailDialog({ log, onClose }) {
                   {CATEGORY_LABELS[log.category] || log.category}
                 </span>
               </div>
-              <button onClick={onClose} className="p-1 text-faint transition-colors hover:text-ink">
+              <button aria-label="닫기" onClick={onClose} className="p-1 text-faint transition-colors hover:text-ink">
                 <X size={17} />
               </button>
             </div>

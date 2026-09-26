@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 일반 일정 추가/수정 폼 (컴백·팬사인회·기타) — 에디토리얼 리뉴얼
  * 제목·날짜·시간 + 컴백의 "날짜 미정(월만)" 토글
@@ -66,7 +67,7 @@ function ScheduleForm({ inline = false, categoryId = null }) {
   }, [categories, isEditMode, formData.category, searchParams, inline, categoryId]);
 
   // 수정 모드: 기존 일정 로드
-  const { data: existing } = useQuery({
+  const { data: existing, error: loadError, refetch: retryLoad, isLoading: loadPending } = useQuery({
     queryKey: ['schedule', id],
     queryFn: () => getSchedule(id),
     enabled: isEditMode,
@@ -105,6 +106,7 @@ function ScheduleForm({ inline = false, categoryId = null }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!formData.title.trim()) {
       setToast({ type: 'error', message: '제목을 입력해주세요.' });
       return;
@@ -305,6 +307,8 @@ function ScheduleForm({ inline = false, categoryId = null }) {
 
   // inline: form/index.jsx 안에서 바로 렌더 (AdminLayout/브레드크럼 없음)
   if (inline) return inner;
+
+  if (loadError || loadPending) return <AdminLayout><AdminQueryState loading={loadPending} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

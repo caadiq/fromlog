@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 앨범 추가/수정 — 에디토리얼 리뉴얼 (design-drafts/ADM_album_form 시안)
  */
@@ -56,6 +57,7 @@ function AdminAlbumForm() {
     data: albumData,
     isLoading: loading,
     error: albumError,
+    refetch: retryLoad,
   } = useQuery({
     queryKey: ['admin', 'album', id],
     queryFn: () => adminAlbumApi.getAlbum(id),
@@ -152,6 +154,7 @@ function AdminAlbumForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
 
     // 커스텀 검증
     if (!formData.title.trim()) {
@@ -201,6 +204,8 @@ function AdminAlbumForm() {
   };
 
   const albumTypes = ['정규', '미니', '싱글'];
+
+  if (albumError || loading) return <AdminLayout><AdminQueryState loading={loading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

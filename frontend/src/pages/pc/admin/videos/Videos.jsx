@@ -1,9 +1,10 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 import { invalidateSchedules } from '@/utils/invalidate';
 /**
  * 관리자 영상 아카이브 관리
  * 봇이 못 잡는 영상(설명란 없는 쇼츠 등) 수동 등록과 오분류 개별 수정·삭제.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
@@ -13,6 +14,7 @@ import {
 import { AdminLayout, AdminPageHeader, ConfirmDialog } from '@/components/pc/admin';
 import PortalDropdown from '@/components/pc/admin/common/PortalDropdown';
 import { useAdminAuth } from '@/hooks/pc/admin';
+import useAdminModal from '@/hooks/common/useAdminModal';
 import { useDocumentTitle, useDialogBackClose } from '@/hooks/common';
 import { decodeHtmlEntities } from '@/utils';
 import { EASE } from '@/components/editorial';
@@ -42,47 +44,62 @@ function formatDate(v) {
 
 /** 영상 수동 등록 다이얼로그 — URL 붙여넣기 → 미리보기 → 카테고리 확인 → 등록 */
 function AddVideoDialog({ isOpen, onClose, onSuccess }) {
-  useDialogBackClose(isOpen, onClose);
+
   const [url, setUrl] = useState('');
   const [preview, setPreview] = useState(null);
   const [category, setCategory] = useState('variety');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
+  const requestId = useRef(0);
+  const busy = useRef(false);
+  const panelRef = useRef(null);
+  const close = () => submitting ? false : onClose();
+  useDialogBackClose(isOpen, close);
+  useAdminModal(isOpen, panelRef, close);
 
   useEffect(() => {
+    requestId.current++;
+    setLoading(false);
     if (!isOpen) {
-      setUrl(''); setPreview(null); setError(''); setCategory('variety');
+      setUrl(''); setPreview(null); setPreviewUrl(''); setError(''); setCategory('variety');
     }
   }, [isOpen]);
 
   const handlePreview = async () => {
-    if (!url.trim()) return;
+    if (!url.trim() || loading || busy.current) return;
+    const id = ++requestId.current;
+    const requestedUrl = url.trim();
     setLoading(true);
     setError('');
     setPreview(null);
     try {
-      const data = await previewVideo(url.trim());
+      const data = await previewVideo(requestedUrl);
+      if (id !== requestId.current) return;
+      setPreviewUrl(requestedUrl);
       setPreview(data);
       setCategory(data.suggestedCategory || 'variety');
     } catch (err) {
-      setError(err.message || '영상 정보를 가져올 수 없습니다.');
+      if (id === requestId.current) setError(err.message || '영상 정보를 가져올 수 없습니다.');
     } finally {
-      setLoading(false);
+      if (id === requestId.current) setLoading(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!preview) return;
+    if (!preview || previewUrl !== url.trim() || preview.alreadyExists || preview.beforeCutoff || busy.current) return;
+    busy.current = true;
     setSubmitting(true);
     setError('');
     try {
-      await createVideo({ url: url.trim(), category });
+      await createVideo({ url: previewUrl, category });
       onSuccess();
       onClose();
     } catch (err) {
       setError(err.message || '등록에 실패했습니다.');
     } finally {
+      busy.current = false;
       setSubmitting(false);
     }
   };
@@ -97,25 +114,27 @@ function AddVideoDialog({ isOpen, onClose, onSuccess }) {
           className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/40 p-6"
         >
           <motion.div
+            ref={panelRef} role="dialog" aria-modal="true" aria-label="영상 수동 등록" tabIndex={-1}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.3, ease: EASE }}
-            className="w-full max-w-[520px] border border-ink bg-white"
+            className="flex max-h-[calc(100dvh-48px)] w-full max-w-[520px] flex-col border border-ink bg-white outline-none"
           >
-            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-[15px] font-black tracking-k1 text-ink">영상 수동 등록</h2>
-              <button type="button" onClick={onClose} className="text-mute transition-colors hover:text-ink">
+              <button type="button" onClick={close} disabled={submitting} aria-label="닫기" className="text-mute transition-colors hover:text-ink">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-4 p-6">
+            <div className="min-h-0 space-y-4 overflow-y-auto p-6">
               <div>
                 <label className="mb-1 block text-[12px] font-extrabold tracking-k1 text-mute">YouTube URL</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={url}
-                    onChange={(e) => setUrl(e.target.value)}
+                    disabled={submitting}
+                    onChange={(e) => { requestId.current++; setUrl(e.target.value); setPreview(null); setPreviewUrl(''); setLoading(false); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handlePreview(); } }}
                     placeholder="https://youtu.be/... 또는 쇼츠 URL"
                     className="min-w-0 flex-1 border border-hairline px-3 py-2.5 text-[13.5px] font-semibold text-ink placeholder-faint outline-none focus:border-ink"
@@ -123,7 +142,7 @@ function AddVideoDialog({ isOpen, onClose, onSuccess }) {
                   <button
                     type="button"
                     onClick={handlePreview}
-                    disabled={!url.trim() || loading}
+                    disabled={!url.trim() || loading || submitting}
                     className="flex items-center gap-1.5 border border-ink px-4 py-2.5 text-[13px] font-extrabold tracking-k1 text-ink transition-colors hover:bg-ink hover:text-white disabled:opacity-50"
                   >
                     {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
@@ -189,10 +208,11 @@ function AddVideoDialog({ isOpen, onClose, onSuccess }) {
               )}
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-hairline bg-paper px-6 py-4">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-hairline bg-paper px-6 py-4">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={close}
+                disabled={submitting}
                 className="border border-hairline bg-white px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-esub transition-colors hover:border-ink hover:text-ink"
               >
                 취소
@@ -200,7 +220,7 @@ function AddVideoDialog({ isOpen, onClose, onSuccess }) {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!preview || blocked || submitting}
+                disabled={!preview || previewUrl !== url.trim() || blocked || submitting || loading}
                 className="flex items-center gap-2 bg-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting && <Loader2 size={16} className="animate-spin" />}
@@ -227,16 +247,20 @@ function Videos() {
   const [channel, setChannel] = useState('');
   const [type, setType] = useState('');
   const [page, setPage] = useState(1);
+  const [mutating, setMutating] = useState(false);
+  const mutationBusy = useRef(false);
+  const [mutationError, setMutationError] = useState('');
 
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
+    if (searchQuery === debouncedSearch) return;
     const timer = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, debouncedSearch]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['admin', 'videos', { category, channel, type, q: debouncedSearch, page }],
     queryFn: () => getVideos({
       category: category || undefined,
@@ -264,26 +288,32 @@ function Videos() {
     invalidateSchedules(queryClient);
   };
 
+  useEffect(() => { if (data) setPage(p => Math.min(p, totalPages)); }, [data, totalPages]);
+
   const handleCategoryChange = async (video, newCategory) => {
-    if (newCategory === video.category) return;
+    if (newCategory === video.category || mutationBusy.current) return;
+    mutationBusy.current = true; setMutating(true); setMutationError('');
     try {
       await updateVideo(video.videoId, { category: newCategory });
       refresh();
     } catch (err) {
-      alert(err.message || '수정에 실패했습니다.');
-    }
+      setMutationError(err.message || '수정에 실패했습니다.');
+    } finally { mutationBusy.current = false; setMutating(false); }
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || mutationBusy.current) return;
+    mutationBusy.current = true; setMutating(true); setMutationError('');
     try {
       await deleteVideo(deleteTarget.videoId);
       setDeleteTarget(null);
       refresh();
     } catch (err) {
-      alert(err.message || '삭제에 실패했습니다.');
-    }
+      setMutationError(err.message || '삭제에 실패했습니다.');
+    } finally { mutationBusy.current = false; setMutating(false); }
   };
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>
@@ -332,6 +362,7 @@ function Videos() {
             </div>
           </div>
 
+          {mutationError && <p role="alert" className="mt-4 text-[13px] text-red-700">{mutationError}</p>}
           {/* 목록 */}
           <div className="mt-5 border border-hairline bg-white">
             <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
@@ -361,10 +392,10 @@ function Videos() {
                     </div>
                     <div className="min-w-0 border-l border-hairline pl-4">
                       <p className="mb-2 text-[12.5px] font-bold text-mute">카테고리</p>
-                      <PortalDropdown value={v.category} options={CATEGORY_OPTIONS} onChange={(newCat) => handleCategoryChange(v, newCat)} />
+                      <PortalDropdown disabled={mutating} value={v.category} options={CATEGORY_OPTIONS} onChange={(newCat) => handleCategoryChange(v, newCat)} />
                       <div className="mt-2 grid grid-cols-[1fr_60px] gap-2">
                         <a href={v.videoType === 'shorts' ? `https://www.youtube.com/shorts/${v.videoId}` : `https://www.youtube.com/watch?v=${v.videoId}`} target="_blank" rel="noreferrer" className="flex min-h-10 items-center justify-center gap-1.5 border border-hairline bg-white text-[12.5px] font-bold text-esub hover:border-ink" title="YouTube에서 보기"><ExternalLink size={14} />영상 보기</a>
-                        <button type="button" onClick={() => setDeleteTarget(v)} className="flex min-h-10 items-center justify-center gap-1 border border-hairline bg-white text-[12.5px] font-bold text-esub hover:border-[#C0392B] hover:text-[#C0392B]" title="삭제"><Trash2 size={13} />삭제</button>
+                        <button type="button" disabled={mutating} onClick={() => { setMutationError(''); setDeleteTarget(v); }} className="flex min-h-10 items-center justify-center gap-1 border border-hairline bg-white text-[12.5px] font-bold text-esub hover:border-[#C0392B] hover:text-[#C0392B]" title="삭제"><Trash2 size={13} />삭제</button>
                       </div>
                     </div>
                   </li>
@@ -378,7 +409,7 @@ function Videos() {
             <div className="mt-5 flex items-center justify-center gap-3">
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                aria-label="이전 페이지" onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
                 className="border border-hairline bg-white p-2 text-esub transition-colors hover:border-ink hover:text-ink disabled:opacity-40"
               >
@@ -389,7 +420,7 @@ function Videos() {
               </span>
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                aria-label="다음 페이지" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className="border border-hairline bg-white p-2 text-esub transition-colors hover:border-ink hover:text-ink disabled:opacity-40"
               >
@@ -404,10 +435,11 @@ function Videos() {
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => !mutationBusy.current && setDeleteTarget(null)}
+        loading={mutating}
         onConfirm={handleDelete}
         title="영상 삭제"
-        message={deleteTarget ? `"${deleteTarget.title}" 영상을 아카이브에서 삭제할까요?` : ''}
+        message={<>{deleteTarget ? `"${deleteTarget.title}" 영상을 아카이브에서 삭제할까요?` : ''}{mutationError && <p role="alert" className="mt-3 text-red-700">{mutationError}</p>}</>}
       />
     </AdminLayout>
   );

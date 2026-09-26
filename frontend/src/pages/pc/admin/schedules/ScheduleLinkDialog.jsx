@@ -1,8 +1,9 @@
 /**
  * 고정 링크 추가·수정 다이얼로그
  */
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import useAdminModal from '@/hooks/common/useAdminModal';
 import { X } from 'lucide-react';
 import { EASE } from '@/components/editorial';
 import { useDialogBackClose } from '@/hooks/common';
@@ -22,9 +23,12 @@ function DialogBody({ item, busy, onClose, onSave }) {
   const [startsAt, setStartsAt] = useState(toLocalInput(item.startsAt));
   const [endsAt, setEndsAt] = useState(toLocalInput(item.endsAt));
   const [error, setError] = useState('');
+  const panelRef = useRef(null);
+  useAdminModal(true, panelRef, onClose);
 
   const submit = (e) => {
     e.preventDefault();
+    if (busy) return;
     if (!title.trim()) return setError('제목을 입력해주세요.');
     if (!/^https?:\/\//i.test(url.trim())) return setError('URL은 http:// 또는 https:// 로 시작해야 합니다.');
     if (startsAt && endsAt && startsAt > endsAt) return setError('종료일이 시작일보다 빠릅니다.');
@@ -50,16 +54,17 @@ function DialogBody({ item, busy, onClose, onSave }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,22,19,0.4)] p-4"
     >
       <motion.form
+        ref={panelRef} role="dialog" aria-modal="true" aria-label={isEdit ? '링크 수정' : '링크 추가'} tabIndex={-1}
         initial={{ opacity: 0, y: 14, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.99 }}
         transition={{ duration: 0.24, ease: EASE }}
         onSubmit={submit}
-        className="w-full max-w-[560px] border border-ink bg-white"
+        className="max-h-[calc(100dvh-32px)] w-full max-w-[560px] overflow-y-auto border border-ink bg-white outline-none"
       >
         <div className="flex items-center border-b border-hairline px-[26px] py-5">
           <b className="text-[17px] font-black tracking-[-0.4px]">{isEdit ? '링크 수정' : '링크 추가'}</b>
-          <button type="button" onClick={onClose} aria-label="닫기" className="ml-auto text-faint transition-colors hover:text-ink">
+          <button type="button" onClick={onClose} disabled={busy} aria-label="닫기" className="ml-auto text-faint transition-colors hover:text-ink">
             <X size={17} />
           </button>
         </div>
@@ -129,6 +134,7 @@ function DialogBody({ item, busy, onClose, onSave }) {
           <button
             type="button"
             onClick={onClose}
+            disabled={busy}
             className="border border-hairline bg-white px-5 py-[11px] text-[12.5px] font-extrabold text-esub transition-colors hover:border-ink hover:text-ink"
           >
             취소
@@ -156,7 +162,8 @@ function DialogBody({ item, busy, onClose, onSave }) {
  * 안쪽 폼은 항목이 바뀔 때마다 key로 새로 만들어 입력값이 남지 않게 한다.
  */
 function ScheduleLinkDialog({ isOpen, item, busy, onClose, onSave }) {
-  useDialogBackClose(isOpen, onClose);
+  const close = () => busy ? false : onClose();
+  useDialogBackClose(isOpen, close);
   return (
     <AnimatePresence>
       {isOpen && (
@@ -164,7 +171,7 @@ function ScheduleLinkDialog({ isOpen, item, busy, onClose, onSave }) {
           key={item?.id ?? 'new'}
           item={item || {}}
           busy={busy}
-          onClose={onClose}
+          onClose={close}
           onSave={onSave}
         />
       )}

@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 멤버 수정 — 에디토리얼 리뉴얼 (design-drafts/ADM_member_edit 시안)
  */
@@ -45,6 +46,8 @@ function AdminMemberEdit() {
     data: memberData,
     isLoading: loading,
     isError,
+    error: loadError,
+    refetch: retryLoad,
   } = useQuery({
     queryKey: ['admin', 'member', name],
     queryFn: () => adminMemberApi.getMember(encodeURIComponent(name)),
@@ -114,6 +117,7 @@ function AdminMemberEdit() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
 
     try {
@@ -147,6 +151,8 @@ function AdminMemberEdit() {
 
   const underlineInput =
     'w-full border-b-2 border-ink bg-transparent px-0.5 pb-2.5 pt-2 text-[16px] font-bold text-ink placeholder-faint outline-none';
+
+  if (loadError || loading) return <AdminLayout><AdminQueryState loading={loading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

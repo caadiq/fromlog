@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 일정 추가 페이지 (카테고리별 폼 분기) — 에디토리얼 리뉴얼 (design-drafts/ADM_schedule_new 시안)
  */
@@ -32,7 +33,7 @@ function ScheduleFormPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // 카테고리 로드 (React Query)
-  const { data: categories = [], isLoading: loading } = useQuery({
+  const { data: categories = [], isLoading: loading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['categories'], // 공개 일정(useScheduleData)과 캐시 공유
     queryFn: categoriesApi.getCategories,
     enabled: isAuthenticated,
@@ -104,6 +105,8 @@ function ScheduleFormPage() {
       </AdminLayout>
     );
   }
+
+  if (loadError) return <AdminLayout><AdminQueryState onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

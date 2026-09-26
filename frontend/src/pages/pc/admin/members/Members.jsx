@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 멤버 목록 — 에디토리얼 리뉴얼 (design-drafts/ADM_members 시안)
  */
@@ -71,6 +72,8 @@ function AdminMembers() {
     data: members = [],
     isLoading: loading,
     isError,
+    error: loadError,
+    refetch: retryLoad,
   } = useQuery({
     queryKey: ['admin', 'members'],
     queryFn: adminMemberApi.getMembers,
@@ -91,6 +94,8 @@ function AdminMembers() {
   const handleMemberClick = (memberName) => {
     navigate(`/admin/members/${encodeURIComponent(memberName)}/edit`);
   };
+
+  if (loadError || loading) return <AdminLayout><AdminQueryState loading={loading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

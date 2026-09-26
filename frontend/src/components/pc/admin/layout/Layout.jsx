@@ -3,6 +3,7 @@
  * 모든 Admin 페이지에서 공통으로 사용하는 레이아웃
  * 헤더 고정 + 본문 스크롤 구조
  */
+import { MotionConfig } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 import { useAuthStore } from '@/stores';
@@ -29,7 +30,7 @@ function AdminLayout({ user, children }) {
   const isSchedulePage = location.pathname === '/admin/schedule';
 
   return (
-    isSchedulePage ? (
+    <MotionConfig reducedMotion="user">{isSchedulePage ? (
       <OverlayScrollbarsComponent element="div" className="h-dvh" options={OS_OPTIONS_X}>
         <div className="min-w-[1100px] h-dvh flex flex-col bg-paper text-ink">
           <div className="sticky top-0 z-30"><Header user={user} /></div>
@@ -43,7 +44,7 @@ function AdminLayout({ user, children }) {
           <main className="flex-1">{children}</main>
         </div>
       </OverlayScrollbarsComponent>
-    )
+    )}</MotionConfig>
   );
 }
 

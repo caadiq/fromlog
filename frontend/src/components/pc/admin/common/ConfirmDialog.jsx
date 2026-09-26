@@ -14,6 +14,8 @@
  * - loadingText: 로딩 중 텍스트 (기본: "삭제 중...")
  * - variant: 버튼 색상 (기본: "danger", "primary" 가능)
  */
+import { useRef, useId } from 'react';
+import useAdminModal from '@/hooks/common/useAdminModal';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useDialogBackClose } from '@/hooks/common';
@@ -31,6 +33,9 @@ function ConfirmDialog({
   variant = 'danger',
 }) {
   const reduced = useReducedMotion();
+  const panelRef = useRef(null);
+  const titleId = useId();
+  useAdminModal(isOpen, panelRef, () => loading ? false : onClose());
 
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
   useDialogBackClose(isOpen, () => loading ? false : onClose());
@@ -52,14 +57,15 @@ function ConfirmDialog({
           onClick={() => !loading && onClose()}
         >
           <motion.div
+            ref={panelRef} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={titleId}
             initial={{ scale: reduced ? 1 : 0.96, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: reduced ? 1 : 0.96, opacity: 0 }}
             transition={{ duration: reduced ? 0 : 0.18, ease: 'easeOut' }}
-            className="mx-4 w-full max-w-sm border border-ink bg-white p-7"
+            className="mx-4 w-full max-w-sm max-h-[calc(100dvh-32px)] overflow-y-auto border border-ink bg-white p-7 outline-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-[17.5px] font-extrabold tracking-[-0.3px] text-ink">{title}</h3>
+            <h3 id={titleId} className="text-[17.5px] font-extrabold tracking-[-0.3px] text-ink">{title}</h3>
             <div className="mt-2 text-[14px] leading-relaxed text-mute">{message}</div>
 
             <div className="mt-7 flex justify-end gap-2">

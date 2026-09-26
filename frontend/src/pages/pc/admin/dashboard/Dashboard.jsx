@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 대시보드 — 에디토리얼 리뉴얼 (design-drafts/ADM_dashboard 시안)
  */
@@ -73,12 +74,14 @@ function AdminDashboard() {
   const { user, isAuthenticated } = useAdminAuth();
 
   // 통계 조회
-  const { data: stats = { members: 0, albums: 0, photos: 0, schedules: 0 } } = useQuery({
+  const { data: stats = { members: 0, albums: 0, photos: 0, schedules: 0 }, error: loadError, refetch: retryLoad, isLoading: loadPending } = useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: adminStatsApi.getStats,
     enabled: isAuthenticated,
     staleTime: 30 * 1000,
   });
+
+  if (loadError || loadPending) return <AdminLayout><AdminQueryState loading={loadPending} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

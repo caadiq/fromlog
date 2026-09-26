@@ -3,6 +3,7 @@
  * - 기존 일정 데이터 로드
  * - 영상 유형(Video/Shorts) 수정
  */
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -30,7 +31,7 @@ function YouTubeEditForm() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   // 일정 데이터 로드
-  const { data: schedule, isLoading: scheduleLoading, isError: scheduleError } = useQuery({
+  const { data: schedule, isLoading: scheduleLoading, isError: scheduleError, refetch: retryLoad } = useQuery({
     queryKey: ['schedule', id],
     queryFn: async () => {
       const token = useAuthStore.getState().token;
@@ -63,6 +64,7 @@ function YouTubeEditForm() {
   // 폼 제출
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
 
     try {
@@ -120,7 +122,9 @@ function YouTubeEditForm() {
     );
   }
 
-  if (scheduleError || !schedule) {
+  if (scheduleError) return <AdminLayout user={user}><AdminQueryState onRetry={retryLoad} /></AdminLayout>;
+
+  if (!schedule) {
     return (
       <AdminLayout user={user}>
         <div className="flex min-h-[calc(100dvh-200px)] flex-1 items-center justify-center">

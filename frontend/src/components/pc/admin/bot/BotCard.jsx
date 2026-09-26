@@ -70,6 +70,7 @@ export const BotTableRow = memo(function BotTableRow({
   index,
   isInitialLoad,
   syncing,
+  busy = false,
   statusInfo,
   onSync,
   onToggle,
@@ -128,7 +129,7 @@ export const BotTableRow = memo(function BotTableRow({
         <div className="flex items-baseline justify-end gap-3">
           {/* 시작/정지 */}
           <button
-            onClick={() => onToggle(bot.id, bot.status, bot.name)}
+            disabled={busy} onClick={() => onToggle(bot.id, bot.status, bot.name)}
             className={`text-[13.5px] font-bold transition-colors ${
               bot.status === 'running' ? 'text-mute hover:text-ink' : 'text-primary hover:text-green-deep'
             }`}
@@ -138,7 +139,7 @@ export const BotTableRow = memo(function BotTableRow({
           {/* 전체 동기화 */}
           <button
             onClick={() => onSync(bot.id)}
-            disabled={syncing === bot.id}
+            disabled={busy || syncing === bot.id}
             className="text-[13.5px] font-bold text-mute transition-colors hover:text-ink disabled:opacity-50"
           >
             {syncing === bot.id ? '동기화 중...' : '동기화'}
@@ -146,7 +147,7 @@ export const BotTableRow = memo(function BotTableRow({
           {/* 수정 (YouTube, X, 축제) */}
           {canManage && onEdit && (
             <button
-              onClick={() => onEdit(bot)}
+              disabled={busy} onClick={() => onEdit(bot)}
               className="text-[13.5px] font-bold text-mute transition-colors hover:text-ink"
             >
               수정
@@ -155,7 +156,7 @@ export const BotTableRow = memo(function BotTableRow({
           {/* 삭제 (YouTube, X, 축제) */}
           {canManage && onDelete && (
             <button
-              onClick={() => onDelete(bot)}
+              disabled={busy} onClick={() => onDelete(bot)}
               className="text-[13.5px] font-bold text-[#C97070] transition-colors hover:text-[#C0392B]"
             >
               삭제

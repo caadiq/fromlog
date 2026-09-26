@@ -9,6 +9,7 @@
  * @param {boolean} showDayOfWeek - 요일 표시 여부
  * @param {number} minYear - 선택 가능한 최소 연도 (기본값: 2000)
  */
+import usePickerViewport from '@/hooks/common/usePickerViewport';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -37,6 +38,7 @@ function DatePicker({
     return new Date();
   });
   const ref = useRef(null);
+  usePickerViewport(isOpen, ref, inline);
 
   useEffect(() => {
     if (isOpen) onOpen?.(ref.current?.querySelector('[data-picker-panel]'));

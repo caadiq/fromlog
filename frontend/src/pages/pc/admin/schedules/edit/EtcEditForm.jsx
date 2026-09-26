@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 import PosterPreviews from '@/components/pc/admin/schedule/PosterPreviews';
 /**
@@ -29,7 +30,7 @@ function EtcEditForm() {
   const { isAuthenticated } = useAdminAuth();
   useDocumentTitle('일정 수정');
 
-  const { data: etcData, isLoading } = useQuery({
+  const { data: etcData, isLoading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['etc-schedule', id],
     queryFn: () => getEtc(id),
     enabled: isAuthenticated && !!id,
@@ -81,6 +82,7 @@ function EtcEditForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
 
     if (!title.trim() || !date) {
       setToast({ type: 'error', message: '제목·날짜는 필수입니다.' });
@@ -132,6 +134,8 @@ function EtcEditForm() {
       </AdminLayout>
     );
   }
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout>

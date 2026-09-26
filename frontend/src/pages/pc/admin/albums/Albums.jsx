@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 앨범 목록 — 에디토리얼 리뉴얼 (design-drafts/ADM_albums 시안)
  */
@@ -26,7 +27,7 @@ function AdminAlbums() {
   const [deleting, setDeleting] = useState(false);
 
   // 앨범 목록 조회
-  const { data: albums = [], isLoading: loading } = useQuery({
+  const { data: albums = [], isLoading: loading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['admin', 'albums'],
     queryFn: adminAlbumApi.getAlbums,
     enabled: isAuthenticated,
@@ -54,6 +55,8 @@ function AdminAlbums() {
   const filteredAlbums = albums.filter((album) =>
     album.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (loadError || loading) return <AdminLayout><AdminQueryState loading={loading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 예능 일정 수정 폼 — 에디토리얼 리뉴얼
  */
@@ -26,7 +27,7 @@ function VarietyEditForm() {
   const { isAuthenticated } = useAdminAuth();
   useDocumentTitle('일정 수정');
 
-  const { data: scheduleData, isLoading } = useQuery({
+  const { data: scheduleData, isLoading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['variety-schedule', id],
     queryFn: () => getVarietySchedule(id),
     enabled: isAuthenticated && !!id,
@@ -66,6 +67,7 @@ function VarietyEditForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!title.trim() || !broadcaster.trim() || !date) {
       setToast({ type: 'error', message: '필수 항목을 입력해주세요.' });
       return;
@@ -109,6 +111,8 @@ function VarietyEditForm() {
       </AdminLayout>
     );
   }
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout>

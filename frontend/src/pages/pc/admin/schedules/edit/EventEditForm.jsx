@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 import InstagramTitleButton from '@/components/pc/admin/schedule/InstagramTitleButton';
 import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 import PosterPreviews from '@/components/pc/admin/schedule/PosterPreviews';
@@ -35,7 +36,7 @@ function EventEditForm() {
   const { isAuthenticated } = useAdminAuth();
   useDocumentTitle('일정 수정');
 
-  const { data: eventData, isLoading } = useQuery({
+  const { data: eventData, isLoading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['event-schedule', id],
     queryFn: () => getEvent(id),
     enabled: isAuthenticated && !!id,
@@ -93,6 +94,7 @@ function EventEditForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
 
     if (!title.trim() || !date || !venue || (subtype === 'university' && !schoolName.trim())) {
       setToast({ type: 'error', message: '필수 항목을 입력해주세요.' });
@@ -145,6 +147,8 @@ function EventEditForm() {
       </AdminLayout>
     );
   }
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout>

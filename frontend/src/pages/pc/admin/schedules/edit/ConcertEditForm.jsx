@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,7 +48,7 @@ function ConcertEditForm() {
   });
 
   // 기존 데이터 로드
-  const { data: concertData, isLoading: isLoadingConcert } = useQuery({
+  const { data: concertData, isLoading: isLoadingConcert, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ["concert", seriesId],
     queryFn: () => getConcertSchedule(seriesId),
     enabled: isAuthenticated && !!seriesId,
@@ -134,6 +135,7 @@ function ConcertEditForm() {
   // 폼 제출
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
 
     if (!title.trim()) {
       setToast({ type: "error", message: "공연명을 입력해주세요." });
@@ -225,6 +227,8 @@ function ConcertEditForm() {
       </AdminLayout>
     );
   }
+
+  if (loadError || isLoadingConcert) return <AdminLayout><AdminQueryState loading={isLoadingConcert} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout>

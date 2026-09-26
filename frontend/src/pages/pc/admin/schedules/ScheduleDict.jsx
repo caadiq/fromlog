@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 사전 관리 — 에디토리얼 리뉴얼 (design-drafts/ADM_dict 시안)
  */
@@ -129,6 +130,8 @@ function ScheduleDict() {
     data: dictContent,
     isLoading: loading,
     isError,
+    error: loadError,
+    refetch: retryLoad,
   } = useQuery({
     queryKey: ['admin', 'dict'],
     queryFn: async () => {
@@ -250,6 +253,8 @@ function ScheduleDict() {
     { label: '일반명사 NNG', value: posStats.NNG || 0 },
     { label: '외국어 SL', value: posStats.SL || 0 },
   ];
+
+  if (loadError || loading) return <AdminLayout><AdminQueryState loading={loading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

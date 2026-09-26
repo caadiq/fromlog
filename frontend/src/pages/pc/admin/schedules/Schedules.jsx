@@ -1,3 +1,4 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 일정 관리 — 에디토리얼 리뉴얼 (design-drafts/ADM_schedule 시안)
  */
@@ -115,7 +116,7 @@ function Schedules() {
   const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
 
   // 일정 목록 (React Query로 캐싱)
-  const { data: schedules = [], isLoading: loading } = useQuery({
+  const { data: schedules = [], isLoading: loading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['adminSchedules', year, month + 1],
     queryFn: () => schedulesApi.getSchedules(year, month + 1),
     enabled: isAuthenticated,
@@ -363,6 +364,8 @@ function Schedules() {
 
   // 선택 날짜 표기
   const selDateObj = selectedDate ? new Date(`${selectedDate}T00:00:00`) : null;
+
+  if (loadError || loading) return <AdminLayout><AdminQueryState loading={loading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout user={user}>

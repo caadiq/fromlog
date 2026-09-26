@@ -1,12 +1,14 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 봇 관리 — 에디토리얼 리뉴얼 (design-drafts/ADM_bots 시안)
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, RefreshCw } from 'lucide-react';
 import { Toast, AnimatedNumber } from '@/components/common';
 import {
+  ConfirmDialog,
   AdminLayout,
   AdminPageHeader,
   BotTableRow,
@@ -42,6 +44,9 @@ function ScheduleBots() {
   const [festivalDialogOpen, setFestivalDialogOpen] = useState(false); // Schedule collection bot dialog
   const [editingBotId, setEditingBotId] = useState(null); // 수정 중인 봇 DB ID
   const [editingBotType, setEditingBotType] = useState(null); // 수정 중인 봇 타입
+  const actionBusy = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [deletingBot, setDeletingBot] = useState(null); // 삭제할 봇
 
   // 봇 목록 조회
@@ -50,6 +55,7 @@ function ScheduleBots() {
     isLoading: loading,
     isError,
     refetch: fetchBots,
+    error: loadError,
   } = useQuery({
     queryKey: ['admin', 'bots'],
     queryFn: botsApi.getBots,
@@ -91,6 +97,8 @@ function ScheduleBots() {
 
   // 봇 시작/정지 토글
   const toggleBot = async (botId, currentStatus, botName) => {
+    if (actionBusy.current) return;
+    actionBusy.current = true; setBusy(true);
     try {
       const action = currentStatus === 'running' ? 'stop' : 'start';
 
@@ -114,11 +122,13 @@ function ScheduleBots() {
     } catch (error) {
       console.error('봇 토글 오류:', error);
       setToast({ type: 'error', message: error.message || '작업 중 오류가 발생했습니다.' });
-    }
+    } finally { actionBusy.current = false; setBusy(false); }
   };
 
   // 전체 동기화
   const handleSyncAllVideos = async (botId) => {
+    if (actionBusy.current) return;
+    actionBusy.current = true; setBusy(true);
     setSyncing(botId);
     try {
       const data = await botsApi.syncAllVideos(botId);
@@ -132,13 +142,14 @@ function ScheduleBots() {
       setToast({ type: 'error', message: error.message || '동기화 중 오류가 발생했습니다.' });
       fetchBots();
     } finally {
-      setSyncing(null);
+      setSyncing(null); actionBusy.current = false; setBusy(false);
     }
   };
 
   // 봇 삭제
   const handleDeleteBot = async () => {
-    if (!deletingBot) return;
+    if (!deletingBot || actionBusy.current) return;
+    actionBusy.current = true; setBusy(true); setDeleteError('');
 
     try {
       if (deletingBot.type === 'youtube') {
@@ -150,11 +161,12 @@ function ScheduleBots() {
       }
       queryClient.invalidateQueries({ queryKey: ['admin', 'bots'] });
       setToast({ type: 'success', message: `${deletingBot.name} 봇이 삭제되었습니다.` });
+      setDeletingBot(null);
     } catch (error) {
       console.error('봇 삭제 오류:', error);
-      setToast({ type: 'error', message: error.message || '봇 삭제에 실패했습니다.' });
+      setDeleteError(error.message || '봇 삭제에 실패했습니다.');
     } finally {
-      setDeletingBot(null);
+      actionBusy.current = false; setBusy(false);
     }
   };
 
@@ -214,6 +226,8 @@ function ScheduleBots() {
     { label: 'ERROR', value: errorCount, className: 'text-[#C0392B]' },
   ];
 
+  if (loadError || loading) return <AdminLayout><AdminQueryState loading={loading} onRetry={fetchBots} /></AdminLayout>;
+
   return (
     <AdminLayout user={user}>
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -254,46 +268,9 @@ function ScheduleBots() {
         }}
       />
 
-      {/* 삭제 확인 다이얼로그 */}
-      <AnimatePresence>
-        {deletingBot && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-            onClick={() => setDeletingBot(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              className="mx-4 w-full max-w-sm border border-ink bg-white p-7"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-[17.5px] font-extrabold tracking-[-0.3px] text-ink">봇 삭제</h3>
-              <p className="mt-2 text-[14px] leading-relaxed text-mute">
-                <b className="font-extrabold text-ink">{deletingBot.name}</b> 봇을 삭제하시겠습니까?
-                <br />이 작업은 되돌릴 수 없습니다.
-              </p>
-              <div className="mt-7 flex justify-end gap-2">
-                <button
-                  onClick={() => setDeletingBot(null)}
-                  className="border border-hairline bg-white px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-esub transition-colors hover:border-ink hover:text-ink"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={handleDeleteBot}
-                  className="bg-[#C0392B] px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-white transition-colors hover:bg-[#A93226]"
-                >
-                  삭제
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ConfirmDialog isOpen={Boolean(deletingBot)} loading={busy} title="봇 삭제"
+        onClose={() => !actionBusy.current && setDeletingBot(null)} onConfirm={handleDeleteBot}
+        message={<>{deletingBot?.name} 봇을 삭제하시겠습니까?{deleteError && <p role="alert" className="mt-2 text-red-700">{deleteError}</p>}</>} />
 
       {/* 메인 콘텐츠 */}
       <div className="mx-auto w-full max-w-[1280px] px-10 pb-[90px] pt-[52px]">
@@ -415,6 +392,7 @@ function ScheduleBots() {
                               index={index}
                               isInitialLoad={isInitialLoad}
                               syncing={syncing}
+                              busy={busy}
                               statusInfo={getStatusInfo(bot)}
                               onSync={handleSyncAllVideos}
                               onToggle={toggleBot}
@@ -423,7 +401,7 @@ function ScheduleBots() {
                                 setEditingBotType(b.type);
                                 openBotDialog(b.type);
                               }}
-                              onDelete={(b) => setDeletingBot(b)}
+                              onDelete={(b) => { setDeleteError(''); setDeletingBot(b); }}
                               onAnimationComplete={() =>
                                 isInitialLoad && index === sectionBots.length - 1 && setIsInitialLoad(false)
                               }

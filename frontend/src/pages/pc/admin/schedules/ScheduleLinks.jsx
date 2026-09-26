@@ -1,10 +1,11 @@
+import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 - 일정 고정 링크 관리
  *
  * 일정 페이지 상단(필터 줄 아래)에 표시할 링크를 관리한다.
  * 순서는 드래그로 정하고, 표시 기간이 지나면 사이트에서 자동으로 사라진다.
  */
-import { useState, useMemo, Fragment } from 'react';
+import { useState, useMemo, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -61,9 +62,9 @@ function periodText(item) {
   return e ? `~ ${e}` : `${s} ~`;
 }
 
-function SortableRow({ item, onEdit, onDelete }) {
+function SortableRow({ item, onEdit, onDelete, busy }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
+    useSortable({ id: item.id, disabled: busy });
   const status = getStatus(item);
   const period = periodText(item);
   const dim = status !== 'live';
@@ -81,6 +82,7 @@ function SortableRow({ item, onEdit, onDelete }) {
         {...attributes}
         {...listeners}
         aria-label="순서 변경"
+        disabled={busy}
         className="flex cursor-grab justify-center text-faint-light transition-colors hover:text-esub active:cursor-grabbing"
       >
         <GripVertical size={16} />
@@ -112,6 +114,7 @@ function SortableRow({ item, onEdit, onDelete }) {
       <span className="flex justify-end gap-1.5">
         <button
           type="button"
+          disabled={busy}
           onClick={() => onEdit(item)}
           className="border border-hairline bg-white px-2.5 py-1.5 text-[12px] font-extrabold text-esub transition-colors hover:border-ink hover:text-ink"
         >
@@ -119,6 +122,7 @@ function SortableRow({ item, onEdit, onDelete }) {
         </button>
         <button
           type="button"
+          disabled={busy}
           onClick={() => onDelete(item)}
           className="border border-[#E5B8B3] bg-white px-2.5 py-1.5 text-[12px] font-extrabold text-[#C0392B] transition-colors hover:bg-[#F9E9E7]"
         >
@@ -139,9 +143,10 @@ function AdminScheduleLinks() {
   const [dialogItem, setDialogItem] = useState(null); // null=닫힘, {}=새로추가
   const [deleting, setDeleting] = useState(null);
   const [busy, setBusy] = useState(false);
+  const actionBusy = useRef(false);
   const [order, setOrder] = useState(null); // 드래그 중 낙관적 순서
 
-  const { data: fetched = [], isLoading } = useQuery({
+  const { data: fetched = [], isLoading, error: loadError, refetch: retryLoad } = useQuery({
     queryKey: ['admin', 'schedule-links'],
     queryFn: adminScheduleLinkApi.getScheduleLinks,
     enabled: isAuthenticated,
@@ -158,7 +163,8 @@ function AdminScheduleLinks() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin', 'schedule-links'] });
 
   const handleDragEnd = async ({ active, over }) => {
-    if (!over || active.id === over.id) return;
+    if (actionBusy.current || !over || active.id === over.id) return;
+    actionBusy.current = true; setBusy(true);
     const oldIdx = items.findIndex((it) => it.id === active.id);
     const newIdx = items.findIndex((it) => it.id === over.id);
     const next = arrayMove(items, oldIdx, newIdx);
@@ -170,11 +176,12 @@ function AdminScheduleLinks() {
     } catch (e) {
       setOrder(null); // 실패하면 서버 순서로 되돌린다
       showToast(e?.message || '순서 저장에 실패했습니다.', 'error');
-    }
+    } finally { actionBusy.current = false; setBusy(false); }
   };
 
   const handleSave = async (form) => {
-    setBusy(true);
+    if (actionBusy.current) return;
+    actionBusy.current = true; setBusy(true);
     try {
       if (form.id) {
         await adminScheduleLinkApi.updateScheduleLink(form.id, form);
@@ -188,12 +195,13 @@ function AdminScheduleLinks() {
     } catch (e) {
       showToast(e?.message || '저장에 실패했습니다.', 'error');
     } finally {
-      setBusy(false);
+      actionBusy.current = false; setBusy(false);
     }
   };
 
   const handleDelete = async () => {
-    setBusy(true);
+    if (!deleting || actionBusy.current) return;
+    actionBusy.current = true; setBusy(true);
     try {
       await adminScheduleLinkApi.deleteScheduleLink(deleting.id);
       showToast('삭제했습니다.');
@@ -202,11 +210,13 @@ function AdminScheduleLinks() {
     } catch (e) {
       showToast(e?.message || '삭제에 실패했습니다.', 'error');
     } finally {
-      setBusy(false);
+      actionBusy.current = false; setBusy(false);
     }
   };
 
   if (!isAuthenticated) return null;
+
+  if (loadError || isLoading) return <AdminLayout><AdminQueryState loading={isLoading} onRetry={retryLoad} /></AdminLayout>;
 
   return (
     <AdminLayout>
@@ -241,6 +251,7 @@ function AdminScheduleLinks() {
 
         <div className="mt-7 flex items-center gap-3">
           <button
+            disabled={busy}
             onClick={() => setDialogItem({})}
             className="bg-ink px-[18px] py-[11px] text-[12.5px] font-extrabold tracking-k12 text-white transition-colors hover:bg-ebody"
           >
@@ -272,7 +283,7 @@ function AdminScheduleLinks() {
               >
                 <SortableContext items={items.map((it) => it.id)} strategy={verticalListSortingStrategy}>
                   {items.map((it) => (
-                    <SortableRow key={it.id} item={it} onEdit={setDialogItem} onDelete={setDeleting} />
+                    <SortableRow key={it.id} item={it} onEdit={setDialogItem} onDelete={setDeleting} busy={busy} />
                   ))}
                 </SortableContext>
               </DndContext>
@@ -327,14 +338,14 @@ function AdminScheduleLinks() {
 
       <ConfirmDialog
         isOpen={!!deleting}
-        onClose={() => setDeleting(null)}
+        onClose={() => !actionBusy.current && setDeleting(null)}
         onConfirm={handleDelete}
         title="링크 삭제"
         message={`'${deleting?.title}' 링크를 삭제할까요?`}
         loading={busy}
       />
 
-      <Toast {...toast} onClose={hideToast} />
+      <Toast toast={toast} onClose={hideToast} />
     </AdminLayout>
   );
 }

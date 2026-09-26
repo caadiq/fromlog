@@ -3,6 +3,7 @@
  * 오전/오후, 시간, 분을 선택할 수 있는 시간 피커
  * NumberPicker를 사용하여 스크롤 방식 선택 제공
  */
+import usePickerViewport from '@/hooks/common/usePickerViewport';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Clock } from 'lucide-react';
@@ -13,6 +14,7 @@ function TimePicker({ value, onChange, placeholder = '시간 선택', onOpen, in
   const reducedMotion = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
+  usePickerViewport(isOpen, ref, inline);
 
   useEffect(() => {
     if (isOpen) onOpen?.(ref.current?.querySelector('[data-picker-panel]'));
