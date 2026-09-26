@@ -21,6 +21,7 @@ import InstagramTitleButton from '@/components/pc/admin/schedule/InstagramTitleB
 import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 import PosterPreviews from '@/components/pc/admin/schedule/PosterPreviews';
 import useReviewViewport from './useReviewViewport';
+import { useDialogBackClose } from '@/hooks/common';
 
 const editors = {
   행사: { load: getEvent, save: updateEvent, cache: 'event-schedule' },
@@ -82,7 +83,8 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
   const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const close = () => { if (!busy.current) finish(onClose); };
+  const close = () => { if (busy.current) return false; finish(onClose); };
+  const waitForBack = useDialogBackClose(creating && visible, close);
   useEffect(() => {
     let alive = true;
     setLoading(true); setLoadError('');
@@ -183,7 +185,7 @@ export default function ScheduleEdit({ item, creating = false, initialDate, onCl
     finally { busy.current = false; setSaving(false); onBusyChange(false); }
   };
 
-  return createPortal(<AnimatedDialog open={present && visible} onExitComplete={() => { if (!present) safeToRemove?.(); else afterExit.current?.(); }} ref={dialog} aria-labelledby="schedule-edit-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (locationOpen) setLocationOpen(false); else close(); }}>
+  return createPortal(<AnimatedDialog open={present && visible} onExitComplete={() => { if (!present) safeToRemove?.(); else waitForBack().then(() => afterExit.current?.()); }} ref={dialog} aria-labelledby="schedule-edit-title" className="mobile-queue-review" onCancel={event => { event.preventDefault(); if (locationOpen) setLocationOpen(false); else close(); }}>
     <div className="flex h-full flex-col bg-white text-ink">
       <header className="flex shrink-0 items-center justify-between border-b border-hairline px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
         <span aria-hidden="true" className="w-12 shrink-0" />

@@ -32,19 +32,23 @@ export default function MobileAdminSchedules() {
   const auth = useAdminAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState(() => location.state?.createdDate || location.state?.selectedDate || getTodayKST());
+  const savedView = useRef(useAdminScheduleFilterStore.getState().mobileView);
+  const [selectedDate, setSelectedDate] = useState(() => location.state?.createdDate || location.state?.selectedDate || savedView.current.date || getTodayKST());
   const month = selectedDate.slice(0, 7);
   const selectedDay = new Date(`${selectedDate}T12:00:00`);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(() => !location.state?.createdDate && Boolean(savedView.current.searchOpen));
   const strip = useRef(null);
   const content = useRef(null);
   const reduceMotion = useReducedMotion();
   const [year, monthNumber] = month.split('-').map(Number);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(year);
-  const [search, setSearch] = useState('');
-  const { selectedCategories, setSelectedCategories } = useAdminScheduleFilterStore();
+  const [search, setSearch] = useState(() => location.state?.createdDate ? '' : savedView.current.search || '');
+  const restoreScroll = useRef(!location.state?.createdDate && !location.state?.selectedDate);
+  const selectedCategories = useAdminScheduleFilterStore(state => state.selectedCategories);
+  const setSelectedCategories = useAdminScheduleFilterStore(state => state.setSelectedCategories);
+  const previousFilters = useRef({ selectedDate, search, selectedCategories });
   const [target, setTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const editBusy = useRef(false);
@@ -74,7 +78,21 @@ export default function MobileAdminSchedules() {
     const timer = setTimeout(() => container.scrollTo({ left: active.offsetLeft - container.offsetLeft - (container.clientWidth - active.clientWidth) / 2, behavior: reduceMotion ? 'instant' : 'smooth' }), 50);
     return () => clearTimeout(timer);
   }, [selectedDate, calendarOpen, pickerOpen, auth.isLoading, reduceMotion]);
-  useEffect(() => { if (content.current) content.current.scrollTop = 0; }, [selectedDate, search, selectedCategories]);
+  useEffect(() => {
+    const previous = previousFilters.current;
+    previousFilters.current = { selectedDate, search, selectedCategories };
+    if (previous.selectedDate === selectedDate && previous.search === search && previous.selectedCategories === selectedCategories) return;
+    restoreScroll.current = false;
+    if (content.current) content.current.scrollTop = 0;
+  }, [selectedDate, search, selectedCategories]);
+  useEffect(() => {
+    if (!query.isSuccess || !content.current || !restoreScroll.current) return;
+    content.current.scrollTop = savedView.current.scrollTop || 0;
+    restoreScroll.current = false;
+  }, [query.isSuccess, auth.isLoading]);
+  useEffect(() => {
+    useAdminScheduleFilterStore.getState().setMobileView({ date: selectedDate, search, searchOpen });
+  }, [selectedDate, search, searchOpen]);
   const filtered = useMemo(() => items.filter(item => (selectedCategories.length === 0 || selectedCategories.includes(getCategoryInfo(item).id))
     && (searching || item.datePrecision === 'month' || getScheduleDate(item).slice(0, 10) === selectedDate)
     && normalize([decodeHtmlEntities(item.title), item.source?.name, getScheduleDate(item)].join(' ')).includes(normalize(search)))
@@ -157,7 +175,7 @@ export default function MobileAdminSchedules() {
       {search && <button aria-label="검색어 지우기" className="flex h-11 w-8 shrink-0 items-center justify-center" onClick={() => setSearch('')}><X size={17} /></button>}
     </div>}
     </motion.div>
-    <div ref={content} className="min-h-0 flex-1 overflow-y-auto overscroll-none px-3 pb-[calc(104px+env(safe-area-inset-bottom))]" data-schedule-content>
+    <div ref={content} onScroll={event => useAdminScheduleFilterStore.getState().setMobileView({ scrollTop: event.currentTarget.scrollTop })} className="min-h-0 flex-1 overflow-y-auto overscroll-none px-3 pb-[calc(104px+env(safe-area-inset-bottom))]" data-schedule-content>
     <motion.div initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE, delay: reduceMotion ? 0 : 0.1 }}>
     <div className="mt-3 flex items-center justify-between gap-2">
       <h2 className="flex items-baseline gap-2">{searching ? <b className="text-xl font-extrabold">검색 결과</b> : <><b className="text-[30px] font-black tracking-tight">{monthNumber}. {selectedDay.getDate()}.</b><span className="text-[13px] font-bold text-mute">{WEEKDAYS_LONG[selectedDay.getDay()]}</span></>}</h2>

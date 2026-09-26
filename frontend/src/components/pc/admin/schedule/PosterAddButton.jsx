@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Check, ImagePlus, X } from 'lucide-react';
 import { fetchAuthApi } from '@/api/client';
 import { useDialogBackClose } from '@/hooks/common';
+import usePopoverViewport from '@/hooks/common/usePopoverViewport';
 import { uid } from '@/utils';
 import { F } from '@/components/pc/admin/common/formStyles';
 
@@ -25,6 +26,7 @@ function readFile(file) {
 
 export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose }) {
   const dialogRef = useRef(null);
+  usePopoverViewport(dialogRef);
   const present = useIsPresent();
   const reduced = useReducedMotion();
   const fileRef = useRef(null);
@@ -112,8 +114,9 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
       exit={{ opacity: 0, scale: reduced ? 1 : 0.98 }} transition={{ duration: reduced ? 0 : 0.18 }} aria-labelledby="poster-dialog-title"
       onCancel={(event) => { event.preventDefault(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-      className="m-auto w-[calc(100%_-_32px)] max-w-lg overflow-visible border border-ink bg-white p-0 text-ink backdrop:bg-black/50">
-      <div className="flex max-h-[85dvh] flex-col" onClick={(event) => event.stopPropagation()}>
+      style={{ top: 'calc(var(--popover-top, 0px) + var(--popover-height, 100dvh) / 2)', translate: '0 -50%' }}
+      className="fixed bottom-auto m-0 mx-auto w-[calc(100%_-_32px)] max-w-lg overflow-hidden border border-ink bg-white p-0 text-ink backdrop:bg-black/50">
+      <div className="flex flex-col" style={{ maxHeight: 'calc(var(--popover-height, 100dvh) - 24px)' }} onClick={(event) => event.stopPropagation()}>
         <header className="flex items-center justify-between px-5 pb-4 pt-5">
           <h2 id="poster-dialog-title" className="text-[19px] font-extrabold">포스터 추가</h2>
           <button type="button" aria-label="닫기" onClick={onClose} className="flex h-10 w-10 items-center justify-center"><X size={21} /></button>

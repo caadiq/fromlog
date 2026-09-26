@@ -2,11 +2,12 @@
  * 장소 검색 다이얼로그 컴포넌트
  * - 카카오 장소 검색 API를 사용
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, MapPin } from 'lucide-react';
 import useAuthStore from '@/stores/useAuthStore';
 import { useDialogBackClose } from '@/hooks/common';
+import usePopoverViewport from '@/hooks/common/usePopoverViewport';
 
 /**
  * @param {Object} props
@@ -21,9 +22,19 @@ function LocationSearchDialog({ isOpen, onClose, onSelect }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [error, setError] = useState('');
+  const [searched, setSearched] = useState(false);
+  const request = useRef(null);
+  const overlay = useRef(null);
+  usePopoverViewport(overlay, isOpen);
+  useEffect(() => {
+    setSearchQuery(''); setResults([]); setError(''); setSearched(false); setSearching(false);
+    return () => { request.current?.abort(); request.current = null; };
+  }, [isOpen]);
 
   // 다이얼로그 닫기 시 상태 초기화
   const handleClose = () => {
+    request.current?.abort(); request.current = null;
     setSearchQuery('');
     setResults([]);
     onClose();
@@ -32,27 +43,33 @@ function LocationSearchDialog({ isOpen, onClose, onSelect }) {
   // 카카오 장소 검색 API 호출
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
+      request.current?.abort(); request.current = null;
+      setSearching(false); setError(''); setSearched(false);
       setResults([]);
       return;
     }
 
-    setSearching(true);
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setSearching(true); setError(''); setResults([]); setSearched(false);
     try {
       const token = useAuthStore.getState().token;
       const response = await fetch(`/api/admin/kakao/places?query=${encodeURIComponent(searchQuery)}`, {
+        signal: controller.signal,
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setResults(data.documents || []);
-      }
-    } catch (error) {
-      console.error('장소 검색 오류:', error);
+      if (!response.ok) throw new Error('장소를 검색하지 못했습니다. 다시 검색해주세요.');
+      const data = await response.json();
+      if (request.current !== controller) return;
+      setResults(data.documents || []); setSearched(true);
+    } catch (err) {
+      if (request.current === controller && !controller.signal.aborted) setError('장소를 검색하지 못했습니다. 다시 검색해주세요.');
     } finally {
-      setSearching(false);
+      if (request.current === controller) { request.current = null; setSearching(false); }
     }
   };
 
@@ -71,6 +88,8 @@ function LocationSearchDialog({ isOpen, onClose, onSelect }) {
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          ref={overlay}
+          style={{ top: 'var(--popover-top, 0px)', bottom: 'auto', height: 'var(--popover-height, 100dvh)' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -78,6 +97,8 @@ function LocationSearchDialog({ isOpen, onClose, onSelect }) {
           onClick={handleClose}
         >
           <motion.div
+            role="dialog" aria-modal="true" aria-label="장소 검색"
+            style={{ maxHeight: 'calc(var(--popover-height, 100dvh) - 24px)', overflowY: 'auto' }}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -88,8 +109,9 @@ function LocationSearchDialog({ isOpen, onClose, onSelect }) {
               <h3 className="text-[17.5px] font-extrabold tracking-[-0.3px] text-ink">장소 검색</h3>
               <button
                 type="button"
+                aria-label="장소 검색 닫기"
                 onClick={handleClose}
-                className="p-1 text-faint transition-colors hover:text-ink"
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-faint transition-colors hover:text-ink"
               >
                 <X size={18} />
               </button>
@@ -116,6 +138,7 @@ function LocationSearchDialog({ isOpen, onClose, onSelect }) {
               </div>
               <button
                 type="button"
+                aria-label="장소 검색 실행"
                 onClick={handleSearch}
                 disabled={searching}
                 className="bg-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:opacity-50"
@@ -138,6 +161,7 @@ function LocationSearchDialog({ isOpen, onClose, onSelect }) {
             </div>
 
             {/* 검색 결과 */}
+            {error && <p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
             <div className="max-h-80 overflow-y-auto pr-1">
               {results.length > 0 ? (
                 <div className="divide-y divide-hairline border-t-2 border-ink">
@@ -164,7 +188,7 @@ function LocationSearchDialog({ isOpen, onClose, onSelect }) {
               ) : searchQuery && !searching ? (
                 <div className="py-9 text-center text-[13px] font-semibold text-mute">
                   <MapPin size={28} className="mx-auto mb-2 text-faint" />
-                  <p>검색어를 입력하고 검색 버튼을 눌러주세요</p>
+                  <p>{searched ? '검색 결과가 없습니다. 다른 장소명으로 검색해주세요.' : searching ? '검색 중...' : '검색어를 입력하고 검색 버튼을 눌러주세요'}</p>
                 </div>
               ) : (
                 <div className="py-9 text-center text-[13px] font-semibold text-mute">

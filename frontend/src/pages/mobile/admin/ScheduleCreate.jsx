@@ -3,7 +3,7 @@ import { useDocumentTitle } from '@/hooks/common';
 import MobileAdminLayout from './Layout';
 import ScheduleEdit from './ScheduleEdit';
 
-// The route owns page navigation; nested pickers/dialogs own their own Back entries.
+// The editor handles Back (including pending saves); this route owns the destination.
 export default function MobileAdminScheduleCreate() {
   useDocumentTitle('일정 추가');
   const navigate = useNavigate();

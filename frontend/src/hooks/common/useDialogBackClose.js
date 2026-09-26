@@ -13,20 +13,20 @@ import { useEffect, useRef } from 'react';
 
 /** 열려 있는 다이얼로그 스택 (마지막 = 최상단) */
 const stack = [];
-/** 프로그램적 back()으로 인한 popstate 무시 카운터 */
-let suppress = 0;
+// Resolve marker removals after their asynchronous popstate events.
+const suppressedBacks = [];
 let listenerAttached = false;
 
 function handlePopstate() {
-  if (suppress > 0) {
-    suppress -= 1;
+  if (suppressedBacks.length > 0) {
+    suppressedBacks.shift()();
     return;
   }
   const top = stack.pop();
   if (top && top.close() === false) {
     // A pending save may veto closing. Restore the consumed Back entry.
     stack.push(top);
-    window.history.pushState({ __dialog: true }, '');
+    window.history.pushState({ ...window.history.state, __dialog: true }, '');
   }
 }
 
@@ -36,6 +36,7 @@ function handlePopstate() {
  */
 export function useDialogBackClose(isOpen, onClose) {
   const onCloseRef = useRef(onClose);
+  const pendingBack = useRef(Promise.resolve());
   onCloseRef.current = onClose;
 
   useEffect(() => {
@@ -47,11 +48,19 @@ export function useDialogBackClose(isOpen, onClose) {
     }
 
     const entry = { close: () => onCloseRef.current?.() };
-    stack.push(entry);
-    window.history.pushState({ __dialog: true }, '');
+    let disposed = false;
+    // StrictMode replays effects before a pending history.back() can finish.
+    // Register only the surviving effect so its marker cannot be consumed by
+    // the cleanup of the discarded effect.
+    queueMicrotask(() => {
+      if (disposed) return;
+      stack.push(entry);
+      window.history.pushState({ ...window.history.state, __dialog: true }, '');
+    });
     const openedPath = window.location.pathname; // 열릴 때의 경로 기억
 
     return () => {
+      disposed = true;
       const idx = stack.indexOf(entry);
       if (idx !== -1) {
         // 아직 스택에 있음 = 뒤로가기(popstate)로 닫힌 게 아님
@@ -60,13 +69,17 @@ export function useDialogBackClose(isOpen, onClose) {
         // 다른 경로로 navigate해 언마운트된 경우(예: 검색 결과 클릭 → 상세 이동)
         // 여기서 back()을 하면 그 이동 자체가 취소되므로 건너뛴다.
         if (window.location.pathname === openedPath) {
-          suppress += 1;
-          window.history.back();
+          pendingBack.current = new Promise(resolve => {
+            suppressedBacks.push(resolve);
+            window.history.back();
+          });
         }
       }
       // idx === -1 이면 뒤로가기로 이미 닫혀 state도 소비된 상태
     };
   }, [isOpen]);
+  // Route-owning dialogs must let the asynchronous marker removal finish first.
+  return () => pendingBack.current;
 }
 
 export default useDialogBackClose;
