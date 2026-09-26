@@ -263,6 +263,8 @@ PUSH_INTERNAL_KEY=...   # 내부 스크립트가 알림 발송 시 사용
 
 ### 관련 문서
 
+- [사이트 전체 검증 계획 및 진행 현황](docs/site-validation-plan.md)
+
 - [시스템 구조](docs/architecture.md)
 - [API 명세](docs/api.md)
 - [개발·배포 및 변경 기록](docs/development.md)
