@@ -53,6 +53,8 @@ export default {
     timezone: 'Z',
     connectionLimit: 10,
     waitForConnections: true,
+    connectTimeout: 5000,
+    queueLimit: 100,
   },
   redis: {
     host: process.env.REDIS_HOST || 'fromlog-redis',

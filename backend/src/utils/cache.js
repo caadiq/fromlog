@@ -15,15 +15,15 @@ const DEFAULT_TTL = 300; // 5분
  */
 export async function getOrSet(redis, key, fn, ttl = DEFAULT_TTL) {
   // 캐시 조회
-  const cached = await redis.get(key);
-  if (cached) {
-    return JSON.parse(cached);
-  }
+  try {
+    const cached = await redis.get(key);
+    if (cached) return JSON.parse(cached);
+  } catch { /* A cache outage or malformed entry must not hide DB-backed pages. */ }
 
   // 캐시 미스: 데이터 조회 후 캐싱
   const data = await fn();
   if (data !== null && data !== undefined) {
-    await redis.set(key, JSON.stringify(data), 'EX', ttl);
+    try { await redis.set(key, JSON.stringify(data), 'EX', ttl); } catch { /* Best-effort cache. */ }
   }
   return data;
 }

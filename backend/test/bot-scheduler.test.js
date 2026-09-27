@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import cron from 'node-cron';
-import schedulerPlugin from '../src/plugins/scheduler.js';
+import schedulerPlugin, { describeBotError } from '../src/plugins/scheduler.js';
 
 async function fixture(t, weekly = false) {
   const tasks = [], intervals = new Map(), hooks = {}, values = new Map();
@@ -131,4 +131,22 @@ test('successful startup clears the preserved error message', async t => {
   f.resolve({ addedCount: 0 }); await startup;
   const status = await f.fastify.scheduler.getStatus('youtube-1');
   assert.equal(status.errorMessage, null); assert.equal(status.consecutiveErrors, 0);
+});
+
+
+test('Redis outage preserves successful sync, restores local status, and stops all timers', async t => {
+ const f=await fixture(t);const originalGet=f.fastify.redis.get,originalSet=f.fastify.redis.set;
+ f.fastify.redis.get=async()=>{throw Error('Redis down');};f.fastify.redis.set=async()=>{throw Error('Redis down');};
+ const work=f.run();f.resolve({addedCount:2});await work;let status=await f.fastify.scheduler.getStatus('youtube-1');assert.equal(status.consecutiveErrors,0);assert.equal(status.totalAdded,2);
+ await f.fastify.scheduler.stopAll();assert.ok(f.tasks.slice(1).every(x=>x.stopped));
+ f.fastify.redis.get=originalGet;f.fastify.redis.set=originalSet;status=await f.fastify.scheduler.getStatus('youtube-1');assert.equal(status.status,'stopped');assert.equal(JSON.parse(f.values.get('bot:status:youtube-1')).totalAdded,2);
+});
+test('malformed Redis state does not prevent stop or next run', async t=>{
+ const f=await fixture(t);f.values.set('bot:status:youtube-1','broken');const work=f.run();f.resolve({addedCount:1});await work;assert.equal((await f.fastify.scheduler.getStatus('youtube-1')).totalAdded,1);await f.fastify.scheduler.stopBot('youtube-1');assert.equal(f.row.enabled,0);
+});
+
+test('quota and key diagnostics name the correct upstream',()=>{
+ assert.equal(describeBotError({type:'festival'},Error('quotaExceeded')).reason,'Gemini API 할당량 초과');
+ assert.equal(describeBotError({type:'youtube'},Error('quotaExceeded')).reason,'YouTube API 할당량 초과');
+ assert.match(describeBotError({type:'festival'},Error('API key not valid')).action,/GEMINI/);
 });

@@ -21,6 +21,7 @@ export async function logActivity(db, { actor, action, category, targetType, tar
       [actor, action, category, targetType || null, targetId || null, summary, details ? JSON.stringify(details) : null]
     );
   } catch (err) {
-    // 로그 실패는 무시 — 비즈니스 로직에 영향 주지 않음
+    // Keep the operation successful, but leave a diagnostic when DB logging is unavailable.
+    console.error('[activity-log] write failed', { code: err.code || 'unknown', actor, action, category });
   }
 }

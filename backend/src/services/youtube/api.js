@@ -9,13 +9,7 @@ const FETCH_TIMEOUT = 10000;
  * 타임아웃이 있는 fetch (업스트림 행으로 봇/요청이 무한 대기하는 것 방지)
  */
 async function fetchWithTimeout(url, options = {}) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return fetch(url, { ...options, signal: AbortSignal.timeout(FETCH_TIMEOUT) });
 }
 
 /**

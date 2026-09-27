@@ -6,6 +6,7 @@ import { nowKST, toKST } from '../utils/date.js';
 import { logActivity } from '../utils/log.js';
 import { sendOpsAlert } from '../services/push.js';
 import { parseJsonColumn as safeParse } from '../utils/json.js';
+import { createOpsAlerts } from '../services/opsAlerts.js';
 
 const REDIS_PREFIX = 'bot:status:';
 const TIMEZONE = 'Asia/Seoul';
@@ -42,13 +43,15 @@ export function describeBotError(bot, err) {
   // YouTube API 할당량
   if (all.includes('quota') || all.includes('quotaexceeded')) {
     return {
-      reason: 'YouTube API 할당량 초과',
+      reason: bot?.type === 'festival' ? 'Gemini API 할당량 초과' : 'YouTube API 할당량 초과',
       action: '내일 할당량이 초기화될 때까지 기다리거나 봇 주기를 늘려주세요.',
     };
   }
   // API 키 문제
   if (all.includes('api key not valid') || all.includes('api_key_invalid') || all.includes('keyinvalid')) {
-    return { reason: 'YouTube API 키 오류', action: 'GOOGLE_API_KEY 값을 확인해주세요.' };
+    return bot?.type === 'festival'
+      ? { reason: 'Gemini API 키 오류', action: 'GEMINI_API_KEY 값을 확인해주세요.' }
+      : { reason: 'YouTube API 키 오류', action: 'GOOGLE_API_KEY 값을 확인해주세요.' };
   }
   // X 봇: 타임아웃·5xx는 대부분 Nitter 세션 만료
   if (isX && (all.includes('타임아웃') || all.includes('timeout') || all.includes('abort'))) {
@@ -104,7 +107,10 @@ async function schedulerPlugin(fastify, opts) {
   const tasks = new Map();
   const activeSyncs = new Set();
   const generations = new Map();
-  const notify = opts?.sendOpsAlert || sendOpsAlert;
+  const alerts = opts?.sendOpsAlert ? null : createOpsAlerts(fastify.db, fastify.log, sendOpsAlert);
+  const notify = opts?.sendOpsAlert || ((db, payload) => alerts.enqueue(payload));
+  const localStatus = new Map();
+  const dirtyStatus = new Set();
   const burstTimers = new Map();  // weekly 모드 내부 setInterval 핸들
   let cachedBots = null;
 
@@ -236,7 +242,12 @@ async function schedulerPlugin(fastify, opts) {
   async function updateStatus(botId, status) {
     const current = await getStatus(botId);
     const updated = { ...current, ...status, updatedAt: nowKST() };
-    await fastify.redis.set(`${REDIS_PREFIX}${botId}`, JSON.stringify(updated));
+    localStatus.set(botId, updated);
+    dirtyStatus.add(botId);
+    try {
+      await fastify.redis.set(`${REDIS_PREFIX}${botId}`, JSON.stringify(updated));
+      dirtyStatus.delete(botId);
+    } catch (err) { fastify.log.warn(`[${botId}] 상태 임시 보관: ${err.message}`); }
     return updated;
   }
 
@@ -244,11 +255,20 @@ async function schedulerPlugin(fastify, opts) {
    * 봇 상태 Redis에서 조회
    */
   async function getStatus(botId) {
-    const data = await fastify.redis.get(`${REDIS_PREFIX}${botId}`);
-    if (data) {
-      return JSON.parse(data);
-    }
-    return {
+    try {
+      if (dirtyStatus.has(botId)) {
+        await fastify.redis.set(`${REDIS_PREFIX}${botId}`, JSON.stringify(localStatus.get(botId)));
+        dirtyStatus.delete(botId);
+      }
+      const data = await fastify.redis.get(`${REDIS_PREFIX}${botId}`);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid bot status');
+        localStatus.set(botId, parsed);
+        return parsed;
+      }
+    } catch (err) { fastify.log.warn(`[${botId}] 저장된 상태 조회 실패: ${err.message}`); }
+    return localStatus.get(botId) || {
       status: 'stopped',
       lastCheckAt: null,
       lastAddedCount: 0,
@@ -364,7 +384,12 @@ async function schedulerPlugin(fastify, opts) {
           summary: `${botId} 연속 ${MAX_CONSECUTIVE_ERRORS}회 실패로 자동 정지`,
           details: { ...buildErrorDetails(err), consecutiveErrors },
         });
-        // 봇이 멈춘 즉시 폰으로 알림 (조용히 멈춰 며칠 방치되는 것 방지)
+        try {
+          await stopBot(botId);
+        } catch (stopErr) {
+          fastify.log.error(`[${botId}] 자동 정지 실패: ${stopErr.message}`);
+        }
+        // Persist the alert before delivery; stopped bots no longer run to retry it.
         try {
           const name = bot?.channelName || bot?.displayName || bot?.name || bot?.username || botId;
           const { reason, action } = describeBotError(bot, err);
@@ -377,11 +402,7 @@ async function schedulerPlugin(fastify, opts) {
         } catch (pushErr) {
           fastify.log.error(`[${botId}] 정지 알림 실패: ${pushErr.message}`);
         }
-        try {
-          await stopBot(botId);
-        } catch (stopErr) {
-          fastify.log.error(`[${botId}] 자동 정지 실패: ${stopErr.message}`);
-        }
+
       }
       return { ok: false, err };
     } finally {
@@ -442,6 +463,7 @@ async function schedulerPlugin(fastify, opts) {
       throw new Error(`봇을 찾을 수 없습니다: ${botId}`);
     }
 
+    if (resetErrors && alerts) await alerts.cancel(botId);
     generations.set(botId, (generations.get(botId) || 0) + 1);
 
     // 기존 태스크가 있으면 정지
@@ -542,11 +564,12 @@ async function schedulerPlugin(fastify, opts) {
     for (const [botId, task] of tasks) {
       generations.set(botId, (generations.get(botId) || 0) + 1);
       task.stop();
-      await updateStatus(botId, { status: 'stopped' });
     }
+    const ids = [...tasks.keys()];
     tasks.clear();
     for (const { timer } of burstTimers.values()) clearInterval(timer);
     burstTimers.clear();
+    await Promise.all(ids.map(botId => updateStatus(botId, { status: 'stopped' })));
   }
 
   /**
@@ -571,6 +594,8 @@ async function schedulerPlugin(fastify, opts) {
     }
   }, { timezone: TIMEZONE });
 
+  const alertTask = alerts ? cron.schedule('* * * * *', () => alerts.flush(), { timezone: TIMEZONE }) : null;
+
   // 데코레이터 등록
   fastify.decorate('scheduler', {
     startBot,
@@ -585,7 +610,11 @@ async function schedulerPlugin(fastify, opts) {
   // 앱 종료 시 모든 봇 정지
   fastify.addHook('onClose', async () => {
     deadlineTask.stop();
+    alertTask?.stop();
     await stopAll();
+    const deadline = Date.now() + 8000;
+    while (activeSyncs.size && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 25));
+    if (activeSyncs.size) fastify.log.warn('진행 중 수집 종료 대기 시간 초과; 다음 시작에서 복구');
     fastify.log.info('모든 봇 스케줄 정지');
   });
 }

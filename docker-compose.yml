@@ -1,3 +1,9 @@
+x-service-logging: &service-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # 개발 서버 (Vite watch) — dev.fromlog.caadiq.co.kr
   fromlog-frontend:
@@ -11,6 +17,7 @@ services:
       - fromlog-backend
     networks:
       - app
+    logging: *service-logging
     restart: unless-stopped
 
   # 프로덕션 (vite build + nginx 정적 서빙) — fromlog.caadiq.co.kr
@@ -26,11 +33,20 @@ services:
       - fromlog-backend
     networks:
       - app
+    logging: *service-logging
     restart: unless-stopped
 
   fromlog-backend:
     build: ./backend
     container_name: fromlog-backend
+    init: true
+    stop_grace_period: 25s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1/api/ready',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
     env_file:
@@ -42,6 +58,7 @@ services:
     networks:
       - app
       - db
+    logging: *service-logging
     restart: unless-stopped
 
   meilisearch:
@@ -55,6 +72,7 @@ services:
       - ./meilisearch_data:/meili_data
     networks:
       - app
+    logging: *service-logging
     restart: unless-stopped
 
   redis:
@@ -64,6 +82,7 @@ services:
       - ./redis_data:/data
     networks:
       - app
+    logging: *service-logging
     restart: unless-stopped
 
 networks:

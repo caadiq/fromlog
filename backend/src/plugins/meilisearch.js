@@ -9,6 +9,9 @@ async function meilisearchPlugin(fastify, opts) {
   const client = new MeiliSearch({
     host,
     apiKey,
+    timeout: 5000,
+    // A fresh signal per request also covers the response body, unlike the SDK header timer.
+    requestConfig: { get signal() { return AbortSignal.timeout(5000); } },
   });
 
   // 연결 테스트 및 인덱스 초기화

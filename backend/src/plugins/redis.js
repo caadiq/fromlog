@@ -6,20 +6,26 @@ async function redisPlugin(fastify, opts) {
     host: fastify.config.redis.host,
     port: fastify.config.redis.port,
     lazyConnect: true,
+    connectTimeout: 3000,
+    commandTimeout: 2000,
+    maxRetriesPerRequest: 1,
+    enableOfflineQueue: false,
   });
 
+  redis.on('error', err => fastify.log.warn({ code: err.code }, 'Redis unavailable; reconnecting'));
   try {
     await redis.connect();
     fastify.log.info('Redis 연결 성공');
   } catch (err) {
     fastify.log.error('Redis 연결 실패:', err.message);
-    throw err;
+    // Keep DB-backed routes available while ioredis reconnects.
   }
 
   fastify.decorate('redis', redis);
 
   fastify.addHook('onClose', async () => {
-    await redis.quit();
+    try { if (redis.status === 'ready') await redis.quit(); }
+    finally { redis.disconnect(); }
     fastify.log.info('Redis 연결 종료');
   });
 }

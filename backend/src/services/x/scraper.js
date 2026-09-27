@@ -6,12 +6,8 @@ const FETCH_TIMEOUT = 10000; // 10초
  * 타임아웃이 적용된 fetch
  */
 async function fetchWithTimeout(url, timeout = FETCH_TIMEOUT) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
   try {
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await fetch(url, { signal: AbortSignal.timeout(timeout) });
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
@@ -19,8 +15,7 @@ async function fetchWithTimeout(url, timeout = FETCH_TIMEOUT) {
 
     return res;
   } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
       throw new Error('요청 타임아웃');
     }
     throw err;

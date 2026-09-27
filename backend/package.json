@@ -15,7 +15,9 @@
     "test:bots": "node --test test/youtube-*.test.js test/x-scraper.test.js test/bot-scheduler.test.js",
     "test:bots:integration": "node --test test/bots-integration.test.js",
     "test:collection": "node --test test/festival-*.test.js test/bot-scheduler.test.js test/pending-register.test.js",
-    "test:collection:integration": "node --test --test-timeout=30000 test/collection-recovery.test.js"
+    "test:collection:integration": "node --test --test-timeout=30000 test/collection-recovery.test.js",
+    "test:operations": "node --test --test-timeout=30000 test/operations.test.js",
+    "test:operations:restore": "node --test --test-timeout=30000 test/operations-restore.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.970.0",

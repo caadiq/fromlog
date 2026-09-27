@@ -21,6 +21,7 @@ import youtubeBotPlugin from './services/youtube/index.js';
 import xBotPlugin from './services/x/index.js';
 import festivalBotPlugin from './services/festival/index.js';
 import schedulerPlugin from './plugins/scheduler.js';
+import readinessPlugin from './plugins/readiness.js';
 
 // 라우트
 import routes from './routes/index.js';
@@ -126,6 +127,8 @@ export async function buildApp(opts = {}) {
 
   // 라우트 등록
   await fastify.register(routes, { prefix: '/api' });
+
+  await fastify.register(readinessPlugin);
 
   // 헬스 체크 엔드포인트
   fastify.get('/api/health', async () => {

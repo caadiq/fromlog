@@ -1214,3 +1214,14 @@ X 봇의 기존 `exclude_managed_channels` 값은 호환성을 위해 DB에 남�
 - `PUT /api/admin/schedule-links/order`: `{ "ids": [2, 1] }` 전체 ID 목록의 순서로 저장. 중복·누락·변경된 목록은 400, 트랜잭션으로 일괄 반영.
 - `DELETE /api/admin/schedule-links/:id`: 삭제. 위 관리자 API는 인증 필수.
 - 공개 `GET /api/schedule-links`는 `is_enabled = 1`이면서 표시 기간에 해당하는 링크만 반환한다. 기간은 기존과 동일하게 한국 시간 벽시계 문자열(`YYYY-MM-DDTHH:mm`), null이면 해당 경계 제한 없음.
+
+
+### GET /ready
+
+DB/Redis/Meilisearch 준비 상태 확인. 인증 없이 공개하며 내부 주소·오류 원문은 노출하지 않는다. 정상은 200, 일부 장애는 503. 요청 검사 대기를 2초로 제한하고 동시 검사를 병합하며 결과를 5초 재사용한다.
+
+```json
+{"status":"ok","checks":{"database":"ok","redis":"ok","search":"ok"}}
+```
+
+장애 서비스는 `unavailable`, 전체 상태는 `degraded`다. 기존 `/health`는 프로세스 생존 확인을 유지한다. [운영 안내](operations.md) 참고.
