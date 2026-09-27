@@ -1,3 +1,5 @@
+import ContentState from '@/components/pc/public/ContentState';
+import ContentImage from '@/components/editorial/ContentImage';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -12,7 +14,7 @@ import { nextBirthday } from '@/utils';
  */
 function MobileMemberDetail() {
   const { name } = useParams();
-  const { data: members = [], isLoading } = useMembers();
+  const { data: members = [], isLoading, isError, refetch } = useMembers();
 
   const activeMembers = useMemo(() => members.filter((m) => !m.is_former), [members]);
   const member = useMemo(
@@ -21,7 +23,7 @@ function MobileMemberDetail() {
   );
   const memberIndex = activeMembers.findIndex((m) => m.id === member?.id);
 
-  const { data: photoData } = useMemberPhotos(member?.name_en, 3);
+  const { data: photoData, isError: photosError, refetch: retryPhotos } = useMemberPhotos(member?.name_en, 3);
   const photos = photoData?.photos || [];
 
   useDocumentTitle(member?.name);
@@ -33,12 +35,11 @@ function MobileMemberDetail() {
     setLightbox({ open: true, index });
   };
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading className="min-h-0 flex-1 py-12" />;
+  if (isError) return <ContentState onRetry={refetch}>멤버 정보를 불러오지 못했습니다.</ContentState>;
   if (!member) {
     return (
-      <div className="flex items-center justify-center bg-paper py-40 text-mute">
-        멤버를 찾을 수 없습니다
-      </div>
+      <ContentState>멤버를 찾을 수 없습니다.</ContentState>
     );
   }
 
@@ -47,7 +48,7 @@ function MobileMemberDetail() {
   return (
     <>
       {/* 크럼 바 (고정) */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-hairline bg-paper px-3 py-2.5">
+      <div className="safe-area-top flex shrink-0 items-center gap-2 border-b border-hairline bg-paper px-3 py-2.5">
         <Link to="/members" className="p-2 text-esub active:text-ink" aria-label="멤버 목록으로">
           <ChevronLeft size={20} />
         </Link>
@@ -57,17 +58,16 @@ function MobileMemberDetail() {
       </div>
 
       {/* 스크롤 영역 */}
-      <div className="mobile-content bg-paper text-ink">
+      <div className="mobile-content bg-paper text-ink break-words">
       {/* 대형 사진 */}
-      <motion.img
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7, ease: 'easeOut' }}>
+      <ContentImage
         src={member.image_medium || member.image_url}
         alt={member.name}
         className="block aspect-[0.82] w-full object-cover"
         style={{ filter: 'saturate(1.02)' }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.7, ease: 'easeOut' }}
       />
+      </motion.div>
 
       {/* 이름 + 팩트 */}
       <motion.div
@@ -83,14 +83,14 @@ function MobileMemberDetail() {
           {(member.name_en || '').toUpperCase()}
         </motion.span>
         <motion.div variants={fadeUp} className="mt-[26px] border-t-2 border-ink">
-          <div className="grid grid-cols-[100px_1fr] items-baseline border-b border-hairline px-0.5 py-[13px]">
+          <div className="grid grid-cols-[100px_minmax(0,1fr)] items-baseline border-b border-hairline px-0.5 py-[13px]">
             <span className="text-[12px] font-extrabold tracking-k2 text-mute">BIRTH</span>
             <span className="text-[15px] font-semibold">
               {member.birth_date?.slice(0, 10).replaceAll('-', '. ')}
             </span>
           </div>
           {instaId && (
-            <div className="grid grid-cols-[100px_1fr] items-baseline border-b border-hairline px-0.5 py-[13px]">
+            <div className="grid grid-cols-[100px_minmax(0,1fr)] items-baseline border-b border-hairline px-0.5 py-[13px]">
               <span className="text-[12px] font-extrabold tracking-k2 text-mute">SNS</span>
               <span className="text-[15px] font-semibold">
                 <a
@@ -118,6 +118,7 @@ function MobileMemberDetail() {
         </Reveal>
       )}
 
+      {photosError && <ContentState onRetry={retryPhotos}>사진을 불러오지 못했습니다.</ContentState>}
       {/* RECENT PHOTOS */}
       {photos.length > 0 && (
         <div className="px-[22px] pb-10 pt-4">
@@ -136,10 +137,11 @@ function MobileMemberDetail() {
                 key={p.id}
                 type="button"
                 variants={fadeUp}
+                aria-label={`사진 ${i + 1} 보기`}
                 onClick={() => openLightbox(i)}
                 className="min-w-0 flex-1"
               >
-                <img
+                <ContentImage
                   src={p.medium_url || p.thumb_url}
                   alt=""
                   className="block aspect-[0.8] w-full object-cover"
@@ -153,8 +155,8 @@ function MobileMemberDetail() {
       </div>
 
       <MobileLightbox
-        images={photos.map((p) => p.medium_url)}
-        photos={photos.map((p) => ({ concept: p.concept_name, albumTitle: p.album_title }))}
+        images={photos.map((p) => p.medium_url || p.thumb_url || p.original_url)}
+        photos={photos.map((p) => ({ ...p, concept: p.concept_name, albumTitle: p.album_title }))}
         currentIndex={lightbox.index}
         isOpen={lightbox.open}
         onClose={() => setLightbox((l) => ({ ...l, open: false }))}

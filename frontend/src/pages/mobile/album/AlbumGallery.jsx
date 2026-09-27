@@ -1,4 +1,5 @@
-import { useMemo, useState, useCallback } from 'react';
+import ContentState from '@/components/pc/public/ContentState';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
@@ -16,7 +17,7 @@ import { TYPE_LABEL } from '@/constants';
 function MobileAlbumGallery() {
   const { name } = useParams();
 
-  const { data: album, isLoading } = useQuery({
+  const { data: album, isLoading, error, refetch } = useQuery({
     queryKey: ['album', name],
     queryFn: () => getAlbumByName(name),
   });
@@ -49,13 +50,15 @@ function MobileAlbumGallery() {
   }, [photos, filter]);
 
   const [lightbox, setLightbox] = useState({ open: false, index: 0 });
+  useEffect(() => { setFilter({ kind: 'all', value: null }); setLightbox({ open: false, index: 0 }); }, [name]);
   const openLightbox = useCallback((index) => {
     setLightbox({ open: true, index });
   }, []);
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading className="min-h-0 flex-1 py-12" />;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>앨범을 불러오지 못했습니다.</ContentState>;
   if (!album) {
-    return <div className="flex items-center justify-center py-40 text-mute">앨범을 찾을 수 없습니다</div>;
+    return <ContentState>앨범을 찾을 수 없습니다.</ContentState>;
   }
 
   const typeCounts = photos.reduce((acc, p) => {
@@ -71,7 +74,7 @@ function MobileAlbumGallery() {
   return (
     <>
       {/* 크럼 + 타이틀 + 필터 (고정) */}
-      <div className="shrink-0 bg-paper">
+      <div className="safe-area-top shrink-0 bg-paper">
       {/* 크럼 + 타이틀 */}
       <div className="border-b border-hairline">
         <div className="flex items-center gap-2 px-3 pt-2.5">
@@ -89,12 +92,13 @@ function MobileAlbumGallery() {
 
       {/* 필터: 컨셉 + 타입 */}
       <div className="scrollbar-hide flex gap-1.5 overflow-x-auto border-b border-hairline px-[22px] py-3.5">
-        <button type="button" onClick={() => setFilter({ kind: 'all', value: null })} className={chip(filter.kind === 'all')}>
+        <button aria-pressed={filter.kind === 'all'} type="button" onClick={() => setFilter({ kind: 'all', value: null })} className={chip(filter.kind === 'all')}>
           ALL {photos.length}
         </button>
         {concepts.map((c) => (
           <button
             key={c}
+            aria-pressed={isActive('concept', c)}
             type="button"
             onClick={() => setFilter({ kind: 'concept', value: c })}
             className={chip(isActive('concept', c))}
@@ -107,6 +111,7 @@ function MobileAlbumGallery() {
           .map((t) => (
             <button
               key={t}
+              aria-pressed={isActive('type', t)}
               type="button"
               onClick={() => setFilter({ kind: 'type', value: t })}
               className={chip(isActive('type', t))}
@@ -118,14 +123,15 @@ function MobileAlbumGallery() {
       </div>
 
       {/* 2열 masonry (스크롤 영역) */}
-      <div className="mobile-content bg-paper text-ink">
+      <div className="mobile-content bg-paper text-ink break-words">
         <Reveal className="px-[10px] pb-14 pt-[14px]">
+          {!filtered.length && <ContentState>등록된 사진이 없습니다.</ContentState>}
           <MasonryGallery photos={filtered} gap={10} onPhotoClick={(p, i) => openLightbox(i)} />
         </Reveal>
       </div>
 
       <MobileLightbox
-        images={filtered.map((p) => p.medium_url)}
+        images={filtered.map((p) => p.medium_url || p.thumb_url || p.original_url)}
         photos={filtered}
         currentIndex={lightbox.index}
         isOpen={lightbox.open}

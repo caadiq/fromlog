@@ -1,3 +1,4 @@
+import ContentState from '@/components/pc/public/ContentState';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -15,7 +16,7 @@ import { fadeUp, stagger, Reveal } from '@/components/editorial';
 function MobileTrackDetail() {
   const { name: albumName, trackTitle } = useParams();
 
-  const { data: track, isLoading } = useQuery({
+  const { data: track, isLoading, error, refetch } = useQuery({
     queryKey: ['track', albumName, trackTitle],
     queryFn: () => getTrack(albumName, trackTitle),
     enabled: !!albumName && !!trackTitle,
@@ -36,6 +37,7 @@ function MobileTrackDetail() {
   const [lyricsOpen, setLyricsOpen] = useState(false);
 
   if (isLoading) return <Loading />;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>곡을 불러오지 못했습니다.</ContentState>;
   if (!track) {
     return <div className="flex items-center justify-center py-40 text-mute">곡을 찾을 수 없습니다</div>;
   }
@@ -52,9 +54,9 @@ function MobileTrackDetail() {
   const lyricsLong = lyricsLines.length > 10;
 
   return (
-    <div className="bg-paper text-ink">
+    <div className="bg-paper text-ink break-words">
       {/* 크럼 */}
-      <div className="flex items-center gap-2 border-b border-hairline px-3 py-2.5">
+      <div className="safe-area-top flex items-center gap-2 border-b border-hairline px-3 py-2.5">
         <Link to={`/album/${album.folder_name}`} className="p-2 text-esub active:text-ink" aria-label="앨범 상세로">
           <ChevronLeft size={20} />
         </Link>
@@ -85,7 +87,7 @@ function MobileTrackDetail() {
         </motion.div>
         <motion.h1
           variants={fadeUp}
-          className="relative z-10 mt-2.5 text-[40px] font-black leading-[1.02] tracking-[-1.8px]"
+          className="relative z-10 mt-2.5 break-words text-[40px] font-black leading-[1.02] tracking-[-1.8px]"
           style={{ textWrap: 'balance' }}
         >
           {track.title}
@@ -101,9 +103,9 @@ function MobileTrackDetail() {
       </motion.div>
 
       {/* MV 임베드 */}
-      {youtubeVideoId && (
+      {(youtubeVideoId || hasFanchant) && (
         <div className="border-b border-hairline">
-          <div className="aspect-video w-full bg-ink">
+          {youtubeVideoId && <div className="aspect-video w-full bg-ink">
             <iframe
               src={`https://www.youtube.com/embed/${youtubeVideoId}`}
               title={track.title}
@@ -111,9 +113,9 @@ function MobileTrackDetail() {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
               allowFullScreen
             />
-          </div>
+          </div>}
           <div className="flex items-center justify-between px-[22px] py-2.5">
-            <span className="text-[12px] font-extrabold tracking-k2 text-mute">{videoLabel} — YOUTUBE</span>
+            <span className="text-[12px] font-extrabold tracking-k2 text-mute">{youtubeVideoId ? `${videoLabel} — YOUTUBE` : 'FANCHANT'}</span>
             {hasFanchant && (
               <Link
                 to={`/album/${encodeURIComponent(albumName)}/track/${encodeURIComponent(trackTitle)}/fanchant`}
@@ -134,7 +136,7 @@ function MobileTrackDetail() {
               CREDITS
             </div>
             {credits.map((c) => (
-              <div key={c.k} className="grid grid-cols-[64px_1fr] border-b border-hairline px-0.5 py-[11px]">
+              <div key={c.k} className="grid grid-cols-[64px_minmax(0,1fr)] border-b border-hairline px-0.5 py-[11px]">
                 <span className="text-[12px] font-extrabold tracking-k2 text-mute">{c.k}</span>
                 <span className="text-[14px] font-semibold leading-[1.6]">{c.v.join(', ')}</span>
               </div>

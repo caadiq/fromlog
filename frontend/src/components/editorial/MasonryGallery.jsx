@@ -1,3 +1,4 @@
+import ContentImage from './ContentImage';
 /**
  * 에디토리얼 2열 masonry 갤러리 (모바일)
  * 높이 기반 균등 분배 + 원본 비율 + 컬럼별 가상 스크롤 (보이는 것만 렌더)
@@ -32,6 +33,8 @@ function MasonryColumn({ items, colWidth, gap, scrollEl, onPhotoClick }) {
     overscan: 6,
   });
 
+  useEffect(() => { virtualizer.measure(); }, [virtualizer, colWidth, items, gap]);
+
   return (
     <div className="relative min-w-0 flex-1" style={{ height: virtualizer.getTotalSize() }}>
       {virtualizer.getVirtualItems().map((vi) => {
@@ -40,12 +43,13 @@ function MasonryColumn({ items, colWidth, gap, scrollEl, onPhotoClick }) {
           <button
             key={p.id ?? p.originalIndex}
             type="button"
+            aria-label={`사진 ${p.originalIndex + 1} 보기`}
             onClick={() => onPhotoClick(p, p.originalIndex)}
             className="absolute left-0 block w-full"
             style={{ transform: `translateY(${vi.start}px)` }}
           >
-            <img
-              src={p.thumb_url || p.medium_url}
+            <ContentImage
+              src={p.thumb_url || p.medium_url || p.original_url}
               alt=""
               loading="lazy"
               className="block w-full"

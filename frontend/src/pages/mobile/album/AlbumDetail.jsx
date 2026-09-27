@@ -1,8 +1,12 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import ContentState from '@/components/pc/public/ContentState';
+import ContentImage from '@/components/editorial/ContentImage';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, X } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
+import useAdminModal from '@/hooks/common/useAdminModal';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { getAlbumByName } from '@/api';
 import { calculateTotalDuration } from '@/utils';
 import { MobileLightbox, Loading } from '@/components/common';
@@ -16,7 +20,7 @@ import { useDialogBackClose } from '@/hooks/common';
 function MobileAlbumDetail() {
   const { name } = useParams();
 
-  const { data: album, isLoading } = useQuery({
+  const { data: album, isLoading, error, refetch } = useQuery({
     queryKey: ['album', name],
     queryFn: () => getAlbumByName(name),
   });
@@ -24,9 +28,13 @@ function MobileAlbumDetail() {
   useDocumentTitle(album?.title);
 
   const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0, teasers: null, photos: null });
+  const descriptionRef = useRef(null);
+  const reduceMotion = useReducedMotion();
   const [showDescription, setShowDescription] = useState(false);
   // 뒤로가기 시 소개 모달만 닫기 (히스토리는 useDialogBackClose가 담당)
   useDialogBackClose(showDescription, () => setShowDescription(false));
+
+  useAdminModal(showDescription, descriptionRef, () => setShowDescription(false));
 
   const openLightbox = useCallback((images, index, teasersMeta = null, photosMeta = null) => {
     setLightbox({ open: true, images, index, teasers: teasersMeta, photos: photosMeta });
@@ -54,15 +62,16 @@ function MobileAlbumDetail() {
 
   const teasers = album?.teasers || [];
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading className="min-h-0 flex-1 py-12" />;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>앨범을 불러오지 못했습니다.</ContentState>;
   if (!album) {
-    return <div className="flex items-center justify-center py-40 text-mute">앨범을 찾을 수 없습니다</div>;
+    return <ContentState>앨범을 찾을 수 없습니다.</ContentState>;
   }
 
   return (
     <>
       {/* 크럼 (고정) */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-hairline bg-paper px-3 py-2.5">
+      <div className="safe-area-top flex shrink-0 items-center gap-2 border-b border-hairline bg-paper px-3 py-2.5">
         <Link to="/album" className="p-2 text-esub active:text-ink" aria-label="앨범 목록으로">
           <ChevronLeft size={20} />
         </Link>
@@ -72,7 +81,7 @@ function MobileAlbumDetail() {
       </div>
 
       {/* 스크롤 영역 */}
-      <div className="mobile-content bg-paper text-ink">
+      <div className="mobile-content bg-paper text-ink break-words">
       {/* 커버 — 전폭 꽉 채움 */}
       <motion.div
         className="border-b border-hairline"
@@ -80,14 +89,14 @@ function MobileAlbumDetail() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.7, ease: 'easeOut' }}
       >
-        {album.cover_medium_url || album.cover_original_url ? (
+        {album.cover_medium_url || album.cover_thumb_url || album.cover_original_url ? (
           <button
             type="button"
-            onClick={() => openLightbox([album.cover_original_url || album.cover_medium_url], 0)}
+            onClick={() => openLightbox([album.cover_original_url || album.cover_medium_url || album.cover_thumb_url], 0)}
             className="block w-full"
           >
-            <img
-              src={album.cover_medium_url || album.cover_original_url}
+            <ContentImage
+              src={album.cover_medium_url || album.cover_thumb_url || album.cover_original_url}
               alt={album.title}
               className="block aspect-square w-full object-cover"
             />
@@ -112,20 +121,20 @@ function MobileAlbumDetail() {
           {album.title}
         </motion.h1>
         <motion.div variants={fadeUp} className="mt-[22px] border-t-2 border-ink">
-          <div className="grid grid-cols-[104px_1fr] items-baseline border-b border-hairline px-0.5 py-3">
+          <div className="grid grid-cols-[104px_minmax(0,1fr)] items-baseline border-b border-hairline px-0.5 py-3">
             <span className="text-[12px] font-extrabold tracking-k2 text-mute">RELEASE</span>
             <span className="text-[15px] font-semibold">
               {album.release_date?.slice(0, 10).replaceAll('-', '. ')}
             </span>
           </div>
           {titleTrack && (
-            <div className="grid grid-cols-[104px_1fr] items-baseline border-b border-hairline px-0.5 py-3">
+            <div className="grid grid-cols-[104px_minmax(0,1fr)] items-baseline border-b border-hairline px-0.5 py-3">
               <span className="text-[12px] font-extrabold tracking-k2 text-mute">TITLE TRACK</span>
               <span className="text-[15px] font-semibold">{titleTrack.title}</span>
             </div>
           )}
           {tracks.length > 0 && (
-            <div className="grid grid-cols-[104px_1fr] items-baseline border-b border-hairline px-0.5 py-3">
+            <div className="grid grid-cols-[104px_minmax(0,1fr)] items-baseline border-b border-hairline px-0.5 py-3">
               <span className="text-[12px] font-extrabold tracking-k2 text-mute">TRACKS</span>
               <span className="text-[15px] font-semibold">
                 {tracks.length}곡{totalDuration ? ` · ${totalDuration}` : ''}
@@ -206,6 +215,7 @@ function MobileAlbumDetail() {
           <Reveal className="scrollbar-hide flex gap-2 overflow-x-auto px-[22px] pb-1.5">
             {teasers.map((t, i) => (
               <button
+                aria-label={`티저 ${i + 1} 보기`}
                 key={t.original_url || i}
                 type="button"
                 onClick={() =>
@@ -219,7 +229,7 @@ function MobileAlbumDetail() {
                 }
                 className="relative block w-[110px] shrink-0"
               >
-                <img src={t.thumb_url || t.medium_url} alt="" className="block aspect-square w-full object-cover" />
+                <ContentImage src={t.thumb_url || t.medium_url} alt="" className="block aspect-square w-full object-cover" />
                 {t.media_type === 'video' && (
                   <span className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[13px] text-ink">
@@ -242,11 +252,12 @@ function MobileAlbumDetail() {
           <Reveal className="flex gap-2 px-[22px] pb-14 pt-1">
             {conceptPhotos.slice(0, 3).map((p, i) => (
               <button
+                aria-label={`컨셉 사진 ${i + 1} 보기`}
                 key={p.id || i}
                 type="button"
                 onClick={() =>
                   openLightbox(
-                    conceptPhotos.slice(0, 3).map((x) => x.medium_url),
+                    conceptPhotos.slice(0, 3).map((x) => x.medium_url || x.thumb_url || x.original_url),
                     i,
                     null,
                     conceptPhotos.slice(0, 3)
@@ -254,7 +265,7 @@ function MobileAlbumDetail() {
                 }
                 className="min-w-0 flex-1"
               >
-                <img
+                <ContentImage
                   src={p.medium_url || p.thumb_url}
                   alt=""
                   className="block aspect-[0.8] w-full object-cover"
@@ -287,24 +298,25 @@ function MobileAlbumDetail() {
       />
 
       {/* 앨범 소개 시트 */}
-      {showDescription && (
-        <div className="fixed inset-0 z-[60] flex items-end bg-black/50" onClick={closeDescription}>
-          <div
-            className="max-h-[75vh] w-full overflow-y-auto border-t border-ink bg-paper"
+      {createPortal(<AnimatePresence>{showDescription && (
+        <motion.div initial={{ opacity: reduceMotion ? 1 : 0 }} animate={{ opacity: 1 }} exit={{ opacity: reduceMotion ? 1 : 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-end bg-black/50" onClick={closeDescription}>
+          <motion.div ref={descriptionRef} role="dialog" aria-modal="true" aria-label="앨범 소개" tabIndex={-1}
+            initial={{ y: reduceMotion ? 0 : "100%" }} animate={{ y: 0 }} exit={{ y: reduceMotion ? 0 : "100%" }} transition={{ duration: 0.2 }}
+            className="max-h-[75dvh] overscroll-contain break-words safe-area-bottom w-full overflow-y-auto border-t border-ink bg-paper"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 flex items-center justify-between border-b border-hairline bg-paper px-5 py-3.5">
-              <b className="text-[13px] font-extrabold tracking-k25">ABOUT — {album.title}</b>
-              <button type="button" onClick={closeDescription} className="p-1 text-mute active:text-ink">
+              <b className="min-w-0 truncate text-[13px] font-extrabold tracking-k25">ABOUT — {album.title}</b>
+              <button type="button" onClick={closeDescription} aria-label="앨범 소개 닫기" className="flex h-11 w-11 shrink-0 items-center justify-center text-mute active:text-ink">
                 <X size={17} />
               </button>
             </div>
             <p className="whitespace-pre-line px-5 py-4 text-[14.5px] leading-[1.75] text-ebody">
               {album.description}
             </p>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+      )}</AnimatePresence>, document.body)}
     </>
   );
 }

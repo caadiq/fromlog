@@ -1,3 +1,5 @@
+import ContentState from '@/components/pc/public/ContentState';
+import ContentImage from '@/components/editorial/ContentImage';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -40,13 +42,16 @@ function SecHeader({ label, to }) {
 function MobileHome() {
   useDocumentTitle();
 
-  const { data: allMembers = [] } = useMembers();
+  const allMembersQuery = useMembers();
+  const { data: allMembers = [] } = allMembersQuery;
   const members = allMembers.filter((m) => !m.is_former);
 
-  const { data: allAlbums = [] } = useAlbums();
+  const allAlbumsQuery = useAlbums();
+  const { data: allAlbums = [] } = allAlbumsQuery;
   const albums = allAlbums.slice(0, 3);
 
-  const { data: schedules = [] } = useUpcomingSchedules(3);
+  const schedulesQuery = useUpcomingSchedules(3);
+  const { data: schedules = [] } = schedulesQuery;
   const datedSchedules = schedules.filter((s) => s.datePrecision !== 'month');
   const undatedSchedules = schedules.filter((s) => s.datePrecision === 'month');
 
@@ -64,7 +69,7 @@ function MobileHome() {
   }, [hero]);
 
   return (
-    <div className="bg-paper text-ink">
+    <div className="bg-paper text-ink break-words">
       {/* 히어로 */}
       <motion.section
         className="relative border-b border-hairline px-[22px] pb-[30px] pt-[34px]"
@@ -93,8 +98,8 @@ function MobileHome() {
         variants={stagger}
       >
         {[
-          { num: String(members.length || 5), label: 'MEMBERS' },
-          { num: String(allAlbums.length || '—'), label: 'ALBUMS' },
+          { num: allMembersQuery.isSuccess ? String(members.length) : '—', label: 'MEMBERS' },
+          { num: allAlbumsQuery.isSuccess ? String(allAlbums.length) : '—', label: 'ALBUMS' },
           ...(stripAlbum ? [stripAlbum] : []),
         ].map((s, i, arr) => (
           <motion.div
@@ -110,21 +115,24 @@ function MobileHome() {
 
       {/* MEMBERS */}
       <SecHeader label="MEMBERS" to="/members" />
+      {allMembersQuery.isLoading && <ContentState>불러오는 중…</ContentState>}
+      {allMembersQuery.isError && <ContentState onRetry={allMembersQuery.refetch}>멤버 정보를 불러오지 못했습니다.</ContentState>}
+      {allMembersQuery.isSuccess && !members.length && <ContentState>등록된 멤버가 없습니다.</ContentState>}
       <Reveal className="mx-[22px] border-t border-hairline" variants={stagger}>
         {members.map((m, i) => (
           <MotionLink
             key={m.id}
-            to="/members"
+            to={`/members/${(m.name_en || '').toLowerCase()}`}
             variants={fadeUp}
             className="flex items-center gap-4 border-b border-hairline py-[13px]"
           >
             <span className="w-[22px] text-[13px] font-bold text-faint">
               {String(i + 1).padStart(2, '0')}
             </span>
-            <img
+            <ContentImage
               src={m.image_thumb || m.image_medium}
               alt={m.name}
-              className="h-[46px] w-[46px] rounded-full object-cover"
+              className="h-[46px] w-[46px] shrink-0 rounded-full object-cover"
             />
             <span className="min-w-0">
               <b className="block text-[16px] font-extrabold tracking-[-0.3px]">{m.name}</b>
@@ -139,12 +147,15 @@ function MobileHome() {
 
       {/* DISCOGRAPHY */}
       <SecHeader label="DISCOGRAPHY" to="/album" />
+      {allAlbumsQuery.isLoading && <ContentState>불러오는 중…</ContentState>}
+      {allAlbumsQuery.isError && <ContentState onRetry={allAlbumsQuery.refetch}>앨범 정보를 불러오지 못했습니다.</ContentState>}
+      {allAlbumsQuery.isSuccess && !allAlbums.length && <ContentState>등록된 앨범이 없습니다.</ContentState>}
       <div className="px-[22px]">
         {albums[0] && (
           <Reveal>
             <Link to={`/album/${albums[0].folder_name}`} className="relative block overflow-hidden">
               {albums[0].cover_medium_url || albums[0].cover_original_url ? (
-                <img
+                <ContentImage
                   src={albums[0].cover_medium_url || albums[0].cover_original_url}
                   alt={albums[0].title}
                   className="block aspect-square w-full object-cover"
@@ -170,7 +181,7 @@ function MobileHome() {
             {albums.slice(1, 3).map((a) => (
               <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="min-w-0 flex-1">
                 {a.cover_medium_url || a.cover_original_url ? (
-                  <img
+                  <ContentImage
                     src={a.cover_medium_url || a.cover_original_url}
                     alt={a.title}
                     className="block aspect-square w-full object-cover"
@@ -193,6 +204,9 @@ function MobileHome() {
 
       {/* SCHEDULE */}
       <SecHeader label="SCHEDULE" to="/schedule" />
+      {schedulesQuery.isLoading && <ContentState>불러오는 중…</ContentState>}
+      {schedulesQuery.isError && <ContentState onRetry={schedulesQuery.refetch}>일정 정보를 불러오지 못했습니다.</ContentState>}
+      {schedulesQuery.isSuccess && !schedules.length && <ContentState>등록된 일정이 없습니다.</ContentState>}
       <Reveal className="mx-[22px] mb-[30px] border-t-2 border-ink">
         {datedSchedules.map((s) => {
           const d = new Date(s.date);
@@ -209,7 +223,7 @@ function MobileHome() {
             >
               <span className="w-[66px] shrink-0">
                 {d.getFullYear() !== new Date().getFullYear() && (
-                  <span className="block text-[11.5px] font-bold text-mute">{d.getFullYear()}</span>
+                  <span className="block text-[12px] font-bold text-mute">{d.getFullYear()}</span>
                 )}
                 <b className="block whitespace-nowrap text-[16px] font-extrabold tracking-[-0.5px]">
                   {d.getMonth() + 1}.{d.getDate()} {WEEKDAYS[d.getDay()]}

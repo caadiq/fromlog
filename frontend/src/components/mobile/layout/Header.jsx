@@ -16,7 +16,7 @@ const XIcon = ({ size = 15 }) => (
  */
 function MobileHeader({ title, showBack = false }) {
   return (
-    <header className="sticky top-0 z-50 border-b border-hairline bg-paper">
+    <header className="shrink-0 safe-area-top sticky top-0 z-50 border-b border-hairline bg-paper">
       <div className="relative flex h-[58px] items-center justify-between px-[22px]">
         {showBack ? (
           <button
@@ -37,14 +37,14 @@ function MobileHeader({ title, showBack = false }) {
             {title}
           </span>
         ) : null}
-        <span className="flex items-center gap-4">
-          <a href={SOCIAL_LINKS.youtube} target="_blank" rel="noopener noreferrer" className="text-mute active:text-ink">
+        <span className="flex items-center gap-0">
+          <a aria-label="유튜브 (새 창)" href={SOCIAL_LINKS.youtube} target="_blank" rel="noopener noreferrer" className="flex h-11 w-11 items-center justify-center text-mute active:text-ink">
             <Youtube size={18} />
           </a>
-          <a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" className="text-mute active:text-ink">
+          <a aria-label="인스타그램 (새 창)" href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" className="flex h-11 w-11 items-center justify-center text-mute active:text-ink">
             <Instagram size={17} />
           </a>
-          <a href={SOCIAL_LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-mute active:text-ink">
+          <a aria-label="X (새 창)" href={SOCIAL_LINKS.x} target="_blank" rel="noopener noreferrer" className="flex h-11 w-11 items-center justify-center text-mute active:text-ink">
             <XIcon size={15} />
           </a>
         </span>

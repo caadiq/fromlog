@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import ContentState from '@/components/pc/public/ContentState';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { useMembers, useDocumentTitle, useMemberAllPhotos } from '@/hooks';
@@ -12,13 +13,13 @@ import { TYPE_LABEL } from '@/constants';
  */
 function MobileMemberPhotos() {
   const { name } = useParams();
-  const { data: members = [] } = useMembers();
+  const { data: members = [], isLoading: membersLoading, isError: membersError, refetch: retryMembers } = useMembers();
   const member = useMemo(
     () => members.find((m) => (m.name_en || '').toLowerCase() === (name || '').toLowerCase()),
     [members, name]
   );
 
-  const { data, isLoading } = useMemberAllPhotos(member?.name_en);
+  const { data, isLoading, isError, refetch } = useMemberAllPhotos(member?.name_en);
   const photos = data?.photos || [];
 
   useDocumentTitle(member ? `${member.name} - PHOTOS` : undefined);
@@ -30,12 +31,17 @@ function MobileMemberPhotos() {
   );
 
   const [lightbox, setLightbox] = useState({ open: false, index: 0 });
+  useEffect(() => { setFilter('all'); setLightbox({ open: false, index: 0 }); }, [name]);
 
   const openLightbox = (index) => {
     setLightbox({ open: true, index });
   };
 
-  if (isLoading || !member) return <Loading />;
+  if (membersLoading) return <Loading className="min-h-0 flex-1 py-12" />;
+  if (membersError) return <ContentState onRetry={retryMembers}>멤버 정보를 불러오지 못했습니다.</ContentState>;
+  if (!member) return <ContentState>멤버를 찾을 수 없습니다.</ContentState>;
+  if (isLoading) return <Loading className="min-h-0 flex-1 py-12" />;
+  if (isError) return <ContentState onRetry={refetch}>사진을 불러오지 못했습니다.</ContentState>;
 
   const typeCounts = photos.reduce((acc, p) => {
     acc[p.photo_type] = (acc[p.photo_type] || 0) + 1;
@@ -45,7 +51,7 @@ function MobileMemberPhotos() {
   return (
     <>
       {/* 크럼 + 타이틀 + 필터 (고정) */}
-      <div className="shrink-0 bg-paper">
+      <div className="safe-area-top shrink-0 bg-paper">
       {/* 크럼 바 + 타이틀 */}
       <div className="border-b border-hairline">
         <div className="flex items-center gap-2 px-3 pt-2.5">
@@ -56,7 +62,7 @@ function MobileMemberPhotos() {
           >
             <ChevronLeft size={20} />
           </Link>
-          <b className="text-[13.5px] font-extrabold tracking-k25 text-mute">
+          <b className="min-w-0 truncate text-[13.5px] font-extrabold tracking-k25 text-mute">
             MEMBERS / {member.name}
           </b>
         </div>
@@ -76,6 +82,7 @@ function MobileMemberPhotos() {
         ].map((f) => (
           <button
             key={f.key}
+            aria-pressed={filter === f.key}
             type="button"
             onClick={() => setFilter(f.key)}
             className={`shrink-0 border px-3.5 py-2 text-[13px] font-extrabold tracking-k1 transition-colors ${
@@ -89,15 +96,16 @@ function MobileMemberPhotos() {
       </div>
 
       {/* 2열 masonry (스크롤 영역) */}
-      <div className="mobile-content bg-paper text-ink">
+      <div className="mobile-content bg-paper text-ink break-words">
         <Reveal className="px-[10px] pb-14 pt-[14px]">
+          {!filtered.length && <ContentState>등록된 사진이 없습니다.</ContentState>}
           <MasonryGallery photos={filtered} gap={10} onPhotoClick={(p, i) => openLightbox(i)} />
         </Reveal>
       </div>
 
       <MobileLightbox
-        images={filtered.map((p) => p.medium_url)}
-        photos={filtered.map((p) => ({ concept: p.concept_name, albumTitle: p.album_title }))}
+        images={filtered.map((p) => p.medium_url || p.thumb_url || p.original_url)}
+        photos={filtered.map((p) => ({ ...p, concept: p.concept_name, albumTitle: p.album_title }))}
         currentIndex={lightbox.index}
         isOpen={lightbox.open}
         onClose={() => setLightbox((l) => ({ ...l, open: false }))}

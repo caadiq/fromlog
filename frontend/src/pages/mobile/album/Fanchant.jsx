@@ -1,3 +1,5 @@
+import ContentState from '@/components/pc/public/ContentState';
+import { Loading } from '@/components/common';
 /**
  * 모바일 응원법 페이지
  *
@@ -5,7 +7,7 @@
  * 아래는 가사만 흐르게 한다 — '지금' 영역을 같이 고정하면 정작 볼 가사가 좁아진다.
  */
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 
 import { getFanchant, getTrack } from '@/api';
@@ -16,7 +18,7 @@ function MobileFanchant() {
   // 주소는 곡 상세와 같은 결로 둔다: /album/:name/track/:trackTitle/fanchant
   // 예전 /fanchant/:trackId 도 그대로 받는다(관리자 미리보기 등)
   const { trackId: trackIdParam, name: albumName, trackTitle } = useParams();
-  const { data: track } = useQuery({
+  const { data: track, isLoading: trackLoading, error: trackError, refetch: retryTrack } = useQuery({
     queryKey: ['track', albumName, trackTitle],
     queryFn: () => getTrack(albumName, trackTitle),
     enabled: !!albumName && !!trackTitle,
@@ -25,11 +27,10 @@ function MobileFanchant() {
   const trackId = trackIdParam ?? track?.id;
   const navigate = useNavigate();
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['fanchant', trackId],
     queryFn: () => getFanchant(trackId),
     enabled: !!trackId,
-    placeholderData: keepPreviousData,
     retry: false,
   });
 
@@ -38,7 +39,9 @@ function MobileFanchant() {
   // 태블릿에 키보드를 붙여 쓰는 경우가 있어 모바일에도 둔다
   usePlayerKeys(player);
 
-  if (isLoading) return <div className="h-full bg-paper" />;
+  if (trackLoading || isLoading) return <Loading />;
+  if (trackError && trackError.status !== 404) return <ContentState onRetry={retryTrack}>곡을 불러오지 못했습니다.</ContentState>;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>응원법을 불러오지 못했습니다.</ContentState>;
 
   if (error || !data) {
     return (
@@ -62,24 +65,27 @@ function MobileFanchant() {
 
   return (
     // Layout의 mobile-content가 스크롤 컨테이너다 — 여기서 또 컨테이너를 만들면 sticky가 깨진다
-    <div className="text-ink">
+    <div className="text-ink break-words">
       {/* 영상 고정 — mobile-content 기준 sticky */}
-      <div data-sticky-top className="sticky top-0 z-[5] border-b border-hairline bg-white">
-        <div className="aspect-video w-full bg-black">
+      <div data-sticky-top className="sticky top-0 z-[5] border-b border-hairline bg-black">
+        <div className="relative mx-auto aspect-video w-full max-w-[71.111dvh] bg-black">
           <div ref={player.containerRef} className="h-full w-full" />
+          {player.error && <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black px-4 text-center text-[14px] text-white">
+            <p>{player.error}</p><button onClick={player.retry} className="border border-white/50 px-4 py-2">영상 다시 시도</button>
+          </div>}
         </div>
       </div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
         <div className="px-5 pt-5">
-          <div className="text-[10.5px] font-extrabold tracking-k16 text-faint">
+          <div className="text-[12px] font-extrabold tracking-k16 text-faint">
             {data.albumTitle} / {data.trackTitle}
           </div>
           <h1 className="mt-1.5 text-[25px] font-black leading-[1.12] tracking-[-1px]">{data.trackTitle} 응원법</h1>
         </div>
 
         <div className="mx-5 mt-5 border-t-2 border-ink pb-14 pt-3">
-          <div className="text-[10.5px] font-black tracking-k16">FANCHANT</div>
+          <div className="text-[12px] font-black tracking-k16">FANCHANT</div>
           <div className="mt-4">
             <FanchantLyrics
               lines={data.lines}

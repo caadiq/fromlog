@@ -1,3 +1,6 @@
+import { Loading } from '@/components/common';
+import ContentState from '@/components/pc/public/ContentState';
+import ContentImage from '@/components/editorial/ContentImage';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useMembers, useDocumentTitle } from '@/hooks';
@@ -11,11 +14,15 @@ const MotionLink = motion(Link);
 function MobileMembers() {
   useDocumentTitle('멤버');
 
-  const { data: members = [] } = useMembers();
+  const { data: members = [], isLoading, isError, refetch } = useMembers();
   const activeMembers = members.filter((m) => !m.is_former);
 
+  if (isLoading) return <Loading />;
+  if (isError) return <ContentState onRetry={refetch}>멤버 정보를 불러오지 못했습니다.</ContentState>;
+  if (!activeMembers.length) return <ContentState>등록된 멤버가 없습니다.</ContentState>;
+
   return (
-    <div className="bg-paper text-ink">
+    <div className="bg-paper text-ink break-words">
       {/* 페이지 헤더 */}
       <motion.div
         className="border-b border-hairline px-[22px] pb-6 pt-[30px]"
@@ -40,10 +47,10 @@ function MobileMembers() {
             <span className="w-[22px] text-[13px] font-extrabold text-faint">
               {String(i + 1).padStart(2, '0')}
             </span>
-            <img
+            <ContentImage
               src={m.image_thumb || m.image_medium}
               alt={m.name}
-              className="h-16 w-16 rounded-full object-cover"
+              className="h-16 w-16 shrink-0 rounded-full object-cover"
             />
             <span className="min-w-0 flex-1">
               <b className="block text-[17.5px] font-extrabold tracking-[-0.3px]">{m.name}</b>

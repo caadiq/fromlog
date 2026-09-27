@@ -71,7 +71,7 @@ function Header() {
               <Instagram size={18} />
             </a>
             <a
-              href={SOCIAL_LINKS.twitter}
+              href={SOCIAL_LINKS.x}
               aria-label="프로미스나인 X (새 창)"
               target="_blank"
               rel="noopener noreferrer"

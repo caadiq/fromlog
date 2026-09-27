@@ -1,3 +1,5 @@
+import ContentState from '@/components/pc/public/ContentState';
+import ContentImage from '@/components/editorial/ContentImage';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -32,7 +34,7 @@ function getTitleTrack(tracks) {
 function MobileAlbum() {
   useDocumentTitle('앨범');
 
-  const { data: albums = [], isLoading } = useQuery({
+  const { data: albums = [], isLoading, error, refetch } = useQuery({
     queryKey: ['albums'],
     queryFn: getAlbums,
   });
@@ -48,9 +50,12 @@ function MobileAlbum() {
   }, [albums]);
 
   if (isLoading) return <Loading />;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>앨범을 불러오지 못했습니다.</ContentState>;
+
+  if (!albums.length) return <ContentState>등록된 앨범이 없습니다.</ContentState>;
 
   return (
-    <div className="bg-paper text-ink">
+    <div className="bg-paper text-ink break-words">
       {/* 페이지 헤더 */}
       <motion.div
         className="border-b border-hairline px-[22px] pb-[22px] pt-[30px]"
@@ -79,9 +84,9 @@ function MobileAlbum() {
             </Reveal>
             <Reveal className="grid grid-cols-2 gap-x-3.5 gap-y-6 px-[22px] pb-4 pt-3" variants={stagger}>
               {list.map((a) => (
-                <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="block">
+                <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="block min-w-0">
                   {a.cover_medium_url || a.cover_thumb_url || a.cover_original_url ? (
-                    <img
+                    <ContentImage
                       src={a.cover_medium_url || a.cover_thumb_url || a.cover_original_url}
                       alt={a.title}
                       loading="lazy"
