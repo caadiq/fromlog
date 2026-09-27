@@ -5,14 +5,11 @@ import useAdminModal from '@/hooks/common/useAdminModal';
 // Adapt the shared forms to the visual viewport without duplicating bot settings.
 export default function useMobileBotDialog(open, mobile, onClose) {
   const ref = useRef(null);
-  const close = useRef(onClose);
-  close.current = onClose;
-  useAdminModal(open && !mobile, ref, onClose);
+  useAdminModal(open, ref, onClose);
   useEffect(() => {
     if (!open || !mobile || !ref.current) return;
     const node = ref.current;
     const viewport = window.visualViewport;
-    const previous = document.activeElement;
     let frame;
     const reveal = () => {
       cancelAnimationFrame(frame);
@@ -31,11 +28,7 @@ export default function useMobileBotDialog(open, mobile, onClose) {
       node.style.setProperty('--bot-top', `${viewport?.offsetTop || 0}px`);
       reveal();
     };
-    const keydown = event => {
-      if (event.key === 'Escape') { event.preventDefault(); close.current(); }
-    };
     node.addEventListener('focusin', reveal);
-    node.addEventListener('keydown', keydown);
     viewport?.addEventListener('resize', resize);
     viewport?.addEventListener('scroll', resize);
     window.addEventListener('resize', resize);
@@ -43,10 +36,9 @@ export default function useMobileBotDialog(open, mobile, onClose) {
     node.focus({ preventScroll: true });
     return () => {
       cancelAnimationFrame(frame);
-      node.removeEventListener('focusin', reveal); node.removeEventListener('keydown', keydown);
+      node.removeEventListener('focusin', reveal);
       viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize);
       window.removeEventListener('resize', resize);
-      if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, [open, mobile]);
   return ref;

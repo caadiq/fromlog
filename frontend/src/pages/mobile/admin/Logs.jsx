@@ -7,6 +7,7 @@ import { getLogs, getLogCategories } from '@/api/admin/logs';
 import { decodeHtmlEntities, getTodayKST } from '@/utils';
 import { CATEGORY_LABELS, ACTION_STYLES } from '@/components/pc/admin/log/constants';
 import MobileAdminLayout from './Layout';
+import useListState from './useListState';
 import { LogDetail, LogFilters, actionName, logDate, periodRange } from './LogDialogs';
 
 const LIMIT = 20;
@@ -22,8 +23,11 @@ function LogsContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [params, setParams] = useState(() => ({ ...periodRange(1), page: 1, limit: LIMIT, category: '', actor: searchParams.get('actor') === 'bot' ? 'bot' : '', action: searchParams.get('action') === 'error' ? 'error' : '', search: '' }));
-  const [search, setSearch] = useState('');
+  const initial = { ...periodRange(1), page: 1, limit: LIMIT, category: '', actor: '', action: '', search: '' };
+  const linkedActor = searchParams.get('actor') === 'bot' ? 'bot' : '';
+  const linkedAction = searchParams.get('action') === 'error' ? 'error' : '';
+  const [params, setParams] = useListState('logs', initial, linkedActor || linkedAction ? { ...initial, actor: linkedActor, action: linkedAction } : {});
+  const [search, setSearch] = useState(params.search);
   const [filter, setFilter] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [editingPage, setEditingPage] = useState(false);

@@ -2,7 +2,7 @@ import useMobileBotDialog from './useMobileBotDialog';
 /**
  * YouTube 봇 추가/수정 다이얼로그
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -38,8 +38,8 @@ const AUTO_SCHEDULE_DEFAULTS = {
 
 function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = false }) {
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
-  useDialogBackClose(isOpen, () => { if (submitting || lookupLoading) return false; onClose(); });
-  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (submitting || lookupLoading) return false; onClose(); });
+  useDialogBackClose(isOpen, () => { if (submitting || lookupLoading || schedSaving || scheduledLock.current) return false; onClose(); });
+  const mobileRef = useMobileBotDialog(isOpen, mobile, () => { if (submitting || lookupLoading || schedSaving || scheduledLock.current) return false; onClose(); });
   const [formError, setFormError] = useState('');
 
   const queryClient = useQueryClient();
@@ -95,6 +95,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
   const [schedSaving, setSchedSaving] = useState(false);
+  const scheduledLock = useRef(false);
   const [schedMsg, setSchedMsg] = useState('');
   // 삭제는 한 번 더 눌러야 실행된다 (다이얼로그를 또 띄우기엔 가벼운 일이라 버튼 자리에서 묻는다)
   const [schedConfirm, setSchedConfirm] = useState(false);
@@ -108,6 +109,8 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
   }, [scheduled?.id, scheduled?.date, scheduled?.time, scheduled?.title]);
 
   const saveScheduled = async () => {
+    if (scheduledLock.current || submitting || !schedDate) return;
+    scheduledLock.current = true;
     setSchedSaving(true);
     setSchedMsg('');
     try {
@@ -123,16 +126,19 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
     } catch (e) {
       setSchedMsg(e.message || '저장 실패');
     } finally {
+      scheduledLock.current = false;
       setSchedSaving(false);
     }
   };
 
   const removeScheduled = async () => {
+    if (scheduledLock.current || submitting) return;
     if (!schedConfirm) {
       setSchedConfirm(true);
       return;
     }
     setSchedConfirm(false);
+    scheduledLock.current = true;
     setSchedSaving(true);
     setSchedMsg('');
     try {
@@ -143,6 +149,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
     } catch (e) {
       setSchedMsg(e.message || '삭제 실패');
     } finally {
+      scheduledLock.current = false;
       setSchedSaving(false);
     }
   };
@@ -284,7 +291,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
   // 제출
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!channelInfo || !formReady || submitting) return;
+    if (!channelInfo || !formReady || submitting || scheduledLock.current) return;
 
     setFormError('');
     setSubmitting(true);
@@ -376,7 +383,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
               </div>
               <button
                 onClick={onClose}
-                disabled={submitting || lookupLoading}
+                disabled={submitting || lookupLoading || schedSaving}
                 aria-label="봇 수정 닫기"
                 className="p-1.5 text-faint transition-colors hover:text-ink"
               >
@@ -647,7 +654,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
                       </p>
                     )}
                     {scheduled && (
-                    <div className="mt-2.5 space-y-2.5">
+                    <fieldset disabled={schedSaving || submitting} className="min-w-0 mt-2.5 space-y-2.5">
                       <input
                         type="text"
                         value={schedTitle}
@@ -667,7 +674,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          disabled={schedSaving || !schedDate}
+                          disabled={schedSaving || submitting || !schedDate}
                           onClick={saveScheduled}
                           className="bg-ink px-4 py-2 text-[12.5px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:bg-[#BBB]"
                         >
@@ -675,7 +682,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
                         </button>
                         <button
                           type="button"
-                          disabled={schedSaving}
+                          disabled={schedSaving || submitting}
                           onClick={removeScheduled}
                           className={`border px-4 py-2 text-[12.5px] font-extrabold tracking-k1 transition-colors ${
                             schedConfirm
@@ -690,7 +697,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
                       <p className="text-[12.5px] text-mute">
                         옮긴 날짜에 영상이 올라오면 그 영상으로 바뀝니다. 지우면 다음 것은 마감 요일에 다시 생깁니다.
                       </p>
-                    </div>
+                    </fieldset>
                     )}
                   </div>
                 )}
@@ -886,7 +893,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
               <button
                 type="button"
                 onClick={onClose}
-                disabled={submitting || lookupLoading}
+                disabled={submitting || lookupLoading || schedSaving}
                 className="border border-hairline bg-white px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-esub transition-colors hover:border-ink hover:text-ink disabled:opacity-50"
               >
                 취소
@@ -894,7 +901,7 @@ function YouTubeBotDialog({ isOpen, onClose, botId = null, onSuccess, mobile = f
               <button
                 type="submit"
                 onClick={handleSubmit}
-                disabled={!channelInfo || submitting || lookupLoading || botLoading || !formReady}
+                disabled={!channelInfo || submitting || lookupLoading || schedSaving || botLoading || !formReady}
                 className="flex items-center gap-2 bg-ink px-5 py-2.5 text-[13px] font-extrabold tracking-k1 text-white transition-colors hover:bg-ebody disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting && <Loader2 size={16} className="animate-spin" />}

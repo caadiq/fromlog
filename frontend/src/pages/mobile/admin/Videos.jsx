@@ -6,8 +6,10 @@ import { useDocumentTitle, useToast } from '@/hooks/common';
 import { Toast } from '@/components/common';
 import ConfirmDialog from '@/components/pc/admin/common/ConfirmDialog';
 import { decodeHtmlEntities } from '@/utils';
+import VideoThumbnail from '@/components/common/VideoThumbnail';
 import * as api from '@/api/admin/videos';
 import MobileAdminLayout from './Layout';
+import useListState from './useListState';
 import { VideoFilters, VideoEditor, categoryName } from './VideoDialogs';
 
 const LIMIT = 20;
@@ -18,8 +20,8 @@ export default function MobileAdminVideos() {
 }
 function VideosContent() {
   const client = useQueryClient();
-  const [params, setParams] = useState({ category: '', channel: '', type: '', q: '', page: 1 });
-  const [search, setSearch] = useState('');
+  const [params, setParams] = useListState('videos', { category: '', channel: '', type: '', q: '', page: 1 });
+  const [search, setSearch] = useState(params.q);
   const [filter, setFilter] = useState(null);
   const [editor, setEditor] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -89,7 +91,7 @@ function VideosContent() {
       {query.isPending ? <p role="status" className="py-16 text-center text-sm text-mute">영상을 불러오는 중...</p> : query.isError ? <div role="alert" className="py-10 text-sm text-[#A93226]">영상을 불러오지 못했습니다.<button onClick={() => query.refetch()} className={`${button} mt-3`}>다시 시도</button></div> : !videos.length ? <p role="status" className="py-16 text-center text-sm text-mute">선택한 조건에 맞는 영상이 없습니다.</p> : <ul aria-label="영상 목록" className="space-y-3">{videos.map(video => <li key={video.videoId} className="rounded-[3px] border border-hairline bg-white p-3">
         <a href={video.videoType === 'shorts' ? `https://www.youtube.com/shorts/${video.videoId}` : `https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noopener noreferrer" aria-label={`${decodeHtmlEntities(video.title)} · YouTube에서 보기`} className="flex items-start gap-3">
           <div className="flex h-[63px] w-28 shrink-0 items-center justify-center overflow-hidden border border-hairline bg-faint-light">
-            <img src={`https://i.ytimg.com/vi/${video.videoId}/mqdefault.jpg`} alt="" loading="lazy" className={video.videoType === 'shorts' ? 'h-full w-auto aspect-[9/16] object-cover' : 'h-full w-full object-cover'} />
+            <VideoThumbnail video={video} shorts={video.videoType === 'shorts'} className={video.videoType === 'shorts' ? 'h-full w-auto aspect-[9/16] object-cover' : 'h-full w-full object-cover'} />
           </div>
           <div className="min-w-0 flex-1"><h2 className="line-clamp-2 break-words text-sm font-bold leading-snug">{decodeHtmlEntities(video.title)}</h2><p className="mt-1 truncate text-xs text-mute">{video.channelName}</p></div>
         </a>
