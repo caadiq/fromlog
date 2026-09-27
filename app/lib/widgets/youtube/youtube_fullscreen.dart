@@ -56,7 +56,7 @@ class _YoutubeFullScreenState extends State<YoutubeFullScreen> {
   @override
   void dispose() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
@@ -85,6 +85,12 @@ class YoutubeFullscreenSession {
     if (_route != null) return;
     _hiddenByWebView = false;
     final route = PageRouteBuilder<void>(
+      // Keep the source platform view visible to Android while its custom view
+      // covers it. Offstaging the WebView can pause HTML media on fullscreen entry.
+      // The black fullscreen Scaffold still covers and blocks the detail screen.
+      opaque: false,
+      maintainState: true,
+      allowSnapshotting: false,
       transitionDuration: Duration.zero,
       reverseTransitionDuration: Duration.zero,
       pageBuilder: (_, _, _) =>

@@ -219,7 +219,7 @@ class YoutubeController extends ChangeNotifier {
   String get _html =>
       '''
 <!doctype html>
-<html>
+<html lang="ko">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <style>
@@ -243,11 +243,11 @@ class YoutubeController extends ChangeNotifier {
         // 이 세트가 빠지면 유튜브가 임베드를 막는다("볼 수 없습니다 152").
         // 진단 화면에서 폰으로 확인했다 — 문서 주소·UA가 같아도
         // 이 파라미터들이 없는 임베드는 차단, 있으면(콜드 상태에서도) 재생됐다.
-        // 정상 동작하는 패키지의 임베드 주소와 바이트 단위로 같은 구성이다.
+        // Keep the working embed flags; localize the controls and captions.
         autoplay: 1, mute: 0,
-        cc_lang_pref: 'en', cc_load_policy: 1,
+        cc_lang_pref: 'ko', cc_load_policy: 1,
         color: 'white', controls: 1, disablekb: 1,
-        enablejsapi: 1, fs: 1, hl: 'en',
+        enablejsapi: 1, fs: 1, hl: 'ko',
         iv_load_policy: 1, loop: 0,
         playsinline: 1, rel: 0
       },

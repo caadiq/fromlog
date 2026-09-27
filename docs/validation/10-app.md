@@ -74,9 +74,9 @@ APP_AUDIT_OUTPUT=/tmp/fromlog-app-validation flutter test --no-pub test/app_layo
 
 - [ ] Otto 업데이트 설치 후 새 버전으로 실행. 설치 권한 거부/허용, 실패 재시도, 필수 업데이트 게이트.
 - [ ] YouTube 일반/쇼츠 재생, 제목·YouTube 로고를 눌러 앱 연결, 설치되지 않은 경우 외부 브라우저 연결.
-- [ ] 전체화면 반복 진입/종료, OS Back, 세로·가로 회전 후 상태바·내비게이션 바 복구. 백그라운드→복귀 및 재생 상태.
+- [ ] 일반 화면 세로 고정, YouTube 전체화면 반복 진입/종료와 재생 유지, OS Back 후 세로/상태바·내비게이션 바 복구. 백그라운드→복귀 및 재생 상태.
 - [ ] FCM 실행 중/백그라운드/종료 상태 수신. 큐 알림 클릭→브라우저 수집 큐. 비로그인에서는 관리자 로그인 요구. 필수 업데이트 대기 중 목적지 지연.
-- [ ] 검색 키보드가 열린 상태의 가로 화면/시스템 글자 확대/하단 내비게이션/실제 제스처 Back.
+- [ ] 검색 키보드가 열린 상태에서 기기를 돌려도 세로 유지, 시스템 글자 확대/하단 내비게이션/실제 제스처 Back.
 - [ ] 홈·멤버·앨범·응원법·사진 확대·Kakao 지도·외부 링크 전체 기기 탐색. 낮은 성능 기기의 프레임 끊김은 13번 성능 검사와 연결.
 - [ ] **7번 후속**: 정상 이미지/동영상 저장과 알림, 잘못된 TLS 인증서 거부. 자동 검사에서 `ignoreSsl:false` 전달을 확인한 것과 실제 Android 네트워크 결과는 구분한다.
 
@@ -85,3 +85,17 @@ APP_AUDIT_OUTPUT=/tmp/fromlog-app-validation flutter test --no-pub test/app_layo
 - **Otto 2.0.0+133 / Android versionCode 2133 발행 완료**. arm64 릴리스 빌드와 서버 업로드 성공. 선택 업데이트이며 새 API나 웹 운영 배포를 요구하지 않는다. 설치·실행은 Android 실기기 확인 대기.
 - 웹 운영 배포와 git push는 이번 단계에 포함하지 않았다.
 - 다음 독립 작업은 **11번 모바일 관리자 기타**. 10번은 실기기 확인 대기 상태를 유지한다.
+
+
+## 2026-09-27 실사용 피드백: YouTube 언어·전체화면·방향
+
+- 사용자 확인: 플레이어가 영어로 표시되고 전체화면 진입 시 재생이 멈춤. 일반 화면은 세로 고정, YouTube 플레이어만 예외 요청.
+- 한국어: HTML 언어와 IFrame의 `hl`, `cc_lang_pref`를 `ko`로 변경했다. 기존 임베드 호스트와 로드/cue 방식, 자막 표시 정책은 유지한다.
+- 재생 유지: 전체화면 route를 `opaque: false`, `allowSnapshotting: false`로 열어 원래 플랫폼 웹뷰가 offstage로 숨겨지는 경로를 제거했다. 검은 전체화면 Scaffold는 상세를 가리고 터치를 차단한다. 영상 재생/일시정지 명령을 강제로 보내거나 재생 위치를 다시 로드하지 않는다.
+- 방향: Android 시작 화면과 Flutter 시작 시 세로 고정. 가로 영상 전체화면만 가로 좌/우를 허용하고 쇼츠는 세로 유지. 전체화면 종료 시 `portraitUp`으로 복구한다.
+- 자동 검증: 관련 Flutter 테스트 **18개 통과**. 신규 3개는 3회 반복 진입/종료·원래 화면 onstage 유지/터치 차단·native/Flutter 종료·세로 복귀·쇼츠·늦은 회전 완료의 상태바 재진입 방지를 확인한다. `flutter analyze`는 error/warning 없이 기존 info 10개.
+- 재생 중단 원인은 웹뷰를 숨기는 route 동작을 근거로 수정한 것으로, 실제 Android WebView의 소리·영상 연속 재생까지 자동으로 입증한 것은 아니다. **업데이트 후 실기기 재확인 대기**를 유지한다.
+- 참고: [YouTube 언어 파라미터](https://developers.google.com/youtube/player_parameters#hl), [Flutter opaque route 동작](https://api.flutter.dev/flutter/widgets/PageRouteBuilder/opaque.html).
+- 재검사: 일반 영상 재생 중 전체화면 → 10초 재생 → 플레이어 종료 버튼/OS Back 각각으로 복귀, 일시정지 상태에서도 진입/종료하여 임의 재생되지 않는지 확인. 일반 일정·검색 화면은 기기를 돌려도 세로 유지 확인.
+
+- Otto **2.0.0+135 / Android versionCode 2135** 선택 업데이트 발행 완료. arm64 릴리스 빌드·업로드 및 2134 기준 업데이트 API의 2135 응답 확인. 웹 배포·push 없음.

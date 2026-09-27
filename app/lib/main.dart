@@ -28,6 +28,11 @@ void main() async {
   // 네이티브 스플래시를 업데이트 확인(SplashGate)이 끝날 때까지 유지
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
+  // Only the YouTube fullscreen route may temporarily change orientation.
+  await SystemChrome.setPreferredOrientations(const [
+    DeviceOrientation.portraitUp,
+  ]);
+
   // 카카오맵 SDK 초기화 (네이티브 앱 키) — 실패해도 앱 구동엔 지장 없음
   try {
     await KakaoMapSdk.instance.initialize(Secrets.kakaoNativeAppKey);
