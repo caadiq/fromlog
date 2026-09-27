@@ -27,6 +27,24 @@ extension _ScheduleSearchPart on _ScheduleViewState {
     });
   }
 
+  void _backFromSearch() {
+    if (_showSuggestions && ref.read(searchProvider).searchTerm.isNotEmpty) {
+      _hideSuggestionsScreen();
+    } else if (!_showSuggestions) {
+      _debounceTimer?.cancel();
+      ref.read(searchProvider.notifier).clear();
+      ref.read(suggestionProvider.notifier).clear();
+      _refresh(() {
+        _lastSearchTerm = '';
+        _searchInputController.clear();
+        _showSuggestions = true;
+      });
+      _searchFocusNode.requestFocus();
+    } else {
+      _exitSearchMode();
+    }
+  }
+
   /// 검색 모드 종료
   void _exitSearchMode() {
     _debounceTimer?.cancel();
@@ -58,7 +76,7 @@ extension _ScheduleSearchPart on _ScheduleViewState {
     _debounceTimer?.cancel();
     ref.read(suggestionProvider.notifier).clear();
     final searchState = ref.read(searchProvider);
-    if (searchState.results.isNotEmpty) {
+    if (searchState.searchTerm.isNotEmpty) {
       // 검색 결과가 있으면 결과 화면으로 (검색어 복원)
       _refresh(() {
         _showSuggestions = false;
@@ -121,7 +139,7 @@ extension _ScheduleSearchPart on _ScheduleViewState {
             children: [
               // 뒤로가기
               GestureDetector(
-                onTap: _exitSearchMode,
+                onTap: _backFromSearch,
                 behavior: HitTestBehavior.opaque,
                 child: const Padding(
                   padding: EdgeInsets.only(right: 14),
@@ -457,45 +475,56 @@ extension _ScheduleSearchPart on _ScheduleViewState {
       );
     }
 
-    // 검색 결과 없음
-    if (searchState.results.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 100),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Text(
-            '검색 결과가 없습니다',
-            style: const TextStyle(
-              fontFamily: 'Pretendard',
-              fontSize: 14,
-              color: EColors.mute,
-            ),
-          ),
-        ),
+    if (searchState.error != null && searchState.results.isEmpty) {
+      return ContentState(
+        message: '검색 결과를 불러오지 못했습니다.',
+        onRetry: () =>
+            ref.read(searchProvider.notifier).search(searchState.searchTerm),
       );
     }
+
+    final selected = ref.watch(scheduleProvider).selectedCategories;
+    final categories = <int, Schedule>{};
+    for (final row in searchState.results) {
+      if (row.categoryId != null) {
+        categories.putIfAbsent(row.categoryId!, () => row);
+      }
+    }
+    final results = selected.isEmpty
+        ? searchState.results
+        : searchState.results
+              .where((row) => selected.contains(row.categoryId))
+              .toList();
+    // Load short/filtered pages until the viewport is filled, or an error occurs.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_isSearchMode ||
+          _showSuggestions ||
+          !_searchScrollController.hasClients) {
+        return;
+      }
+      if (_searchScrollController.position.extentAfter < 500) {
+        ref.read(searchProvider.notifier).loadMore();
+      }
+    });
 
     // 검색 결과 목록 — 에디토리얼 (RESULTS 헤딩 + 행/특수카드)
     final term = searchState.searchTerm;
     return ListView.builder(
-      key: ValueKey('search_list_$term'),
+      key: ValueKey('search_list_${term}_${selected.join(',')}'),
       controller: _searchScrollController,
       padding: const EdgeInsets.fromLTRB(22, 0, 22, 64),
       // 헤더(1) + 결과 + 하단 푸터(1: 스피너 또는 '모두 로드됨')
-      itemCount: searchState.results.length + 2,
+      itemCount: results.length + 2,
       itemBuilder: (context, index) {
-        // 헤더 (RESULTS + 건수 + 상단 2px 룰)
         if (index == 0) {
           return Padding(
             padding: const EdgeInsets.only(top: 22),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
                     children: [
                       const Text(
                         'RESULTS',
@@ -508,11 +537,71 @@ extension _ScheduleSearchPart on _ScheduleViewState {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        '${searchState.results.length}${searchState.hasMore ? '+' : ''}건',
+                        '${results.length}${searchState.hasMore ? '+' : ''}건',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: appPalette.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          reverse: true,
+                          child: Row(
+                            children: categories.entries.map((entry) {
+                              final active = selected.contains(entry.key);
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 6),
+                                child: InkWell(
+                                  onTap: () => ref
+                                      .read(scheduleProvider.notifier)
+                                      .toggleCategory(entry.key),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: active ? EColors.ink : null,
+                                      border: Border.all(
+                                        color: active
+                                            ? EColors.ink
+                                            : EColors.hairline,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 4,
+                                          height: 4,
+                                          decoration: BoxDecoration(
+                                            color: parseColor(
+                                              entry.value.categoryColor,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          entry.value.categoryName ?? '미분류',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: active
+                                                ? Colors.white
+                                                : EColors.esub,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
                         ),
                       ),
                     ],
@@ -525,7 +614,17 @@ extension _ScheduleSearchPart on _ScheduleViewState {
         }
 
         // 하단 푸터: 더 불러오는 중 스피너 / 모두 로드됨 문구 (웹과 동일)
-        if (index > searchState.results.length) {
+        if (index > results.length) {
+          if (searchState.error != null) {
+            return ContentState(
+              message: '검색 결과를 더 불러오지 못했습니다.',
+              onRetry: () =>
+                  ref.read(searchProvider.notifier).loadMore(retry: true),
+            );
+          }
+          if (results.isEmpty && !searchState.hasMore) {
+            return const ContentState(message: '검색 결과가 없습니다');
+          }
           if (searchState.isFetchingMore) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
@@ -546,7 +645,7 @@ extension _ScheduleSearchPart on _ScheduleViewState {
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Center(
                 child: Text(
-                  '${searchState.results.length}개 표시 (모두 로드됨)',
+                  '${results.length}개 표시 (모두 로드됨)',
                   style: const TextStyle(fontSize: 13, color: EColors.mute),
                 ),
               ),
@@ -555,7 +654,7 @@ extension _ScheduleSearchPart on _ScheduleViewState {
           return const SizedBox.shrink();
         }
 
-        final schedule = searchState.results[index - 1];
+        final schedule = results[index - 1];
         void open() {
           if (schedule.albumFolder != null) {
             context.push('/album/${schedule.albumFolder}');

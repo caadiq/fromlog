@@ -4,8 +4,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/content_image.dart';
 import '../../core/constants.dart';
+import '../../widgets/content_state.dart';
 import '../../core/format_utils.dart';
 import '../../models/album.dart';
 import '../../models/schedule.dart';
@@ -42,44 +43,6 @@ class HomeView extends ConsumerWidget {
       );
     }
 
-    if (state.error != null && state.members.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              '데이터를 불러올 수 없습니다',
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: EColors.mute,
-              ),
-            ),
-            const SizedBox(height: 14),
-            GestureDetector(
-              onTap: () => ref.read(homeProvider.notifier).loadData(),
-              child: Container(
-                color: EColors.ink,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 11,
-                ),
-                child: const Text(
-                  '다시 시도',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     final albums = state.albums;
     final topAlbums = albums.take(3).toList();
     final dated = state.schedules
@@ -99,21 +62,54 @@ class HomeView extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Hero(),
-            _StatsStrip(memberCount: state.members.length, albums: albums),
+            _StatsStrip(
+              memberCount: state.sectionErrors.containsKey('members')
+                  ? null
+                  : state.members.length,
+              albums: albums,
+              albumsAvailable: !state.sectionErrors.containsKey('albums'),
+            ),
             const EReveal(
               child: SecHeader(label: 'MEMBERS', to: '/members'),
             ),
-            _MembersList(state: state),
+            if (state.sectionErrors.containsKey('members'))
+              ContentState(
+                message: '멤버를 불러오지 못했습니다.',
+                onRetry: () => ref
+                    .read(homeProvider.notifier)
+                    .loadData(section: 'members'),
+              )
+            else if (state.members.isEmpty)
+              const ContentState(message: '등록된 멤버가 없습니다.')
+            else
+              _MembersList(state: state),
             const EReveal(
               child: SecHeader(label: 'DISCOGRAPHY', to: '/album'),
             ),
-            _Discography(albums: topAlbums),
+            if (state.sectionErrors.containsKey('albums'))
+              ContentState(
+                message: '앨범을 불러오지 못했습니다.',
+                onRetry: () =>
+                    ref.read(homeProvider.notifier).loadData(section: 'albums'),
+              )
+            else if (albums.isEmpty)
+              const ContentState(message: '등록된 앨범이 없습니다.')
+            else
+              _Discography(albums: topAlbums),
             const EReveal(
               child: SecHeader(label: 'SCHEDULE', to: '/schedule'),
             ),
-            EReveal(
-              child: _ScheduleList(dated: dated, undated: undated),
-            ),
+            if (state.sectionErrors.containsKey('schedules'))
+              ContentState(
+                message: '일정을 불러오지 못했습니다.',
+                onRetry: () => ref
+                    .read(homeProvider.notifier)
+                    .loadData(section: 'schedules'),
+              )
+            else
+              EReveal(
+                child: _ScheduleList(dated: dated, undated: undated),
+              ),
             const SizedBox(height: 30),
           ],
         ),
@@ -180,10 +176,15 @@ class _Hero extends StatelessWidget {
 
 /// 통계 스트립 — MEMBERS / ALBUMS / D-day
 class _StatsStrip extends StatelessWidget {
-  final int memberCount;
+  final int? memberCount;
+  final bool albumsAvailable;
   final List<Album> albums;
 
-  const _StatsStrip({required this.memberCount, required this.albums});
+  const _StatsStrip({
+    required this.memberCount,
+    required this.albums,
+    required this.albumsAvailable,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -202,8 +203,8 @@ class _StatsStrip extends StatelessWidget {
     }
 
     final cells = [
-      ('$memberCount', 'MEMBERS'),
-      ('${albums.length}', 'ALBUMS'),
+      (memberCount?.toString() ?? '—', 'MEMBERS'),
+      (albumsAvailable ? '${albums.length}' : '—', 'ALBUMS'),
       if (stripAlbum != null) stripAlbum,
     ];
 
@@ -278,7 +279,9 @@ class _MembersList extends StatelessWidget {
             EReveal(
               delayMs: kStaggerMs * i,
               child: InkWell(
-                onTap: () => context.push('/members'),
+                onTap: () => context.push(
+                  '/members/${Uri.encodeComponent(state.members[i].nameEn ?? '')}',
+                ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   decoration: const BoxDecoration(
@@ -302,7 +305,7 @@ class _MembersList extends StatelessWidget {
                       const SizedBox(width: 16),
                       ClipOval(
                         child: state.members[i].imageUrl != null
-                            ? CachedNetworkImage(
+                            ? ContentImage(
                                 imageUrl: state.members[i].imageUrl!,
                                 width: 46,
                                 height: 46,
@@ -379,7 +382,7 @@ class _Discography extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 1,
       child: url != null
-          ? CachedNetworkImage(imageUrl: url, fit: BoxFit.cover)
+          ? ContentImage(imageUrl: url, fit: BoxFit.cover)
           : Container(
               color: EColors.canvasDeep,
               alignment: Alignment.center,

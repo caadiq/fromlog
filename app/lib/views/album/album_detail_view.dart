@@ -2,11 +2,12 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/content_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants.dart';
+import '../../widgets/content_state.dart';
 import '../../models/album.dart';
 import '../../services/albums_service.dart';
 import '../../widgets/e_motion.dart';
@@ -32,6 +33,14 @@ class _AlbumDetailViewState extends State<AlbumDetailView> {
   }
 
   @override
+  void didUpdateWidget(AlbumDetailView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.albumName != widget.albumName) {
+      _albumFuture = getAlbumByName(widget.albumName);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EColors.paper,
@@ -41,36 +50,22 @@ class _AlbumDetailViewState extends State<AlbumDetailView> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
-                child: CircularProgressIndicator(color: EColors.ink, strokeWidth: 2.5),
+                child: CircularProgressIndicator(
+                  color: EColors.ink,
+                  strokeWidth: 2.5,
+                ),
               );
             }
             if (snapshot.hasError || !snapshot.hasData) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      '앨범을 찾을 수 없습니다',
-                      style: TextStyle(fontSize: 13.5, color: EColors.mute),
-                    ),
-                    const SizedBox(height: 14),
-                    GestureDetector(
-                      onTap: () => context.pop(),
-                      child: Container(
-                        color: EColors.ink,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
-                        child: const Text(
-                          '돌아가기',
-                          style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1,
-                              color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              final missing =
+                  !snapshot.hasError || isMissingContent(snapshot.error);
+              return ContentState(
+                message: missing ? '앨범을 찾을 수 없습니다.' : '앨범을 불러오지 못했습니다.',
+                onRetry: missing
+                    ? null
+                    : () => setState(() {
+                        _albumFuture = getAlbumByName(widget.albumName);
+                      }),
               );
             }
             return _Body(album: snapshot.data!);
@@ -106,7 +101,9 @@ class _Body extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
+                border: Border(
+                  bottom: BorderSide(color: EColors.hairline, width: 1),
+                ),
               ),
               child: Row(
                 children: [
@@ -161,10 +158,13 @@ class _Body extends StatelessWidget {
     final titleTrack = tracks.where((t) => t.isTitleTrack == 1).firstOrNull;
     final teasers = album.teasers ?? [];
     final conceptPhotos = album.allConceptPhotos;
-    final cover = album.coverMediumUrl ?? album.coverOriginalUrl;
+    final cover =
+        album.coverMediumUrl ?? album.coverThumbUrl ?? album.coverOriginalUrl;
     final totalDuration = album.totalDuration;
-    final hasMv = titleTrack?.videoUrl != null && titleTrack!.videoUrl!.isNotEmpty;
-    final hasDescription = album.description != null && album.description!.isNotEmpty;
+    final hasMv =
+        titleTrack?.videoUrl != null && titleTrack!.videoUrl!.isNotEmpty;
+    final hasDescription =
+        album.description != null && album.description!.isNotEmpty;
 
     return Column(
       children: [
@@ -172,13 +172,19 @@ class _Body extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
+            border: Border(
+              bottom: BorderSide(color: EColors.hairline, width: 1),
+            ),
           ),
           child: Row(
             children: [
               IconButton(
                 onPressed: () => context.pop(),
-                icon: const Icon(LucideIcons.chevronLeft, size: 22, color: EColors.esub),
+                icon: const Icon(
+                  LucideIcons.chevronLeft,
+                  size: 22,
+                  color: EColors.esub,
+                ),
               ),
               Expanded(
                 child: Text(
@@ -207,10 +213,13 @@ class _Body extends StatelessWidget {
                   tween: Tween(begin: 0, end: 1),
                   duration: const Duration(milliseconds: 700),
                   curve: Curves.easeOut,
-                  builder: (context, v, child) => Opacity(opacity: v, child: child),
+                  builder: (context, v, child) =>
+                      Opacity(opacity: v, child: child),
                   child: Container(
                     decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
+                      border: Border(
+                        bottom: BorderSide(color: EColors.hairline, width: 1),
+                      ),
                     ),
                     child: cover != null
                         ? GestureDetector(
@@ -227,10 +236,11 @@ class _Body extends StatelessWidget {
                             ),
                             child: AspectRatio(
                               aspectRatio: 1,
-                              child: CachedNetworkImage(
+                              child: ContentImage(
                                 imageUrl: cover,
                                 fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(color: EColors.canvas),
+                                placeholder: (context, url) =>
+                                    Container(color: EColors.canvas),
                               ),
                             ),
                           )
@@ -238,8 +248,13 @@ class _Body extends StatelessWidget {
                             height: 320,
                             color: EColors.canvasDeep,
                             alignment: Alignment.center,
-                            child: const Text('◉',
-                                style: TextStyle(fontSize: 44, color: EColors.faint)),
+                            child: const Text(
+                              '◉',
+                              style: TextStyle(
+                                fontSize: 44,
+                                color: EColors.faint,
+                              ),
+                            ),
                           ),
                   ),
                 ),
@@ -253,7 +268,7 @@ class _Body extends StatelessWidget {
                       EFadeUp(
                         child: Text(
                           album.albumType ?? '',
-                          style:  TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 2.5,
@@ -280,7 +295,9 @@ class _Body extends StatelessWidget {
                         delayMs: kStaggerMs * 2,
                         child: Container(
                           decoration: const BoxDecoration(
-                            border: Border(top: BorderSide(color: EColors.ink, width: 2)),
+                            border: Border(
+                              top: BorderSide(color: EColors.ink, width: 2),
+                            ),
                           ),
                           child: Column(
                             children: [
@@ -291,7 +308,10 @@ class _Body extends StatelessWidget {
                                     .replaceAll('-', '. '),
                               ),
                               if (titleTrack != null)
-                                _FactRow(label: 'TITLE TRACK', value: titleTrack.title),
+                                _FactRow(
+                                  label: 'TITLE TRACK',
+                                  value: titleTrack.title,
+                                ),
                               if (tracks.isNotEmpty)
                                 _FactRow(
                                   label: 'TRACKS',
@@ -321,7 +341,9 @@ class _Body extends StatelessWidget {
                               ),
                               child: Container(
                                 color: EColors.ink,
-                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 13,
+                                ),
                                 alignment: Alignment.center,
                                 child: const Text(
                                   '▶ 뮤직비디오',
@@ -344,7 +366,9 @@ class _Body extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   border: Border.all(color: EColors.ink),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 13,
+                                ),
                                 alignment: Alignment.center,
                                 child: const Text(
                                   '앨범 소개',
@@ -397,7 +421,9 @@ class _Body extends StatelessWidget {
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 22),
                       decoration: const BoxDecoration(
-                        border: Border(top: BorderSide(color: EColors.ink, width: 2)),
+                        border: Border(
+                          top: BorderSide(color: EColors.ink, width: 2),
+                        ),
                       ),
                       child: Column(
                         children: [
@@ -407,19 +433,30 @@ class _Body extends StatelessWidget {
                                 '/album/${album.folderName}/track/${Uri.encodeComponent(t.title)}',
                               ),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                  vertical: 14,
+                                ),
                                 decoration: const BoxDecoration(
                                   border: Border(
-                                      bottom: BorderSide(color: EColors.hairline, width: 1)),
+                                    bottom: BorderSide(
+                                      color: EColors.hairline,
+                                      width: 1,
+                                    ),
+                                  ),
                                 ),
                                 child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
                                   textBaseline: TextBaseline.alphabetic,
                                   children: [
                                     SizedBox(
                                       width: 24,
                                       child: Text(
-                                        t.trackNumber.toString().padLeft(2, '0'),
+                                        t.trackNumber.toString().padLeft(
+                                          2,
+                                          '0',
+                                        ),
                                         style: const TextStyle(
                                           fontSize: 13.5,
                                           fontWeight: FontWeight.w800,
@@ -447,11 +484,15 @@ class _Body extends StatelessWidget {
                                           if (t.isTitleTrack == 1) ...[
                                             const SizedBox(width: 8),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 6, vertical: 2),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: appPalette.primary,
-                                                borderRadius: BorderRadius.circular(3),
+                                                borderRadius:
+                                                    BorderRadius.circular(3),
                                               ),
                                               child: const Text(
                                                 'TITLE',
@@ -508,7 +549,8 @@ class _Body extends StatelessWidget {
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 22),
                         itemCount: teasers.length,
-                        separatorBuilder: (context, index) => const SizedBox(width: 8),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 8),
                         itemBuilder: (context, i) {
                           final t = teasers[i];
                           return GestureDetector(
@@ -518,7 +560,7 @@ class _Body extends StatelessWidget {
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  CachedNetworkImage(
+                                  ContentImage(
                                     imageUrl: t.thumbUrl ?? t.originalUrl ?? '',
                                     fit: BoxFit.cover,
                                     placeholder: (context, url) =>
@@ -526,19 +568,26 @@ class _Body extends StatelessWidget {
                                   ),
                                   if (t.mediaType == 'video')
                                     Container(
-                                      color: Colors.black.withValues(alpha: 0.3),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       alignment: Alignment.center,
                                       child: Container(
                                         width: 32,
                                         height: 32,
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.9),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
                                           shape: BoxShape.circle,
                                         ),
                                         alignment: Alignment.center,
                                         child: const Text(
                                           '▶',
-                                          style: TextStyle(fontSize: 13, color: EColors.ink),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: EColors.ink,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -573,7 +622,11 @@ class _Body extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(22, 0, 22, 56),
                       child: Row(
                         children: [
-                          for (var i = 0; i < conceptPhotos.length && i < 3; i++) ...[
+                          for (
+                            var i = 0;
+                            i < conceptPhotos.length && i < 3;
+                            i++
+                          ) ...[
                             if (i > 0) const SizedBox(width: 8),
                             Expanded(
                               child: GestureDetector(
@@ -581,20 +634,23 @@ class _Body extends StatelessWidget {
                                   context,
                                   conceptPhotos
                                       .take(3)
-                                      .map((p) => LightboxPhoto(
-                                            mediumUrl: p.mediumUrl ?? p.thumbUrl,
-                                            originalUrl: p.originalUrl,
-                                            members: p.members,
-                                            concept: p.concept,
-                                          ))
+                                      .map(
+                                        (p) => LightboxPhoto(
+                                          mediumUrl: p.mediumUrl ?? p.thumbUrl,
+                                          originalUrl: p.originalUrl,
+                                          members: p.members,
+                                          concept: p.concept,
+                                        ),
+                                      )
                                       .toList(),
                                   i,
                                   heroPrefix: 'album_concept_preview',
                                 ),
                                 child: AspectRatio(
                                   aspectRatio: 0.8,
-                                  child: CachedNetworkImage(
-                                    imageUrl: conceptPhotos[i].mediumUrl ??
+                                  child: ContentImage(
+                                    imageUrl:
+                                        conceptPhotos[i].mediumUrl ??
                                         conceptPhotos[i].thumbUrl ??
                                         '',
                                     fit: BoxFit.cover,
@@ -609,16 +665,20 @@ class _Body extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () =>
-                                    context.push('/album/${album.folderName}/gallery'),
+                                onTap: () => context.push(
+                                  '/album/${album.folderName}/gallery',
+                                ),
                                 child: AspectRatio(
                                   aspectRatio: 0.8,
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      border: Border.all(color: EColors.hairline),
+                                      border: Border.all(
+                                        color: EColors.hairline,
+                                      ),
                                     ),
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           '+${conceptPhotos.length - 3}',

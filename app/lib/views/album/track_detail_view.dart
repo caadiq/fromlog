@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/constants.dart';
+import '../../widgets/content_state.dart';
 import '../../models/album.dart';
 import '../../services/albums_service.dart';
 import '../../services/fanchant_service.dart';
@@ -54,6 +55,16 @@ class _TrackDetailViewState extends State<TrackDetailView> {
   }
 
   @override
+  void didUpdateWidget(TrackDetailView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.albumName != widget.albumName ||
+        oldWidget.trackTitle != widget.trackTitle) {
+      _lyricsOpen = false;
+      _trackFuture = getTrack(widget.albumName, widget.trackTitle);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EColors.paper,
@@ -63,23 +74,34 @@ class _TrackDetailViewState extends State<TrackDetailView> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
-                child: CircularProgressIndicator(color: EColors.ink, strokeWidth: 2.5),
+                child: CircularProgressIndicator(
+                  color: EColors.ink,
+                  strokeWidth: 2.5,
+                ),
               );
             }
             if (snapshot.hasError || !snapshot.hasData) {
-              return const Center(
-                child: Text(
-                  '곡을 찾을 수 없습니다',
-                  style: TextStyle(fontSize: 13.5, color: EColors.mute),
-                ),
+              final missing =
+                  !snapshot.hasError || isMissingContent(snapshot.error);
+              return ContentState(
+                message: missing ? '곡을 찾을 수 없습니다.' : '곡을 불러오지 못했습니다.',
+                onRetry: missing
+                    ? null
+                    : () => setState(() {
+                        _trackFuture = getTrack(
+                          widget.albumName,
+                          widget.trackTitle,
+                        );
+                      }),
               );
             }
 
             final track = snapshot.data!;
             final album = track.album;
             final videoId = _getYoutubeVideoId(track.musicVideoUrl);
-            final videoLabel =
-                track.videoType == 'special' ? 'SPECIAL VIDEO' : 'OFFICIAL MV';
+            final videoLabel = track.videoType == 'special'
+                ? 'SPECIAL VIDEO'
+                : 'OFFICIAL MV';
 
             final credits = <(String, String)>[
               if (track.lyricist != null && track.lyricist!.isNotEmpty)
@@ -98,16 +120,24 @@ class _TrackDetailViewState extends State<TrackDetailView> {
               children: [
                 // 크럼 바
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
+                    border: Border(
+                      bottom: BorderSide(color: EColors.hairline, width: 1),
+                    ),
                   ),
                   child: Row(
                     children: [
                       IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(LucideIcons.chevronLeft,
-                            size: 22, color: EColors.esub),
+                        icon: const Icon(
+                          LucideIcons.chevronLeft,
+                          size: 22,
+                          color: EColors.esub,
+                        ),
                       ),
                       Expanded(
                         child: Text(
@@ -127,7 +157,7 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                 ),
 
                 Expanded(
-                    child: SingleChildScrollView(
+                  child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -137,7 +167,11 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                           padding: const EdgeInsets.fromLTRB(22, 30, 22, 26),
                           decoration: const BoxDecoration(
                             border: Border(
-                                bottom: BorderSide(color: EColors.hairline, width: 1)),
+                              bottom: BorderSide(
+                                color: EColors.hairline,
+                                width: 1,
+                              ),
+                            ),
                           ),
                           child: Stack(
                             clipBehavior: Clip.none,
@@ -168,11 +202,15 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                                     child: track.isTitleTrack == 1
                                         ? EFadeUp(
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 3),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: appPalette.primary,
-                                                borderRadius: BorderRadius.circular(3),
+                                                borderRadius:
+                                                    BorderRadius.circular(3),
                                               ),
                                               child: const Text(
                                                 'TITLE',
@@ -238,24 +276,33 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                         ),
 
                         // MV 임베드
-                        if (videoId != null)
+                        if (videoId != null || _fanchantIds.contains(track.id))
                           Container(
                             decoration: const BoxDecoration(
                               border: Border(
-                                  bottom: BorderSide(color: EColors.hairline, width: 1)),
+                                bottom: BorderSide(
+                                  color: EColors.hairline,
+                                  width: 1,
+                                ),
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                YoutubeView(videoId: videoId),
+                                if (videoId != null)
+                                  YoutubeView(videoId: videoId),
                                 Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 22,
+                                    vertical: 10,
+                                  ),
                                   child: Row(
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          '$videoLabel — YOUTUBE',
+                                          videoId == null
+                                              ? 'FANCHANT'
+                                              : '$videoLabel — YOUTUBE',
                                           style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w800,
@@ -273,15 +320,22 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                                           ),
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 11, vertical: 6),
+                                              horizontal: 11,
+                                              vertical: 6,
+                                            ),
                                             decoration: BoxDecoration(
-                                              border: Border.all(color: EColors.ink),
+                                              border: Border.all(
+                                                color: EColors.ink,
+                                              ),
                                             ),
                                             child: const Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(LucideIcons.megaphone,
-                                                    size: 12, color: EColors.ink),
+                                                Icon(
+                                                  LucideIcons.megaphone,
+                                                  size: 12,
+                                                  color: EColors.ink,
+                                                ),
                                                 SizedBox(width: 5),
                                                 Text(
                                                   '응원법',
@@ -311,20 +365,27 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                               if (credits.isNotEmpty) ...[
                                 EReveal(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const _SectionRule(label: 'CREDITS'),
                                       for (final c in credits)
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 2, vertical: 11),
+                                            horizontal: 2,
+                                            vertical: 11,
+                                          ),
                                           decoration: const BoxDecoration(
                                             border: Border(
-                                                bottom: BorderSide(
-                                                    color: EColors.hairline, width: 1)),
+                                              bottom: BorderSide(
+                                                color: EColors.hairline,
+                                                width: 1,
+                                              ),
+                                            ),
                                           ),
                                           child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               SizedBox(
                                                 width: 64,
@@ -378,13 +439,18 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                                       ),
                                       if (lyricsLong)
                                         Padding(
-                                          padding: const EdgeInsets.only(top: 16),
+                                          padding: const EdgeInsets.only(
+                                            top: 16,
+                                          ),
                                           child: GestureDetector(
                                             onTap: () => setState(
-                                                () => _lyricsOpen = !_lyricsOpen),
+                                              () => _lyricsOpen = !_lyricsOpen,
+                                            ),
                                             child: Text(
-                                              _lyricsOpen ? '가사 접기 ↑' : '전체 가사 펼치기 ↓',
-                                              style:  TextStyle(
+                                              _lyricsOpen
+                                                  ? '가사 접기 ↑'
+                                                  : '전체 가사 펼치기 ↓',
+                                              style: TextStyle(
                                                 fontSize: 12.5,
                                                 fontWeight: FontWeight.w800,
                                                 letterSpacing: 2,
@@ -395,11 +461,15 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                                         ),
                                     ] else
                                       const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 32),
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 32,
+                                        ),
                                         child: Text(
                                           '가사 정보가 없습니다',
                                           style: TextStyle(
-                                              fontSize: 14.5, color: EColors.mute),
+                                            fontSize: 14.5,
+                                            color: EColors.mute,
+                                          ),
                                         ),
                                       ),
                                   ],
@@ -411,9 +481,12 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                                 const SizedBox(height: 32),
                                 EReveal(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      const _SectionRule(label: 'IN THIS ALBUM'),
+                                      const _SectionRule(
+                                        label: 'IN THIS ALBUM',
+                                      ),
                                       for (final t in track.otherTracks)
                                         _OtherTrackRow(
                                           track: t,
@@ -421,8 +494,8 @@ class _TrackDetailViewState extends State<TrackDetailView> {
                                           onTap: t.id == track.id
                                               ? null
                                               : () => context.pushReplacement(
-                                                    '/album/${widget.albumName}/track/${Uri.encodeComponent(t.title)}',
-                                                  ),
+                                                  '/album/${widget.albumName}/track/${Uri.encodeComponent(t.title)}',
+                                                ),
                                         ),
                                     ],
                                   ),
@@ -477,7 +550,11 @@ class _OtherTrackRow extends StatelessWidget {
   final bool current;
   final VoidCallback? onTap;
 
-  const _OtherTrackRow({required this.track, required this.current, this.onTap});
+  const _OtherTrackRow({
+    required this.track,
+    required this.current,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -522,7 +599,10 @@ class _OtherTrackRow extends StatelessWidget {
                   if (track.isTitleTrack == 1) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: appPalette.primary,
                         borderRadius: BorderRadius.circular(3),

@@ -2,8 +2,8 @@
 /// 핀치 줌(photo_view) + 카운터 + 정보 시트 + 원본 다운로드 + 슬라이딩 인디케이터
 library;
 
-
 import 'package:flutter/material.dart';
+import 'content_image.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -32,7 +32,9 @@ class LightboxPhoto {
 
   bool get hasInfo =>
       (members != null && members!.isNotEmpty) ||
-      (concept != null && concept!.isNotEmpty) ||
+      (concept != null &&
+          concept!.trim().isNotEmpty &&
+          concept!.toLowerCase() != 'default') ||
       (albumTitle != null && albumTitle!.isNotEmpty);
 }
 
@@ -55,7 +57,9 @@ void showPhotoLightbox(
       ),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
-      transitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
     ),
   );
 }
@@ -79,6 +83,8 @@ class PhotoLightbox extends StatefulWidget {
 class _PhotoLightboxState extends State<PhotoLightbox> {
   late PageController _pageController;
   late int _currentIndex;
+  final Map<int, int> _attempts = {};
+  bool _downloading = false;
 
   @override
   void initState() {
@@ -95,18 +101,28 @@ class _PhotoLightboxState extends State<PhotoLightbox> {
 
   /// 이미지 다운로드 (원본 우선)
   Future<void> _downloadImage() async {
+    if (_downloading) return;
     final photo = widget.photos[_currentIndex];
     final imageUrl = photo.originalUrl ?? photo.mediumUrl;
     if (imageUrl == null || imageUrl.isEmpty) return;
 
-    final taskId = await downloadImage(imageUrl);
-    if (taskId != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('다운로드를 시작합니다'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    setState(() => _downloading = true);
+    try {
+      final taskId = await downloadImage(imageUrl);
+      if (taskId == null) throw StateError('Download did not start');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('다운로드를 시작합니다')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('다운로드를 시작하지 못했습니다. 다시 시도해주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
     }
   }
 
@@ -118,7 +134,13 @@ class _PhotoLightboxState extends State<PhotoLightbox> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => _InfoBottomSheet(photo: photo),
+      isScrollControlled: true,
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * .8,
+        ),
+        child: SingleChildScrollView(child: _InfoBottomSheet(photo: photo)),
+      ),
     );
   }
 
@@ -134,46 +156,59 @@ class _PhotoLightboxState extends State<PhotoLightbox> {
         body: Stack(
           children: [
             // 갤러리
-            PhotoViewGallery.builder(
-              pageController: _pageController,
-              itemCount: widget.photos.length,
-              allowImplicitScrolling: true, // 인접 페이지 미리 빌드
-              onPageChanged: (index) {
-                setState(() => _currentIndex = index);
-              },
-              backgroundDecoration: const BoxDecoration(color: Colors.black),
-              builder: (context, index) {
-                final photo = widget.photos[index];
-                final imageUrl = photo.mediumUrl ?? photo.originalUrl;
+            Padding(
+              padding: EdgeInsets.only(
+                top: topPadding + 60,
+                bottom: bottomPadding + 56,
+              ),
+              child: PhotoViewGallery.builder(
+                pageController: _pageController,
+                itemCount: widget.photos.length,
+                allowImplicitScrolling: true, // 인접 페이지 미리 빌드
+                onPageChanged: (index) {
+                  setState(() => _currentIndex = index);
+                },
+                backgroundDecoration: const BoxDecoration(color: Colors.black),
+                builder: (context, index) {
+                  final photo = widget.photos[index];
+                  final imageUrl = photo.mediumUrl ?? photo.originalUrl;
 
-                if (imageUrl == null || imageUrl.isEmpty) {
-                  return PhotoViewGalleryPageOptions.customChild(
-                    child: const Center(
-                      child: Icon(
-                        LucideIcons.imageOff,
-                        color: Colors.white54,
-                        size: 64,
+                  if (imageUrl == null || imageUrl.isEmpty) {
+                    return PhotoViewGalleryPageOptions.customChild(
+                      child: const Center(
+                        child: Icon(
+                          LucideIcons.imageOff,
+                          color: Colors.white54,
+                          size: 64,
+                        ),
                       ),
+                    );
+                  }
+
+                  return PhotoViewGalleryPageOptions(
+                    imageProvider: CachedNetworkImageProvider(
+                      photo.originalUrl ?? imageUrl,
+                      cacheKey:
+                          '${photo.originalUrl ?? imageUrl}:attempt:${_attempts[index] ?? 0}',
+                    ),
+                    errorBuilder: (_, _, _) => MediaRetry(
+                      onRetry: () => setState(() {
+                        _attempts[index] = (_attempts[index] ?? 0) + 1;
+                      }),
+                    ),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 3,
+                    initialScale: PhotoViewComputedScale.contained,
+                    heroAttributes: PhotoViewHeroAttributes(
+                      tag: '${widget.heroPrefix}_$index',
                     ),
                   );
-                }
-
-                return PhotoViewGalleryPageOptions(
-                  imageProvider: CachedNetworkImageProvider(
-                    photo.originalUrl ?? imageUrl,
+                },
+                loadingBuilder: (context, event) => const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white54,
+                    strokeWidth: 2,
                   ),
-                  minScale: PhotoViewComputedScale.contained,
-                  maxScale: PhotoViewComputedScale.covered * 3,
-                  initialScale: PhotoViewComputedScale.contained,
-                  heroAttributes: PhotoViewHeroAttributes(
-                    tag: '${widget.heroPrefix}_$index',
-                  ),
-                );
-              },
-              loadingBuilder: (context, event) => const Center(
-                child: CircularProgressIndicator(
-                  color: Colors.white54,
-                  strokeWidth: 2,
                 ),
               ),
             ),
@@ -234,7 +269,7 @@ class _PhotoLightboxState extends State<PhotoLightbox> {
                               ),
                             const SizedBox(width: 8),
                             GestureDetector(
-                              onTap: _downloadImage,
+                              onTap: _downloading ? null : _downloadImage,
                               child: const Padding(
                                 padding: EdgeInsets.all(4),
                                 child: Icon(
@@ -264,7 +299,9 @@ class _PhotoLightboxState extends State<PhotoLightbox> {
                   onTap: (index) {
                     _pageController.animateToPage(
                       index,
-                      duration: const Duration(milliseconds: 300),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                     );
                   },
@@ -296,7 +333,9 @@ class _InfoBottomSheet extends StatelessWidget {
           label: '멤버',
           value: photo.members!,
         ),
-      if (photo.concept != null && photo.concept!.isNotEmpty)
+      if (photo.concept != null &&
+          photo.concept!.trim().isNotEmpty &&
+          photo.concept!.toLowerCase() != 'default')
         _InfoRow(
           icon: LucideIcons.tag,
           iconBackgroundColor: Colors.white.withValues(alpha: 0.1),
@@ -459,7 +498,9 @@ class SlidingIndicator extends StatelessWidget {
             children: [
               // 슬라이딩 점들
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 300),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 300),
                 curve: Curves.easeOutCubic,
                 left: translateX,
                 top: 0,
@@ -475,7 +516,9 @@ class SlidingIndicator extends StatelessWidget {
                         width: dotSpacing,
                         alignment: Alignment.center,
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 300),
                           width: isActive ? activeDotSize : inactiveDotSize,
                           height: isActive ? activeDotSize : inactiveDotSize,
                           decoration: BoxDecoration(

@@ -3,11 +3,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/content_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants.dart';
+import '../../widgets/content_state.dart';
 import '../../models/member.dart';
 import '../../controllers/members_controller.dart';
 import '../../services/members_service.dart';
@@ -15,10 +16,12 @@ import '../../widgets/e_motion.dart';
 import '../../widgets/photo_lightbox.dart';
 
 /// 멤버 최근 포토 3장 Provider
-final memberPhotosProvider =
-    FutureProvider.family<List<MemberPhoto>, String>((ref, nameEn) {
-  return getMemberPhotos(nameEn, limit: 3);
-});
+final memberPhotosProvider = FutureProvider.family<List<MemberPhoto>, String>(
+  retry: (_, _) => null,
+  (ref, nameEn) {
+    return getMemberPhotos(nameEn, limit: 3);
+  },
+);
 
 /// 다음 생일까지 D-day + 날짜
 ({String dday, String date})? _nextBirthday(String? birthDate) {
@@ -62,29 +65,43 @@ class MemberDetailView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membersState = ref.watch(membersProvider);
-    final activeMembers =
-        membersState.members.where((m) => !m.isFormer).toList();
+    final activeMembers = membersState.members
+        .where((m) => !m.isFormer)
+        .toList();
     final member = membersState.members
         .where((m) => (m.nameEn ?? '').toLowerCase() == nameEn.toLowerCase())
         .firstOrNull;
-    final memberIndex =
-        member == null ? -1 : activeMembers.indexWhere((m) => m.id == member.id);
+    final memberIndex = member == null
+        ? -1
+        : activeMembers.indexWhere((m) => m.id == member.id);
 
     return Scaffold(
       backgroundColor: EColors.paper,
       body: SafeArea(
         child: membersState.isLoading
             ? const Center(
-                child: CircularProgressIndicator(color: EColors.ink, strokeWidth: 2.5),
+                child: CircularProgressIndicator(
+                  color: EColors.ink,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : membersState.error != null
+            ? ContentState(
+                message: '멤버를 불러오지 못했습니다.',
+                onRetry: () => ref.read(membersProvider.notifier).loadMembers(),
               )
             : member == null
-                ? const Center(
-                    child: Text(
-                      '멤버를 찾을 수 없습니다',
-                      style: TextStyle(fontSize: 13.5, color: EColors.mute),
-                    ),
-                  )
-                : _Body(member: member, memberIndex: memberIndex, onInstagram: _openInstagram),
+            ? const Center(
+                child: Text(
+                  '멤버를 찾을 수 없습니다',
+                  style: TextStyle(fontSize: 13.5, color: EColors.mute),
+                ),
+              )
+            : _Body(
+                member: member,
+                memberIndex: memberIndex,
+                onInstagram: _openInstagram,
+              ),
       ),
     );
   }
@@ -95,12 +112,16 @@ class _Body extends ConsumerWidget {
   final int memberIndex;
   final Future<void> Function(String) onInstagram;
 
-  const _Body({required this.member, required this.memberIndex, required this.onInstagram});
+  const _Body({
+    required this.member,
+    required this.memberIndex,
+    required this.onInstagram,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final photos =
-        ref.watch(memberPhotosProvider(member.nameEn ?? '')).asData?.value ?? [];
+    final photosState = ref.watch(memberPhotosProvider(member.nameEn ?? ''));
+    final photos = photosState.asData?.value ?? [];
     final bday = _nextBirthday(member.birthDate);
     final instaId = member.instagram != null
         ? member.instagram!.replaceAll(RegExp(r'/$'), '').split('/').last
@@ -112,13 +133,19 @@ class _Body extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
+            border: Border(
+              bottom: BorderSide(color: EColors.hairline, width: 1),
+            ),
           ),
           child: Row(
             children: [
               IconButton(
                 onPressed: () => context.pop(),
-                icon: const Icon(LucideIcons.chevronLeft, size: 22, color: EColors.esub),
+                icon: const Icon(
+                  LucideIcons.chevronLeft,
+                  size: 22,
+                  color: EColors.esub,
+                ),
               ),
               Text(
                 'MEMBERS${memberIndex >= 0 ? ' / ${(memberIndex + 1).toString().padLeft(2, '0')}' : ''}',
@@ -144,13 +171,15 @@ class _Body extends ConsumerWidget {
                     tween: Tween(begin: 0, end: 1),
                     duration: const Duration(milliseconds: 700),
                     curve: Curves.easeOut,
-                    builder: (context, v, child) => Opacity(opacity: v, child: child),
+                    builder: (context, v, child) =>
+                        Opacity(opacity: v, child: child),
                     child: AspectRatio(
                       aspectRatio: 0.82,
-                      child: CachedNetworkImage(
+                      child: ContentImage(
                         imageUrl: member.imageMedium ?? member.imageUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(color: EColors.canvas),
+                        placeholder: (context, url) =>
+                            Container(color: EColors.canvas),
                       ),
                     ),
                   ),
@@ -178,7 +207,7 @@ class _Body extends ConsumerWidget {
                         delayMs: kStaggerMs,
                         child: Text(
                           (member.nameEn ?? '').toUpperCase(),
-                          style:  TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 4,
@@ -191,7 +220,9 @@ class _Body extends ConsumerWidget {
                         delayMs: kStaggerMs * 2,
                         child: Container(
                           decoration: const BoxDecoration(
-                            border: Border(top: BorderSide(color: EColors.ink, width: 2)),
+                            border: Border(
+                              top: BorderSide(color: EColors.ink, width: 2),
+                            ),
                           ),
                           child: Column(
                             children: [
@@ -200,8 +231,8 @@ class _Body extends ConsumerWidget {
                                 child: Text(
                                   member.birthDate != null
                                       ? member.birthDate!
-                                          .substring(0, 10)
-                                          .replaceAll('-', '. ')
+                                            .substring(0, 10)
+                                            .replaceAll('-', '. ')
                                       : '',
                                   style: const TextStyle(
                                     fontSize: 15,
@@ -216,9 +247,12 @@ class _Body extends ConsumerWidget {
                                   child: GestureDetector(
                                     onTap: () => onInstagram(member.instagram!),
                                     child: Container(
-                                      decoration:  BoxDecoration(
+                                      decoration: BoxDecoration(
                                         border: Border(
-                                          bottom: BorderSide(color: appPalette.primary, width: 1.5),
+                                          bottom: BorderSide(
+                                            color: appPalette.primary,
+                                            width: 1.5,
+                                          ),
                                         ),
                                       ),
                                       child: Text(
@@ -245,7 +279,10 @@ class _Body extends ConsumerWidget {
                   EReveal(
                     child: Container(
                       margin: const EdgeInsets.fromLTRB(22, 10, 22, 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         border: Border.all(color: EColors.hairline),
@@ -254,7 +291,7 @@ class _Body extends ConsumerWidget {
                         children: [
                           Text(
                             bday.dday,
-                            style:  TextStyle(
+                            style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
                               color: appPalette.primary,
@@ -275,7 +312,10 @@ class _Body extends ConsumerWidget {
                               const SizedBox(height: 2),
                               Text(
                                 bday.date,
-                                style: const TextStyle(fontSize: 12.5, color: EColors.mute),
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: EColors.mute,
+                                ),
                               ),
                             ],
                           ),
@@ -285,6 +325,13 @@ class _Body extends ConsumerWidget {
                   ),
 
                 // RECENT PHOTOS
+                if (photosState.hasError)
+                  ContentState(
+                    message: '사진을 불러오지 못했습니다.',
+                    onRetry: () => ref.invalidate(
+                      memberPhotosProvider(member.nameEn ?? ''),
+                    ),
+                  ),
                 if (photos.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(22, 16, 22, 40),
@@ -310,7 +357,7 @@ class _Body extends ConsumerWidget {
                                 onTap: () => context.push(
                                   '/members/${(member.nameEn ?? '').toLowerCase()}/photos',
                                 ),
-                                child:  Text(
+                                child: Text(
                                   '더보기 →',
                                   style: TextStyle(
                                     fontSize: 13,
@@ -334,19 +381,26 @@ class _Body extends ConsumerWidget {
                                     onTap: () => showPhotoLightbox(
                                       context,
                                       photos
-                                          .map((p) => LightboxPhoto(
-                                                mediumUrl: p.mediumUrl ?? p.thumbUrl,
-                                                concept: p.conceptName,
-                                                albumTitle: p.albumTitle,
-                                              ))
+                                          .map(
+                                            (p) => LightboxPhoto(
+                                              mediumUrl:
+                                                  p.mediumUrl ??
+                                                  p.thumbUrl ??
+                                                  p.originalUrl,
+                                              originalUrl: p.originalUrl,
+                                              concept: p.conceptName,
+                                              albumTitle: p.albumTitle,
+                                            ),
+                                          )
                                           .toList(),
                                       i,
                                       heroPrefix: 'member_recent',
                                     ),
                                     child: AspectRatio(
                                       aspectRatio: 0.8,
-                                      child: CachedNetworkImage(
-                                        imageUrl: photos[i].mediumUrl ??
+                                      child: ContentImage(
+                                        imageUrl:
+                                            photos[i].mediumUrl ??
                                             photos[i].thumbUrl ??
                                             '',
                                         fit: BoxFit.cover,

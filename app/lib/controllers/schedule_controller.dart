@@ -387,8 +387,9 @@ class ScheduleSearchController extends Notifier<SearchState> {
   }
 
   /// 다음 페이지 로드
-  Future<void> loadMore() async {
-    if (state.isLoading ||
+  Future<void> loadMore({bool retry = false}) async {
+    if ((!retry && state.error != null) ||
+        state.isLoading ||
         state.isFetchingMore ||
         !state.hasMore ||
         state.searchTerm.isEmpty) {

@@ -127,7 +127,6 @@ class _DashedBottom extends StatelessWidget {
   }
 }
 
-
 /// 생일 카드 — 핑크 그라디언트 + 이름 강조
 class EBirthdayCard extends StatelessWidget {
   final Schedule schedule;
@@ -467,107 +466,123 @@ class SearchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final d = parseDate(schedule.date) ?? DateTime.now();
-    final time = formatHm(schedule.time);
+    final d = parseDate(schedule.date);
+    final time = schedule.isUndated ? null : formatHm(schedule.time);
     final color = parseColor(schedule.categoryColor);
-    final dow = weekdaysKo[d.weekday % 7];
-    // 검색 결과에서는 제목 대신 날짜를 물들인다 (웹과 동일).
-    // 제목의 검색어 강조도 초록이라, 제목까지 칠하면 검색어가 묻히기 때문.
-    final notice = isNoticeSchedule(
-      categoryId: schedule.categoryId,
-      title: schedule.title,
-    );
-
+    final dow = d == null ? '' : weekdaysKo[d.weekday % 7];
     return InkWell(
       onTap: onTap,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: EColors.hairline)),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 15),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 74,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 년도 (연도 구분용)
-                    Text(
-                      '${d.year}',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: EColors.mute,
-                      ),
-                    ),
-                    // 날짜 + 요일 한 줄 (같은 크기·잉크색)
-                    Text(
-                      '${d.month}.${d.day} $dow',
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.visible,
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                        color: notice ? noticeColor : EColors.ink,
-                      ),
-                    ),
-                    if (time != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 1),
-                        child: Text(
-                          time,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: EColors.mute,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+        child: Row(
+          children: [
+            Container(
+              width: 78,
+              padding: const EdgeInsets.only(right: 12),
+              decoration: const BoxDecoration(
+                border: Border(right: BorderSide(color: EColors.hairline)),
               ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _HighlightSearch(
-                      text: decodeHtmlEntities(schedule.title),
-                      term: term,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    d == null ? '날짜' : '${d.year}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                      color: EColors.mute,
                     ),
-                    if (schedule.sourceName != null &&
-                        schedule.sourceName!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                  ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      d == null
+                          ? '미정'
+                          : schedule.isUndated
+                          ? '${d.month}월'
+                          : '${d.month}.${d.day}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
+                        letterSpacing: -1,
+                        color: EColors.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      schedule.isUndated
+                          ? '날짜 미정'
+                          : '$dow${time == null ? '' : ' · $time'}',
+                      style: const TextStyle(fontSize: 12, color: EColors.mute),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
                         child: Text(
-                          schedule.sourceName!,
+                          schedule.categoryName ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            color: EColors.mute,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: color,
                           ),
                         ),
                       ),
-                  ],
-                ),
+                      if (schedule.sourceName?.isNotEmpty ?? false) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            '／',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: EColors.faintLight,
+                            ),
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            schedule.sourceName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: EColors.mute,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _HighlightSearch(
+                    text: decodeHtmlEntities(schedule.title),
+                    term: term,
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Text(
-                schedule.categoryName ?? '',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -584,9 +599,10 @@ class _HighlightSearch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const base = TextStyle(
-      fontSize: 14.5,
+      fontSize: 15,
+      height: 1.55,
       fontWeight: FontWeight.w700,
-      letterSpacing: -0.2,
+      letterSpacing: -0.4,
       color: EColors.ink,
     );
     if (term.isEmpty) {

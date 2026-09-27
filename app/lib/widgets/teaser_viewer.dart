@@ -1,8 +1,8 @@
 /// 티저 뷰어 (이미지 + 동영상) — 앨범 상세에서 분리한 공용 위젯
 library;
 
-
 import 'package:flutter/material.dart';
+import 'content_image.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chewie/chewie.dart';
@@ -15,7 +15,12 @@ import '../services/download_service.dart';
 import 'photo_lightbox.dart';
 
 /// 티저 뷰어 열기
-void showTeaserViewer(BuildContext context, List<Teaser> teasers, int initialIndex) {
+void showTeaserViewer(
+  BuildContext context,
+  List<Teaser> teasers,
+  int initialIndex,
+) {
+  if (teasers.isEmpty) return;
   Navigator.of(context).push(
     PageRouteBuilder(
       opaque: false,
@@ -24,7 +29,9 @@ void showTeaserViewer(BuildContext context, List<Teaser> teasers, int initialInd
           TeaserViewer(teasers: teasers, initialIndex: initialIndex),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
-      transitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
     ),
   );
 }
@@ -34,7 +41,11 @@ class TeaserViewer extends StatefulWidget {
   final List<Teaser> teasers;
   final int initialIndex;
 
-  const TeaserViewer({super.key, required this.teasers, required this.initialIndex});
+  const TeaserViewer({
+    super.key,
+    required this.teasers,
+    required this.initialIndex,
+  });
 
   @override
   State<TeaserViewer> createState() => TeaserViewerState();
@@ -43,6 +54,8 @@ class TeaserViewer extends StatefulWidget {
 class TeaserViewerState extends State<TeaserViewer> {
   late PageController _pageController;
   late int _currentIndex;
+  final Map<int, int> _attempts = {};
+  bool _downloading = false;
 
   @override
   void initState() {
@@ -59,6 +72,7 @@ class TeaserViewerState extends State<TeaserViewer> {
 
   /// 다운로드 (이미지 또는 동영상)
   Future<void> _download() async {
+    if (_downloading) return;
     final teaser = widget.teasers[_currentIndex];
     final isVideo = teaser.mediaType == 'video';
     final url = isVideo
@@ -66,14 +80,23 @@ class TeaserViewerState extends State<TeaserViewer> {
         : teaser.originalUrl;
     if (url == null || url.isEmpty) return;
 
-    final taskId = await downloadImage(url);
-    if (taskId != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('다운로드를 시작합니다'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    setState(() => _downloading = true);
+    try {
+      final taskId = await downloadImage(url);
+      if (taskId == null) throw StateError('Download did not start');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('다운로드를 시작합니다')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('다운로드를 시작하지 못했습니다. 다시 시도해주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
     }
   }
 
@@ -89,54 +112,74 @@ class TeaserViewerState extends State<TeaserViewer> {
         body: Stack(
           children: [
             // 갤러리
-            PhotoViewGallery.builder(
-              pageController: _pageController,
-              itemCount: widget.teasers.length,
-              allowImplicitScrolling: true,
-              onPageChanged: (index) {
-                setState(() => _currentIndex = index);
-              },
-              backgroundDecoration: const BoxDecoration(color: Colors.black),
-              builder: (context, index) {
-                final teaser = widget.teasers[index];
-                final isVideoItem = teaser.mediaType == 'video';
+            Padding(
+              padding: EdgeInsets.only(
+                top: topPadding + 60,
+                bottom: bottomPadding + 56,
+              ),
+              child: PhotoViewGallery.builder(
+                pageController: _pageController,
+                itemCount: widget.teasers.length,
+                allowImplicitScrolling: true,
+                onPageChanged: (index) {
+                  setState(() => _currentIndex = index);
+                },
+                backgroundDecoration: const BoxDecoration(color: Colors.black),
+                builder: (context, index) {
+                  final teaser = widget.teasers[index];
+                  final isVideoItem = teaser.mediaType == 'video';
 
-                // 동영상인 경우 Chewie 플레이어로 재생
-                if (isVideoItem) {
-                  return PhotoViewGalleryPageOptions.customChild(
-                    child: _VideoTeaserPage(teaser: teaser),
-                  );
-                }
+                  // 동영상인 경우 Chewie 플레이어로 재생
+                  if (isVideoItem) {
+                    return PhotoViewGalleryPageOptions.customChild(
+                      child: index == _currentIndex
+                          ? _VideoTeaserPage(
+                              key: ValueKey(index),
+                              teaser: teaser,
+                            )
+                          : const SizedBox.shrink(),
+                    );
+                  }
 
-                // 이미지인 경우
-                final imageUrl = teaser.thumbUrl ?? teaser.originalUrl;
-                if (imageUrl == null || imageUrl.isEmpty) {
-                  return PhotoViewGalleryPageOptions.customChild(
-                    child: const Center(
-                      child: Icon(
-                        LucideIcons.imageOff,
-                        color: Colors.white54,
-                        size: 64,
+                  // 이미지인 경우
+                  final imageUrl = teaser.thumbUrl ?? teaser.originalUrl;
+                  if (imageUrl == null || imageUrl.isEmpty) {
+                    return PhotoViewGalleryPageOptions.customChild(
+                      child: const Center(
+                        child: Icon(
+                          LucideIcons.imageOff,
+                          color: Colors.white54,
+                          size: 64,
+                        ),
                       ),
+                    );
+                  }
+
+                  // 이미지인 경우 PhotoView 사용
+                  return PhotoViewGalleryPageOptions(
+                    imageProvider: CachedNetworkImageProvider(
+                      teaser.originalUrl ?? imageUrl,
+                      cacheKey:
+                          '${teaser.originalUrl ?? imageUrl}:attempt:${_attempts[index] ?? 0}',
+                    ),
+                    errorBuilder: (_, _, _) => MediaRetry(
+                      onRetry: () => setState(() {
+                        _attempts[index] = (_attempts[index] ?? 0) + 1;
+                      }),
+                    ),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 3,
+                    initialScale: PhotoViewComputedScale.contained,
+                    heroAttributes: PhotoViewHeroAttributes(
+                      tag: 'teaser_$index',
                     ),
                   );
-                }
-
-                // 이미지인 경우 PhotoView 사용
-                return PhotoViewGalleryPageOptions(
-                  imageProvider: CachedNetworkImageProvider(
-                    teaser.originalUrl ?? imageUrl,
+                },
+                loadingBuilder: (context, event) => const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white54,
+                    strokeWidth: 2,
                   ),
-                  minScale: PhotoViewComputedScale.contained,
-                  maxScale: PhotoViewComputedScale.covered * 3,
-                  initialScale: PhotoViewComputedScale.contained,
-                  heroAttributes: PhotoViewHeroAttributes(tag: 'teaser_$index'),
-                );
-              },
-              loadingBuilder: (context, event) => const Center(
-                child: CircularProgressIndicator(
-                  color: Colors.white54,
-                  strokeWidth: 2,
                 ),
               ),
             ),
@@ -181,7 +224,7 @@ class TeaserViewerState extends State<TeaserViewer> {
                       child: Align(
                         alignment: Alignment.centerRight,
                         child: GestureDetector(
-                          onTap: _download,
+                          onTap: _downloading ? null : _download,
                           child: const Padding(
                             padding: EdgeInsets.all(4),
                             child: Icon(
@@ -209,7 +252,9 @@ class TeaserViewerState extends State<TeaserViewer> {
                   onTap: (index) {
                     _pageController.animateToPage(
                       index,
-                      duration: const Duration(milliseconds: 300),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                     );
                   },
@@ -226,7 +271,7 @@ class TeaserViewerState extends State<TeaserViewer> {
 class _VideoTeaserPage extends StatefulWidget {
   final Teaser teaser;
 
-  const _VideoTeaserPage({required this.teaser});
+  const _VideoTeaserPage({super.key, required this.teaser});
 
   @override
   State<_VideoTeaserPage> createState() => _VideoTeaserPageState();
@@ -257,34 +302,20 @@ class _VideoTeaserPageState extends State<_VideoTeaserPage> {
       );
       _videoController = videoController;
 
-      await videoController.initialize();
+      await videoController.initialize().timeout(const Duration(seconds: 20));
+      if (!mounted || !identical(_videoController, videoController)) return;
 
       final chewieController = ChewieController(
         videoPlayerController: videoController,
-        autoPlay: false,
+        autoPlay: true,
         looping: false,
         showControls: true,
         allowFullScreen: false,
         allowMuting: true,
         showOptions: false,
         placeholder: Container(color: Colors.black),
-        errorBuilder: (context, errorMessage) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                LucideIcons.alertCircle,
-                color: Colors.white54,
-                size: 48,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '동영상을 재생할 수 없습니다',
-                style: const TextStyle(color: Colors.white54),
-              ),
-            ],
-          ),
-        ),
+        errorBuilder: (_, _) =>
+            MediaRetry(message: '동영상을 재생할 수 없습니다.', onRetry: _retry),
       );
       _chewieController = chewieController;
 
@@ -298,6 +329,18 @@ class _VideoTeaserPageState extends State<_VideoTeaserPage> {
     }
   }
 
+  void _retry() {
+    _chewieController?.dispose();
+    _chewieController = null;
+    _videoController?.dispose();
+    _videoController = null;
+    setState(() {
+      _hasError = false;
+      _isInitialized = false;
+    });
+    _initializePlayer();
+  }
+
   @override
   void dispose() {
     _chewieController?.dispose();
@@ -308,16 +351,7 @@ class _VideoTeaserPageState extends State<_VideoTeaserPage> {
   @override
   Widget build(BuildContext context) {
     if (_hasError) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(LucideIcons.alertCircle, color: Colors.white54, size: 48),
-            SizedBox(height: 8),
-            Text('동영상을 불러올 수 없습니다', style: TextStyle(color: Colors.white54)),
-          ],
-        ),
-      );
+      return MediaRetry(message: '동영상을 불러오지 못했습니다.', onRetry: _retry);
     }
 
     if (!_isInitialized || _chewieController == null) {
@@ -334,4 +368,3 @@ class _VideoTeaserPageState extends State<_VideoTeaserPage> {
     );
   }
 }
-

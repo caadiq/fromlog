@@ -3,13 +3,14 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/content_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/constants.dart';
+import '../../widgets/content_state.dart';
 import '../../models/album.dart';
 import '../../services/albums_service.dart';
-import '../../widgets/editorial.dart';
+import '../../widgets/masonry_scroll_view.dart';
 import '../../widgets/photo_lightbox.dart';
 
 const _typeLabels = {'group': '단체', 'unit': '유닛', 'solo': '개인'};
@@ -55,6 +56,15 @@ class _AlbumGalleryViewState extends State<AlbumGalleryView> {
   bool _isRealConcept(String? c) => c != null && c.toLowerCase() != 'default';
 
   @override
+  void didUpdateWidget(AlbumGalleryView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.albumName != widget.albumName) {
+      _filter = const _FilterAll();
+      _albumFuture = getAlbumByName(widget.albumName);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: EColors.paper,
@@ -64,15 +74,22 @@ class _AlbumGalleryViewState extends State<AlbumGalleryView> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
-                child: CircularProgressIndicator(color: EColors.ink, strokeWidth: 2.5),
+                child: CircularProgressIndicator(
+                  color: EColors.ink,
+                  strokeWidth: 2.5,
+                ),
               );
             }
             if (snapshot.hasError || !snapshot.hasData) {
-              return const Center(
-                child: Text(
-                  '앨범을 찾을 수 없습니다',
-                  style: TextStyle(fontSize: 13.5, color: EColors.mute),
-                ),
+              final missing =
+                  !snapshot.hasError || isMissingContent(snapshot.error);
+              return ContentState(
+                message: missing ? '앨범을 찾을 수 없습니다.' : '앨범을 불러오지 못했습니다.',
+                onRetry: missing
+                    ? null
+                    : () => setState(() {
+                        _albumFuture = getAlbumByName(widget.albumName);
+                      }),
               );
             }
 
@@ -103,7 +120,9 @@ class _AlbumGalleryViewState extends State<AlbumGalleryView> {
                 // 크럼 + 타이틀
                 Container(
                   decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
+                    border: Border(
+                      bottom: BorderSide(color: EColors.hairline, width: 1),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,8 +133,11 @@ class _AlbumGalleryViewState extends State<AlbumGalleryView> {
                           children: [
                             IconButton(
                               onPressed: () => context.pop(),
-                              icon: const Icon(LucideIcons.chevronLeft,
-                                  size: 22, color: EColors.esub),
+                              icon: const Icon(
+                                LucideIcons.chevronLeft,
+                                size: 22,
+                                color: EColors.esub,
+                              ),
                             ),
                             Expanded(
                               child: Text(
@@ -153,25 +175,33 @@ class _AlbumGalleryViewState extends State<AlbumGalleryView> {
                 // 필터: 컨셉 + 타입
                 Container(
                   decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: EColors.hairline, width: 1)),
+                    border: Border(
+                      bottom: BorderSide(color: EColors.hairline, width: 1),
+                    ),
                   ),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 14,
+                    ),
                     child: Row(
                       children: [
                         _Chip(
                           label: 'ALL ${photos.length}',
                           active: _filter is _FilterAll,
-                          onTap: () => setState(() => _filter = const _FilterAll()),
+                          onTap: () =>
+                              setState(() => _filter = const _FilterAll()),
                         ),
                         for (final c in concepts) ...[
                           const SizedBox(width: 6),
                           _Chip(
                             label: c.toUpperCase(),
-                            active: _filter is _FilterConcept &&
+                            active:
+                                _filter is _FilterConcept &&
                                 (_filter as _FilterConcept).concept == c,
-                            onTap: () => setState(() => _filter = _FilterConcept(c)),
+                            onTap: () =>
+                                setState(() => _filter = _FilterConcept(c)),
                           ),
                         ],
                         for (final t in ['group', 'unit', 'solo'])
@@ -179,9 +209,11 @@ class _AlbumGalleryViewState extends State<AlbumGalleryView> {
                             const SizedBox(width: 6),
                             _Chip(
                               label: '${_typeLabels[t]} ${typeCounts[t]}',
-                              active: _filter is _FilterType &&
+                              active:
+                                  _filter is _FilterType &&
                                   (_filter as _FilterType).type == t,
-                              onTap: () => setState(() => _filter = _FilterType(t)),
+                              onTap: () =>
+                                  setState(() => _filter = _FilterType(t)),
                             ),
                           ],
                       ],
@@ -191,38 +223,45 @@ class _AlbumGalleryViewState extends State<AlbumGalleryView> {
 
                 // 2열 masonry
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(10, 14, 10, 56),
-                    child: EMasonryGrid<ConceptPhoto>(
-                      items: filtered,
-                      gap: 10,
-                      ratioOf: (p) => p.aspectRatio,
-                      itemBuilder: (context, p, index) => GestureDetector(
-                        onTap: () => showPhotoLightbox(
-                          context,
-                          filtered
-                              .map((x) => LightboxPhoto(
-                                    mediumUrl: x.mediumUrl ?? x.thumbUrl,
-                                    originalUrl: x.originalUrl,
-                                    members: x.members,
-                                    concept:
-                                        _isRealConcept(x.concept) ? x.concept : null,
-                                  ))
-                              .toList(),
-                          index,
-                          heroPrefix: 'album_gallery',
-                        ),
-                        child: AspectRatio(
-                          aspectRatio: 1 / p.aspectRatio,
-                          child: CachedNetworkImage(
-                            imageUrl: p.thumbUrl ?? p.mediumUrl ?? '',
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(color: EColors.canvas),
+                  child: filtered.isEmpty
+                      ? const ContentState(message: '등록된 사진이 없습니다.')
+                      : MasonryScrollView<ConceptPhoto>(
+                          items: filtered,
+                          gap: 10,
+                          ratioOf: (p) => 1 / p.aspectRatio,
+                          itemBuilder: (context, p, index) => GestureDetector(
+                            onTap: () => showPhotoLightbox(
+                              context,
+                              filtered
+                                  .map(
+                                    (x) => LightboxPhoto(
+                                      mediumUrl: x.mediumUrl ?? x.thumbUrl,
+                                      originalUrl: x.originalUrl,
+                                      members: x.members,
+                                      concept: _isRealConcept(x.concept)
+                                          ? x.concept
+                                          : null,
+                                    ),
+                                  )
+                                  .toList(),
+                              index,
+                              heroPrefix: 'album_gallery',
+                            ),
+                            child: AspectRatio(
+                              aspectRatio: 1 / p.aspectRatio,
+                              child: ContentImage(
+                                imageUrl:
+                                    p.thumbUrl ??
+                                    p.mediumUrl ??
+                                    p.originalUrl ??
+                                    '',
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) =>
+                                    Container(color: EColors.canvas),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
                 ),
               ],
             );

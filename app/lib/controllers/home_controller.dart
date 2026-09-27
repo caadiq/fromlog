@@ -20,6 +20,7 @@ class HomeState {
   final bool isLoading;
   final bool dataLoaded;
   final String? error;
+  final Map<String, String> sectionErrors;
 
   const HomeState({
     this.members = const [],
@@ -28,6 +29,7 @@ class HomeState {
     this.isLoading = true,
     this.dataLoaded = false,
     this.error,
+    this.sectionErrors = const {},
   });
 
   /// 상태 복사 (불변성 유지)
@@ -38,6 +40,7 @@ class HomeState {
     bool? isLoading,
     bool? dataLoaded,
     String? error,
+    Map<String, String>? sectionErrors,
   }) {
     return HomeState(
       members: members ?? this.members,
@@ -46,6 +49,7 @@ class HomeState {
       isLoading: isLoading ?? this.isLoading,
       dataLoaded: dataLoaded ?? this.dataLoaded,
       error: error,
+      sectionErrors: sectionErrors ?? this.sectionErrors,
     );
   }
 }
@@ -60,30 +64,45 @@ class HomeController extends Notifier<HomeState> {
   }
 
   /// 데이터 로드 (멤버, 앨범, 일정)
-  Future<void> loadData() async {
+  int _generation = 0;
+
+  Future<void> loadData({String? section}) async {
+    final generation = ++_generation;
     state = state.copyWith(isLoading: true, error: null);
-
-    try {
-      final results = await Future.wait([
-        getActiveMembers(),
-        getAlbums(), // 전체 목록 (통계 카운트 + 최신 3장 + D-day)
-        getUpcomingSchedules(3),
-      ]);
-
-      state = state.copyWith(
-        members: results[0] as List<Member>,
-        albums: results[1] as List<Album>,
-        schedules: results[2] as List<Schedule>,
-        isLoading: false,
-        dataLoaded: true,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        dataLoaded: true,
-        error: e.toString(),
-      );
+    final errors = {...state.sectionErrors};
+    var members = state.members;
+    var albums = state.albums;
+    var schedules = state.schedules;
+    Future<void> fetch(String key, Future<void> Function() action) async {
+      if (section != null && section != key) return;
+      try {
+        await action();
+        errors.remove(key);
+      } catch (_) {
+        errors[key] = '불러오지 못했습니다.';
+      }
     }
+
+    await Future.wait([
+      fetch('members', () async {
+        members = await getActiveMembers();
+      }),
+      fetch('albums', () async {
+        albums = await getAlbums();
+      }),
+      fetch('schedules', () async {
+        schedules = await getUpcomingSchedules(3);
+      }),
+    ]);
+    if (!ref.mounted || generation != _generation) return;
+    state = state.copyWith(
+      members: members,
+      albums: albums,
+      schedules: schedules,
+      sectionErrors: errors,
+      isLoading: false,
+      dataLoaded: true,
+    );
   }
 }
 

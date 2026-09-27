@@ -104,6 +104,13 @@ void main() {
       expect(find.textContaining('검색된 일정', findRichText: true), findsWidgets);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+      );
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
       expect(find.byType(TextField), findsNothing);
       expect(find.text('한 번 더 누르면 앱이 종료됩니다'), findsNothing);
       expect(tester.takeException(), isNull);

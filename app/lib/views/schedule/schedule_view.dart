@@ -23,6 +23,7 @@ import '../../core/format_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/celebration_dialogs.dart';
+import '../../widgets/content_state.dart';
 
 part 'schedule_view_search.dart';
 part 'schedule_view_calendar.dart';
@@ -223,11 +224,7 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_isSearchMode) {
-          if (_showSuggestions && searchState.results.isNotEmpty) {
-            _hideSuggestionsScreen();
-          } else {
-            _exitSearchMode();
-          }
+          _backFromSearch();
         } else if (_showCalendar) {
           _closeCalendar();
         }

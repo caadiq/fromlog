@@ -13,6 +13,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'fullscreen_playback_recovery.dart';
 import 'youtube_fullscreen.dart';
 import 'youtube_player_controller.dart';
+import '../content_image.dart';
 
 class YoutubeView extends StatefulWidget {
   final String videoId;
@@ -95,6 +96,15 @@ class _YoutubeViewState extends State<YoutubeView> {
     }
   }
 
+  void _retry() {
+    if (_fullscreen.isOpen) return;
+    _playbackRecovery?.cancel();
+    _controller.dispose();
+    setState(() {
+      _controller = _create();
+    });
+  }
+
   @override
   void dispose() {
     _playbackRecovery?.cancel();
@@ -120,18 +130,12 @@ class _YoutubeViewState extends State<YoutubeView> {
               builder: (_, _) {
                 final code = _controller.errorCode;
                 if (code == null) return const SizedBox.shrink();
-                return Positioned(
-                  left: 6,
-                  top: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 3,
-                    ),
-                    color: Colors.black54,
-                    child: Text(
-                      'onError: $code',
-                      style: const TextStyle(fontSize: 11, color: Colors.white),
+                return Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.black87,
+                    child: MediaRetry(
+                      message: '영상을 불러오지 못했습니다.\n오류 $code',
+                      onRetry: _retry,
                     ),
                   ),
                 );

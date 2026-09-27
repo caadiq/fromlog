@@ -5,8 +5,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/content_image.dart';
 import '../../core/constants.dart';
+import '../../widgets/content_state.dart';
 import '../../core/format_utils.dart';
 import '../../models/album.dart';
 import '../../controllers/album_controller.dart';
@@ -80,6 +81,7 @@ class AlbumView extends ConsumerWidget {
     }
 
     final albums = albumState.albums;
+    if (albums.isEmpty) return const ContentState(message: '등록된 앨범이 없습니다.');
 
     // 연도별 그룹 (내림차순)
     final groups = <String, List<Album>>{};
@@ -100,89 +102,89 @@ class AlbumView extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // 페이지 헤더
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(22, 30, 22, 22),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: EColors.hairline, width: 1),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const EFadeUp(
-                  child: OutlineTitle(
-                    solid: 'DISCO',
-                    outline: 'GRAPHY',
-                    fontSize: 42,
-                    letterSpacing: -2,
-                  ),
+            // 페이지 헤더
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(22, 30, 22, 22),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: EColors.hairline, width: 1),
                 ),
-                const SizedBox(height: 10),
-                EFadeUp(
-                  delayMs: kStaggerMs,
-                  child: Text(
-                    '${albums.length} ALBUMS',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.5,
-                      color: EColors.mute,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const EFadeUp(
+                    child: OutlineTitle(
+                      solid: 'DISCO',
+                      outline: 'GRAPHY',
+                      fontSize: 42,
+                      letterSpacing: -2,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // 연도 타임라인
-          Padding(
-            padding: const EdgeInsets.only(bottom: 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final entry in years) ...[
-                  EReveal(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 26, 22, 4),
-                      child: Row(
-                        children: [
-                          Text(
-                            entry.key,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                              color: EColors.ink,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Expanded(child: Hairline()),
-                          const SizedBox(width: 16),
-                          Text(
-                            '${entry.value.length} RELEASE${entry.value.length > 1 ? 'S' : ''}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.5,
-                              color: EColors.mute,
-                            ),
-                          ),
-                        ],
+                  const SizedBox(height: 10),
+                  EFadeUp(
+                    delayMs: kStaggerMs,
+                    child: Text(
+                      '${albums.length} ALBUMS',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.5,
+                        color: EColors.mute,
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 16),
-                    child: _YearGrid(albums: entry.value),
-                  ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+
+            // 연도 타임라인
+            Padding(
+              padding: const EdgeInsets.only(bottom: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final entry in years) ...[
+                    EReveal(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 26, 22, 4),
+                        child: Row(
+                          children: [
+                            Text(
+                              entry.key,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                                color: EColors.ink,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            const Expanded(child: Hairline()),
+                            const SizedBox(width: 16),
+                            Text(
+                              '${entry.value.length} RELEASE${entry.value.length > 1 ? 'S' : ''}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.5,
+                                color: EColors.mute,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 12, 22, 16),
+                      child: _YearGrid(albums: entry.value),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -248,7 +250,7 @@ class _AlbumCard extends StatelessWidget {
           AspectRatio(
             aspectRatio: 1,
             child: cover != null
-                ? CachedNetworkImage(
+                ? ContentImage(
                     imageUrl: cover,
                     fit: BoxFit.cover,
                     placeholder: (context, url) =>

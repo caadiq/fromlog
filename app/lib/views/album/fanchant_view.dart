@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/constants.dart';
+import '../../widgets/content_state.dart';
 import '../../core/fanchant_progress.dart';
 import '../../models/fanchant.dart';
 import 'fanchant_line_view.dart';
@@ -40,11 +41,11 @@ class FanchantView extends StatefulWidget {
 }
 
 class _FanchantViewState extends State<FanchantView>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late Future<Fanchant> _future;
+  int _loadRequest = 0;
   YoutubeController? _player;
   Ticker? _ticker;
-
 
   FanchantProgress? _progress;
   final Map<int, GlobalKey> _paraKeys = {};
@@ -62,11 +63,30 @@ class _FanchantViewState extends State<FanchantView>
     _future = _load();
   }
 
+  @override
+  void didUpdateWidget(FanchantView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.albumName != widget.albumName ||
+        oldWidget.trackTitle != widget.trackTitle) {
+      _ticker?.dispose();
+      _ticker = null;
+      _player = null;
+      _progress = null;
+      _cur = -1;
+      _active = const {};
+      _activeLines = const {};
+      _activeCall = null;
+      _lastPara = -1;
+      _future = _load();
+    }
+  }
+
   Future<Fanchant> _load() async {
+    final request = ++_loadRequest;
     // 주소는 곡 상세와 같은 결이라 곡을 먼저 찾아 id를 얻는다
     final track = await getTrack(widget.albumName, widget.trackTitle);
     final data = await getFanchant(track.id);
-    _prepare(data);
+    if (mounted && request == _loadRequest) _prepare(data);
     return data;
   }
 
@@ -116,7 +136,9 @@ class _FanchantViewState extends State<FanchantView>
     Scrollable.ensureVisible(
       ctx,
       alignment: 0.35, // 다음 가사가 아래로 보이도록 조금 위쪽에
-      duration: const Duration(milliseconds: 420),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 420),
       curve: Curves.easeOutCubic,
     );
   }
@@ -149,7 +171,15 @@ class _FanchantViewState extends State<FanchantView>
                 ),
               );
             }
-            if (snapshot.hasError || !snapshot.hasData) return _notFound();
+            if (snapshot.hasError && !isMissingContent(snapshot.error)) {
+              return ContentState(
+                message: '응원법을 불러오지 못했습니다.',
+                onRetry: () => setState(() {
+                  _future = _load();
+                }),
+              );
+            }
+            if (!snapshot.hasData) return _notFound();
             return _body(snapshot.data!);
           },
         ),
@@ -351,6 +381,4 @@ class _FanchantViewState extends State<FanchantView>
       onSeek: _seek,
     );
   }
-
 }
-

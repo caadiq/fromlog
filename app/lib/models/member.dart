@@ -46,6 +46,7 @@ class Member {
 class MemberPhoto {
   final int id;
   final String? mediumUrl;
+  final String? originalUrl;
   final String? thumbUrl;
   final String? conceptName;
   final String photoType; // 'group' | 'unit' | 'solo'
@@ -56,6 +57,7 @@ class MemberPhoto {
   MemberPhoto({
     required this.id,
     this.mediumUrl,
+    this.originalUrl,
     this.thumbUrl,
     this.conceptName,
     this.photoType = 'group',
@@ -68,6 +70,7 @@ class MemberPhoto {
     return MemberPhoto(
       id: json['id'] as int,
       mediumUrl: json['medium_url'] as String?,
+      originalUrl: json['original_url'] as String?,
       thumbUrl: json['thumb_url'] as String?,
       conceptName: json['concept_name'] as String?,
       photoType: (json['photo_type'] as String?) ?? 'group',

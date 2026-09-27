@@ -61,7 +61,9 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
     if (_calendarPageController.hasClients) {
       _calendarPageController.animateToPage(
         _pageForDate(next),
-        duration: const Duration(milliseconds: 300),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {

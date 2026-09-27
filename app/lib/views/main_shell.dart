@@ -60,7 +60,7 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-/// 에디토리얼 헤더 — 좌 fromis_9 워드마크 + 우 소셜 아이콘 (웹 58px)
+/// 에디토리얼 헤더 — 좌 fromlog 워드마크 + 우 소셜 아이콘 (웹 58px)
 class _EditorialHeader extends StatelessWidget implements PreferredSizeWidget {
   const _EditorialHeader();
 
@@ -85,39 +85,53 @@ class _EditorialHeader extends StatelessWidget implements PreferredSizeWidget {
             padding: const EdgeInsets.symmetric(horizontal: 22),
             child: Row(
               children: [
-                const Text(
-                  'fromis_9',
-                  style: TextStyle(
-                    fontSize: 17.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    color: EColors.ink,
+                GestureDetector(
+                  onTap: () => context.go('/'),
+                  child: const Text(
+                    'fromlog',
+                    style: TextStyle(
+                      fontSize: 17.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: EColors.ink,
+                    ),
                   ),
                 ),
                 const Spacer(),
                 GestureDetector(
                   onTap: () => _open(SocialLinks.youtube),
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(LucideIcons.youtube, size: 18, color: EColors.mute),
+                    padding: EdgeInsets.all(13),
+                    child: Icon(
+                      LucideIcons.youtube,
+                      size: 18,
+                      color: EColors.mute,
+                    ),
                   ),
                 ),
                 GestureDetector(
                   onTap: () => _open(SocialLinks.instagram),
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(LucideIcons.instagram, size: 17, color: EColors.mute),
+                    padding: EdgeInsets.all(13),
+                    child: Icon(
+                      LucideIcons.instagram,
+                      size: 17,
+                      color: EColors.mute,
+                    ),
                   ),
                 ),
                 GestureDetector(
                   onTap: () => _open(SocialLinks.x),
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 8),
+                    padding: const EdgeInsets.all(14.5),
                     child: SvgPicture.string(
                       _xIconSvg,
                       width: 15,
                       height: 15,
-                      colorFilter: const ColorFilter.mode(EColors.mute, BlendMode.srcIn),
+                      colorFilter: const ColorFilter.mode(
+                        EColors.mute,
+                        BlendMode.srcIn,
+                      ),
                     ),
                   ),
                 ),
@@ -160,7 +174,8 @@ class _BottomNavBar extends StatelessWidget {
           height: 50,
           child: Row(
             children: items.map((item) {
-              final isActive = location == item.path ||
+              final isActive =
+                  location == item.path ||
                   (item.path != '/' && location.startsWith(item.path));
               return Expanded(
                 child: InkWell(

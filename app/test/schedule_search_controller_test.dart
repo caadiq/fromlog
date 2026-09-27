@@ -222,7 +222,9 @@ void main() {
       await failedPage;
       expect(state().offset, 2);
       expect(state().isFetchingMore, isFalse);
-      final retry = search.loadMore();
+      await search.loadMore();
+      expect(adapter.requests, hasLength(2));
+      final retry = search.loadMore(retry: true);
       await flushSearch();
       expect(adapter.requests[2].options.queryParameters['offset'], '2');
       adapter.requests[2].succeed([3]);

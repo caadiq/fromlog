@@ -3,6 +3,7 @@ library;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'content_image.dart';
 import 'package:flutter/services.dart';
 
 /// 라이트박스 열기
@@ -20,8 +21,12 @@ void showImageLightbox(
           ImageLightbox(urls: urls, initialIndex: initialIndex),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
-      transitionDuration: const Duration(milliseconds: 140),
-      reverseTransitionDuration: const Duration(milliseconds: 140),
+      transitionDuration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 140),
+      reverseTransitionDuration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 140),
     ),
   );
 }
@@ -50,6 +55,7 @@ class ImageLightboxState extends State<ImageLightbox> {
 
   /// 현재 페이지가 확대(scale>1)된 상태 — PageView 스와이프 차단
   bool _zoomed = false;
+  final Map<int, int> _attempts = {};
 
   @override
   void initState() {
@@ -121,6 +127,13 @@ class ImageLightboxState extends State<ImageLightbox> {
                   child: Center(
                     child: CachedNetworkImage(
                       imageUrl: widget.urls[i],
+                      cacheKey:
+                          '${widget.urls[i]}:attempt:${_attempts[i] ?? 0}',
+                      errorWidget: (_, _, _) => MediaRetry(
+                        onRetry: () => setState(() {
+                          _attempts[i] = (_attempts[i] ?? 0) + 1;
+                        }),
+                      ),
                       fit: BoxFit.contain,
                       placeholder: (_, _) => const SizedBox(
                         width: 28,
