@@ -16,7 +16,7 @@ function MobileBottomNav() {
 
   return (
     <nav
-      className="z-50 flex-shrink-0 border-t border-hairline safe-area-bottom"
+      className="mobile-bottom-nav z-50 flex-shrink-0 border-t border-hairline safe-area-bottom"
       style={{ background: 'rgba(251,251,249,0.92)', backdropFilter: 'blur(14px)' }}
     >
       <div className="flex items-center justify-around py-[15px]">
@@ -30,7 +30,7 @@ function MobileBottomNav() {
               key={item.path}
               to={item.path}
               onClick={() => window.scrollTo(0, 0)}
-              className={`flex-1 text-center text-[11px] font-bold tracking-[0.5px] transition-colors ${
+              className={`flex-1 text-center text-[12px] font-bold tracking-[0.5px] transition-colors ${
                 isActive ? 'text-ink' : 'text-[#B9BCB3]'
               }`}
             >

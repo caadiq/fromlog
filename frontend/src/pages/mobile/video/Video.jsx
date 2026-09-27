@@ -10,7 +10,8 @@ import { videoApi } from '@/api';
 import { OutlineTitle, fadeUp, stagger, Reveal } from '@/components/editorial';
 import { CATEGORY_META } from '@/pages/pc/public/video/Video';
 import { VideoDuration } from '@/components/common';
-import { wideThumb, shortsThumb, onWideThumbError, onWideThumbLoad, onShortsThumbLoad, onShortsThumbError } from '@/utils';
+import VideoThumbnail from '@/components/common/VideoThumbnail';
+import ContentState from '@/components/pc/public/ContentState';
 
 /** 영상 링크 (쇼츠는 쇼츠 URL) */
 export function videoUrl(v) {
@@ -35,23 +36,19 @@ export function MobileVideoCard({ video, showChannel = true }) {
       href={videoUrl(video)}
       target="_blank"
       rel="noopener noreferrer"
-      className="block"
+      className="block min-w-0 break-words"
     >
       <div className="relative aspect-video overflow-hidden bg-canvas-deep">
-        <img
-          src={wideThumb(video.videoId)}
-          alt={video.title}
+        <VideoThumbnail video={video}
           loading="lazy"
           className="h-full w-full object-cover"
-          onError={(e) => onWideThumbError(e, video.videoId)}
-          onLoad={(e) => onWideThumbLoad(e, video.videoId)}
         />
         <VideoDuration seconds={video.duration} videoType={video.videoType} bgClass="bg-ink/65" className="text-[12px]" />
       </div>
       <b className="mt-2 line-clamp-2 text-[13.5px] font-extrabold leading-[1.4] tracking-[-0.2px] text-ink">
         {video.title}
       </b>
-      <span className="mt-1 block text-[11.5px] font-semibold text-mute">
+      <span className="mt-1 line-clamp-2 text-[12px] font-semibold text-mute">
         {showChannel && video.channelName ? `${video.channelName} · ` : ''}
         {fmtShortDate(video.publishedAt)}
       </span>
@@ -66,16 +63,12 @@ export function MobileShortsCard({ video, className = '' }) {
       href={videoUrl(video)}
       target="_blank"
       rel="noopener noreferrer"
-      className={`block ${className}`}
+      className={`block min-w-0 break-words ${className}`}
     >
       <div className="relative overflow-hidden bg-canvas-deep" style={{ aspectRatio: '9/16' }}>
-        <img
-          src={shortsThumb(video.videoId)}
-          alt={video.title}
+        <VideoThumbnail video={video} shorts
           loading="lazy"
           className="h-full w-full object-cover"
-          onError={(e) => onShortsThumbError(e, video.videoId)}
-          onLoad={(e) => onShortsThumbLoad(e, video.videoId)}
         />
       </div>
       <b className="mt-1.5 line-clamp-2 text-[12px] font-extrabold leading-[1.35] tracking-[-0.2px] text-ink">
@@ -88,7 +81,7 @@ export function MobileShortsCard({ video, className = '' }) {
 function MobileVideo() {
   useDocumentTitle('영상');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['videosHome'],
     queryFn: videoApi.getVideosHome,
     staleTime: 5 * 60 * 1000,
@@ -113,6 +106,8 @@ function MobileVideo() {
         </motion.div>
       </motion.div>
 
+      {error && <ContentState onRetry={() => refetch()}>영상을 불러오지 못했습니다.</ContentState>}
+      {!isLoading && !error && !featured && !shorts.length && !Object.values(sections).some(items => items.length) && <ContentState>등록된 영상이 없습니다.</ContentState>}
       {/* 피처드 */}
       {featured ? (
         <Reveal>
@@ -120,20 +115,16 @@ function MobileVideo() {
             href={videoUrl(featured)}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-5 block border border-hairline bg-white"
+            className="mt-5 block min-w-0 break-words border border-hairline bg-white"
           >
             <div className="relative aspect-video overflow-hidden bg-canvas-deep">
-              <img
-                src={wideThumb(featured.videoId)}
-                alt={featured.title}
+              <VideoThumbnail video={featured} loading="eager"
                 className="h-full w-full object-cover"
-                onError={(e) => onWideThumbError(e, featured.videoId)}
-                onLoad={(e) => onWideThumbLoad(e, featured.videoId)}
               />
               <VideoDuration seconds={featured.duration} videoType={featured.videoType} bgClass="bg-ink/65" className="text-[12px]" />
             </div>
             <div className="p-4">
-              <span className="text-[10.5px] font-extrabold tracking-k2 text-primary">
+              <span className="line-clamp-2 text-[12px] font-extrabold tracking-k2 text-primary">
                 LATEST{featured.channelName ? ` · ${featured.channelName.toUpperCase()}` : ''}
               </span>
               <b className="mt-2 line-clamp-2 text-[16px] font-extrabold leading-[1.4] tracking-[-0.3px]">

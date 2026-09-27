@@ -6,8 +6,10 @@ import { WEEKDAYS } from '@/constants';
 export { decodeHtmlEntities, formatXDateTimeWithTime } from '@/utils';
 
 /** 시안 형식 날짜: 2026. 7. 8. (수) 19:00 */
-export function formatFactDate(date, time) {
+export function formatFactDate(date, time, precision) {
   const d = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '날짜 미정';
+  if (precision === 'month') return `${d.getFullYear()}. ${d.getMonth() + 1}. (날짜 미정)`;
   const base = `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}. (${WEEKDAYS[d.getDay()]})`;
   return time ? `${base} ${time.slice(0, 5)}` : base;
 }

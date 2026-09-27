@@ -9,7 +9,7 @@ import { videoApi } from '@/api';
 import { OutlineTitle, fadeUp, stagger, Reveal } from '@/components/editorial';
 import { VideoDuration } from '@/components/common';
 import VideoTitle from './VideoTitle';
-import VideoThumbnail from './VideoThumbnail';
+import VideoThumbnail from '@/components/common/VideoThumbnail';
 import ContentState from '@/components/pc/public/ContentState';
 
 /**

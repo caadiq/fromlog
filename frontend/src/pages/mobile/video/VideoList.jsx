@@ -5,11 +5,12 @@
  * - shorts : 세로 카드 3열
  * - 그 외  : 필터 없음 (쇼츠 제외)
  */
-import { useMemo, useState, useEffect, useRef } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useMemo, useEffect, useRef } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import ChannelSelect from '@/components/common/VideoChannelSelect';
+import ContentState from '@/components/pc/public/ContentState';
 import { useDocumentTitle } from '@/hooks';
 import { videoApi } from '@/api';
 import { fadeUp, stagger, Reveal } from '@/components/editorial';
@@ -17,66 +18,6 @@ import { CATEGORY_META } from '@/pages/pc/public/video/Video';
 import { MobileVideoCard, MobileShortsCard } from './Video';
 
 const PAGE_SIZE = 24;
-
-/** 채널 선택 드롭다운 */
-function ChannelSelect({ channels, value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDocClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('touchstart', onDocClick);
-    document.addEventListener('mousedown', onDocClick);
-    return () => {
-      document.removeEventListener('touchstart', onDocClick);
-      document.removeEventListener('mousedown', onDocClick);
-    };
-  }, [open]);
-
-  const current = channels.find((c) => c.name === value);
-
-  return (
-    <div ref={ref} className="relative w-full">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 border border-hairline bg-white px-3.5 py-2.5 text-[13px] font-extrabold text-ink"
-      >
-        <span className="min-w-0 truncate">
-          {current ? `${current.name} (${current.count})` : '전체 채널'}
-        </span>
-        <ChevronDown size={14} className={`shrink-0 text-mute transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="absolute left-0 right-0 top-[46px] z-20 max-h-[320px] overflow-y-auto border border-ink bg-white shadow-[0_20px_50px_rgba(20,22,19,0.18)]">
-          <button
-            type="button"
-            onClick={() => { onChange(''); setOpen(false); }}
-            className={`w-full px-3.5 py-2.5 text-left text-[13px] font-bold ${!value ? 'bg-canvas text-ink' : 'text-esub'}`}
-          >
-            전체 채널
-          </button>
-          {channels.map((c) => (
-            <button
-              key={c.name}
-              type="button"
-              onClick={() => { onChange(c.name); setOpen(false); }}
-              className={`flex w-full items-center justify-between gap-3 border-t border-hairline px-3.5 py-2.5 text-left text-[13px] font-bold ${
-                value === c.name ? 'bg-canvas text-ink' : 'text-esub'
-              }`}
-            >
-              <span className="min-w-0 truncate">{c.name}</span>
-              <span className="shrink-0 text-[11.5px] text-mute">{c.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function MobileVideoList() {
   const { category: rawCategory } = useParams();
@@ -86,7 +27,14 @@ function MobileVideoList() {
   const meta = isShorts ? { ko: 'SHORTS' } : CATEGORY_META[category] || { ko: '전체' };
   useDocumentTitle(`영상 - ${meta.ko}`);
 
-  const [channel, setChannel] = useState('');
+  const [params, setParams] = useSearchParams();
+  const channel = params.get('channel') || '';
+  const setChannel = value => setParams(prev => {
+    const next = new URLSearchParams(prev);
+    if (value) next.set('channel', value);
+    else next.delete('channel');
+    return next;
+  });
 
   const baseParams = {
     ...(category ? { category } : {}),
@@ -95,7 +43,7 @@ function MobileVideoList() {
     limit: PAGE_SIZE,
   };
 
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, error, refetch, isFetchNextPageError } = useInfiniteQuery({
     queryKey: ['videos', baseParams],
     queryFn: ({ pageParam = 0 }) => videoApi.getVideos({ ...baseParams, offset: pageParam }),
     getNextPageParam: (last) => (last.hasMore ? last.offset + last.limit : undefined),
@@ -117,7 +65,7 @@ function MobileVideoList() {
   const sentinelRef = useRef(null);
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || !hasNextPage) return undefined;
+    if (!el || !hasNextPage || isFetchNextPageError) return undefined;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !isFetchingNextPage) fetchNextPage();
@@ -126,7 +74,7 @@ function MobileVideoList() {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isFetchNextPageError]);
 
   const groups = useMemo(() => {
     const list = [];
@@ -162,8 +110,8 @@ function MobileVideoList() {
 
       {/* 필터 */}
       {hasFilter ? (
-        <div className="mt-4 border-b border-hairline border-t-2 border-t-ink py-3.5">
-          <ChannelSelect channels={facets?.channels || []} value={channel} onChange={setChannel} />
+        <div className="relative z-20 mt-4 border-b border-hairline border-t-2 border-t-ink py-3.5">
+          <ChannelSelect mobile channels={facets?.channels || []} value={channel} onChange={setChannel} />
         </div>
       ) : (
         <div className="mt-4 border-t-2 border-ink" />
@@ -182,6 +130,8 @@ function MobileVideoList() {
             </div>
           ))}
         </div>
+      ) : error && !videos.length ? (
+        <ContentState onRetry={() => refetch()}>영상을 불러오지 못했습니다.</ContentState>
       ) : videos.length === 0 ? (
         <p className="py-20 text-center text-[13.5px] text-mute">조건에 맞는 영상이 없습니다.</p>
       ) : (
@@ -211,6 +161,7 @@ function MobileVideoList() {
         ))
       )}
 
+      {isFetchNextPageError && <ContentState onRetry={() => fetchNextPage()}>다음 영상을 불러오지 못했습니다.</ContentState>}
       <div ref={sentinelRef} className="h-px" />
       {isFetchingNextPage && (
         <p className="mt-8 text-center text-[12.5px] font-bold text-mute">불러오는 중...</p>

@@ -1,3 +1,4 @@
+import { MotionConfig } from 'framer-motion';
 import { useEffect } from 'react';
 import MobileHeader from './Header';
 import MobileBottomNav from './BottomNav';
@@ -11,7 +12,7 @@ import '@/mobile.css';
  * @param {boolean} useCustomLayout - true면 자체 레이아웃 사용
  * @param {boolean} noShadow - 헤더 그림자 숨김
  */
-function MobileLayout({
+function MobileLayoutContent({
   children,
   pageTitle,
   hideHeader = false,
@@ -46,4 +47,6 @@ function MobileLayout({
   );
 }
 
-export default MobileLayout;
+export default function MobileLayout(props) {
+  return <MotionConfig reducedMotion="user"><MobileLayoutContent {...props} /></MotionConfig>;
+}

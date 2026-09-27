@@ -13,13 +13,13 @@ function ScrollToTop() {
 
     // 모바일 레이아웃 스크롤 컨테이너 초기화
     const mobileContent = document.querySelector('.mobile-content');
-    if (mobileContent) {
+    if (mobileContent && mobileContent.dataset.scrollRestoration !== 'manual') {
       mobileContent.scrollTop = 0;
     }
 
     // PC 레이아웃 스크롤 컨테이너 초기화
     const main = document.querySelector('main');
-    if (main) {
+    if (main && main.dataset.scrollRestoration !== 'manual') {
       main.scrollTop = 0;
     }
   }, [pathname]);

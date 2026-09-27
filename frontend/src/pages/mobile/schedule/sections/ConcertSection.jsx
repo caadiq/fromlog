@@ -95,7 +95,7 @@ function MobileConcertSection({ schedule }) {
 
         {/* 팩트 시트 */}
         <div className="mt-5 border-t-2 border-ink">
-          <Fact k="DATE">{formatFactDate(schedule.date, schedule.time)}</Fact>
+          <Fact k="DATE">{formatFactDate(schedule.date, schedule.time, schedule.datePrecision)}</Fact>
           {venue && (
             <Fact k="VENUE">
               {venue.name}

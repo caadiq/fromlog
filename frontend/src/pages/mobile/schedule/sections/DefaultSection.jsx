@@ -13,7 +13,7 @@ function MobileDefaultSection({ schedule }) {
         {decodeHtmlEntities(schedule.title)}
       </h1>
       <div className="mt-5 border-t-2 border-ink">
-        <Fact k="DATE">{formatFactDate(schedule.date, schedule.time)}</Fact>
+        <Fact k="DATE">{formatFactDate(schedule.date, schedule.time, schedule.datePrecision)}</Fact>
       </div>
       {schedule.description && (
         <p className="mt-5 whitespace-pre-wrap text-[15px] leading-[1.7] text-ebody">

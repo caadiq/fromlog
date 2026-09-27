@@ -43,7 +43,7 @@ function MobileFansignSection({ schedule }) {
 
       {/* 팩트 시트 */}
       <div className="mt-[22px] border-t-2 border-ink">
-        <Fact k="DATE">{formatFactDate(schedule.date, schedule.time)}</Fact>
+        <Fact k="DATE">{formatFactDate(schedule.date, schedule.time, schedule.datePrecision)}</Fact>
         {schedule.host && <Fact k="HOST">{schedule.host}</Fact>}
         <Fact k="FORMAT">{meta.fact}</Fact>
         {venue && (

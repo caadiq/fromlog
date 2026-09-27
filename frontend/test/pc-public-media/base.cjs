@@ -10,8 +10,8 @@ const videos = Array.from({ length: 48 }, (_, i) => ({ videoId: `testvid${String
 async function launch() {
   return chromium.launch({ executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox'] });
 }
-async function fixture(browser, viewport = { width: 1440, height: 900 }, reducedMotion = 'no-preference') {
-  const context = await browser.newContext({ viewport, reducedMotion });
+async function fixture(browser, viewport = { width: 1440, height: 900 }, reducedMotion = 'no-preference', contextOptions = {}) {
+  const context = await browser.newContext({ viewport, reducedMotion, ...contextOptions });
   const state = { fail: null, empty: false, delay: 0, detail: {}, requests: [], errors: [] };
   await context.route('**/*', route => new URL(route.request().url()).origin === new URL(origin).origin ? route.continue() : route.abort());
   await context.route('**/test-poster.svg', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600"><rect width="400" height="600" fill="#E8F2E8"/><text x="40" y="90" font-size="36">TEST POSTER</text></svg>' }));
@@ -40,7 +40,16 @@ async function fixture(browser, viewport = { width: 1440, height: 900 }, reduced
   });
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
-  await page.clock.install({ time: new Date("2026-09-26T03:00:00Z") });
+  // Keep native RAF/performance clocks aligned across full navigations; only shift
+  // the wall date for deterministic calendar fixtures (time continues advancing).
+  await context.addInitScript(() => {
+    const NativeDate = Date;
+    const offset = new NativeDate('2026-09-26T03:00:00Z').getTime() - NativeDate.now();
+    window.Date = class extends NativeDate {
+      constructor(...args) { super(...(args.length ? args : [NativeDate.now() + offset])); }
+      static now() { return NativeDate.now() + offset; }
+    };
+  });
   page.on('pageerror', e => state.errors.push(e.message));
   const go = async route => { await page.goto(origin + route); await page.waitForTimeout(1600); };
   return { context, page, state, go };

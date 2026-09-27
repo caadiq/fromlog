@@ -1,14 +1,24 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MIN_YEAR, WEEKDAYS } from '@/constants';
 import { getCategoryInfo } from '@/utils';
 
 const GREEN = 'rgb(var(--c-primary))';
 
 /** 인라인 월 달력 (S_final_picker_mobile 시안) */
-export function CalendarPanel({ viewDate, selectedDate, schedules, onSelectDate, onToday }) {
+export function CalendarPanel({ viewDate, selectedDate, schedules, onSelectDate, onToday, animateMonth = false }) {
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
+  const reduced = useReducedMotion();
+  const index = year * 12 + month;
+  const [movement, setMovement] = useState({ index, direction: 1 });
+  if (movement.index !== index) setMovement({ index, direction: index > movement.index ? 1 : -1 });
+  const variants = {
+    enter: direction => ({ opacity: reduced ? 1 : 0, x: reduced ? 0 : direction * 20 }),
+    center: { opacity: 1, x: 0 },
+    exit: direction => ({ opacity: reduced ? 1 : 0, x: reduced ? 0 : direction * -20 }),
+  };
 
   const cells = useMemo(() => {
     const first = new Date(year, month, 1);
@@ -41,7 +51,11 @@ export function CalendarPanel({ viewDate, selectedDate, schedules, onSelectDate,
   };
 
   return (
-    <div className="bg-white px-5 pb-5 pt-4">
+    <div className="overflow-hidden bg-white px-5 pb-5 pt-4">
+      <AnimatePresence mode="wait" initial={false} custom={movement.direction}>
+      <motion.div key={animateMonth ? index : 'calendar'} data-calendar-month={`${year}-${month + 1}`}
+        custom={movement.direction} variants={variants} initial="enter" animate="center" exit="exit"
+        transition={{ duration: reduced ? 0 : 0.08 }}>
       <div className="mb-1 grid grid-cols-7">
         {WEEKDAYS.map((d, i) => (
           <span
@@ -65,6 +79,7 @@ export function CalendarPanel({ viewDate, selectedDate, schedules, onSelectDate,
               key={date.toISOString()}
               type="button"
               disabled={out}
+              aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일`} aria-pressed={Boolean(sel)}
               onClick={() => onSelectDate(date)}
               className={`relative flex aspect-square flex-col items-center justify-center gap-[3px] text-[14.5px] ${
                 out
@@ -96,6 +111,8 @@ export function CalendarPanel({ viewDate, selectedDate, schedules, onSelectDate,
           );
         })}
       </div>
+      </motion.div>
+      </AnimatePresence>
       <div className="flex justify-center pb-0.5 pt-3.5">
         <button
           type="button"

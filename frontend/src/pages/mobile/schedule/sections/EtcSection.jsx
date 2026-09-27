@@ -23,7 +23,7 @@ function MobileEtcSection({ schedule }) {
   };
 
   // D-day (지난 일정은 '종료')
-  const dday = calcDday(schedule.date);
+  const dday = schedule.datePrecision === 'month' ? null : calcDday(schedule.date);
   const ddayLabel = dday === null ? null : dday === 0 ? 'D-DAY' : dday > 0 ? `D-${dday}` : '종료';
   const ddayTone = dday !== null && dday < 0 ? 'bg-canvas-deep text-mute' : 'bg-green-soft text-green-deep';
 
@@ -75,7 +75,7 @@ function MobileEtcSection({ schedule }) {
         {/* 팩트 시트 */}
         <div className="mt-[22px] border-t-2 border-ink">
           <Fact k="DATE">
-            {formatFactDate(schedule.date, schedule.time)}
+            {formatFactDate(schedule.date, schedule.time, schedule.datePrecision)}
             {ddayLabel && (
               <span className={`ml-2 inline-block px-2 py-[2px] text-[11.5px] font-extrabold tracking-k1 ${ddayTone}`}>
                 {ddayLabel}

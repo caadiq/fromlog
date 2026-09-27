@@ -113,12 +113,13 @@ function MobileLightbox({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
+          role="dialog" aria-label="이미지 뷰어"
           className="fixed inset-0 bg-black z-[60] flex flex-col"
         >
           {/* 상단 헤더 */}
           <div className="absolute top-0 left-0 right-0 flex items-center px-4 py-3 z-20">
             <div className="flex-1 flex justify-start">
-              <button onClick={onClose} className="text-white/80 p-1">
+              <button onClick={onClose} aria-label="이미지 뷰어 닫기" className="flex h-11 w-11 items-center justify-center text-white/80">
                 <X size={24} />
               </button>
             </div>
@@ -129,12 +130,12 @@ function MobileLightbox({
             )}
             <div className="flex-1 flex justify-end items-center gap-2">
               {hasPhotoInfo && (
-                <button onClick={openInfo} className="text-white/80 p-1">
+                <button onClick={openInfo} aria-label="사진 정보" className="flex h-11 w-11 items-center justify-center text-white/80">
                   <Info size={22} />
                 </button>
               )}
               {showDownload && (
-                <button onClick={downloadImage} className="text-white/80 p-1">
+                <button onClick={downloadImage} aria-label="이미지 다운로드" className="flex h-11 w-11 items-center justify-center text-white/80">
                   <Download size={22} />
                 </button>
               )}

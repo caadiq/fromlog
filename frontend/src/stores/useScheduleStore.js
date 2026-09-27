@@ -14,7 +14,7 @@ const useScheduleStore = create((set, get) => ({
   selectedCategories: [],
 
   // ===== 날짜 관련 =====
-  selectedDate: undefined, // undefined: 오늘, null: 전체, Date: 특정 날짜
+  selectedDate: undefined, // undefined: today; null: all; YYYY-MM-DD: selected day
   currentDate: new Date(),
 
   // ===== 뷰 관련 =====

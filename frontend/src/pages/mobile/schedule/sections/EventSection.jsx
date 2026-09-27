@@ -68,7 +68,7 @@ function MobileEventSection({ schedule }) {
         )}
 
         <div className="mt-[22px] border-t-2 border-ink">
-          <Fact k="DATE">{formatFactDate(schedule.date, schedule.time)}</Fact>
+          <Fact k="DATE">{formatFactDate(schedule.date, schedule.time, schedule.datePrecision)}</Fact>
           {venue && (
             <Fact k="VENUE">
               {venue.name}

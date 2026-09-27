@@ -81,7 +81,7 @@ function MobileYoutubeSection({ schedule }) {
 
         {/* 팩트 */}
         <div className={channelName ? '' : 'mt-4 border-t border-hairline'}>
-          <Fact k="DATE">{formatFactDate(schedule.date, schedule.time)}</Fact>
+          <Fact k="DATE">{formatFactDate(schedule.date, schedule.time, schedule.datePrecision)}</Fact>
         </div>
       </div>
     </div>

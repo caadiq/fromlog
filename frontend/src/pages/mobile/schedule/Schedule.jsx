@@ -1,10 +1,11 @@
 import ScheduleSearchRow from '@/components/common/ScheduleSearchRow';
 import { useScheduleSearchNavigation } from '@/hooks/common/useScheduleSearchNavigation';
 import { getMonthCategories } from '@/utils/schedule';
+import ContentState from '@/components/pc/public/ContentState';
 import { CalendarPanel, YearMonthPanel } from '@/components/mobile/schedule/CalendarPanels';
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -43,6 +44,9 @@ import { EASE } from '@/components/editorial';
 import { useDocumentTitle, useRecentSearches, useSuggestions, useInfiniteScheduleSearch } from '@/hooks/common';
 
 const GREEN = 'rgb(var(--c-primary))';
+
+// Keep only recent navigation entries; detail Back restores the matching list.
+const scrollPositions = new Map();
 
 /** 에디토리얼 일정 행 (S_final_main_mobile 시안) */
 function EventRow({ schedule, onClick, dashed = false, subtitle: subtitleOverride }) {
@@ -102,12 +106,14 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
   const { isSearchMode, searchInput, setSearchInput, searchTerm, setSearchTerm,
     setIsSearchMode, backFromSearch } = useScheduleSearchNavigation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const reduced = useReducedMotion();
   const [fabOpen, setFabOpen] = useState(false);
 
   // zustand store에서 상태 가져오기
   const {
     selectedDate: storedSelectedDate,
-    setSelectedDate: setStoredSelectedDate,
+    currentDate,
     selectedCategories,
     setSelectedCategories,
     toggleCategory,
@@ -116,10 +122,18 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
   // 선택된 날짜 (store에 없으면 오늘 날짜). 매 렌더 새 Date 생성을 막아
   // 다수 useMemo/useEffect가 불필요하게 재실행되지 않도록 참조 안정화.
   const selectedDate = useMemo(
-    () => storedSelectedDate || new Date(),
-    [storedSelectedDate]
+    () => {
+      if (storedSelectedDate instanceof Date) return storedSelectedDate;
+      if (storedSelectedDate) return new Date(`${storedSelectedDate}T00:00:00`);
+      if (storedSelectedDate === null) return new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      return new Date();
+    },
+    [storedSelectedDate, currentDate]
   );
-  const setSelectedDate = (date) => setStoredSelectedDate(date);
+  const setSelectedDate = (date) => useScheduleStore.setState({
+    selectedDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+    currentDate: new Date(date.getFullYear(), date.getMonth(), 1),
+  });
 
   // 카드 클릭 핸들러 (안정적 참조로 카드 React.memo 유지)
   const handleCardClick = useCallback((schedule) => {
@@ -169,9 +183,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
 
   // 달력 월 변경
   const changeCalendarMonth = (delta) => {
-    const newDate = new Date(calendarViewDate);
-    newDate.setMonth(newDate.getMonth() + delta);
-    setCalendarViewDate(newDate);
+    setCalendarViewDate(date => new Date(date.getFullYear(), date.getMonth() + delta, 1));
   };
 
   // 검색 무한 스크롤 (평탄화·카테고리·하단 자동로드 포함)
@@ -198,42 +210,48 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
     return searchResults.filter((s) => selectedCategories.includes(s.category_id));
   }, [searchResults, selectedCategories]);
 
+  const scrollKey = `${location.key}:${isSearchMode ? `search:${searchTerm}` : selectedDate.toDateString()}:${selectedCategories.join(',')}`;
+  const rememberScroll = event => {
+    scrollPositions.delete(scrollKey);
+    scrollPositions.set(scrollKey, {
+      top: event.currentTarget.scrollTop,
+      measurements: isSearchMode ? virtualizer.measurementsCache.slice() : [],
+    });
+    if (scrollPositions.size > 30) scrollPositions.delete(scrollPositions.keys().next().value);
+  };
+
   // 가상 스크롤 설정
   const virtualizer = useVirtualizer({
     count: isSearchMode && searchTerm ? filteredSearchResults.length : 0,
     getScrollElement: () => contentRef.current,
+    initialOffset: () => scrollPositions.get(scrollKey)?.top || 0,
+    initialMeasurementsCache: scrollPositions.get(scrollKey)?.measurements || [],
     estimateSize: () => 72,
     overscan: 5,
   });
-
-  // 검색어 변경 시 스크롤 위치 초기화
-  useEffect(() => {
-    if (searchTerm) {
-      requestAnimationFrame(() => {
-        virtualizer.scrollToOffset(0);
-        if (contentRef.current) {
-          contentRef.current.scrollTop = 0;
-        }
-      });
-    }
-  }, [searchTerm]);
-
 
   // 일정 데이터 로드
   const viewYear = selectedDate.getFullYear();
   const viewMonth = selectedDate.getMonth() + 1;
 
-  const { data: schedules = [], isLoading: loading } = useQuery({
+  const { data: schedules = [], isLoading: loading, error: scheduleError, refetch: retrySchedules } = useQuery({
     queryKey: ['schedules', viewYear, viewMonth],
     queryFn: () => getSchedules(viewYear, viewMonth),
   });
 
-  // 달력 표시용 일정 데이터
+  // Restore the matching history entry; new searches and dates start at the top.
+  const scrollLoading = isSearchMode ? searchLoading : loading;
+  useLayoutEffect(() => {
+    if (!scrollLoading && contentRef.current) {
+      contentRef.current.scrollTop = scrollPositions.get(scrollKey)?.top || 0;
+    }
+  }, [scrollKey, scrollLoading]);
+
   const calendarYear = calendarViewDate.getFullYear();
   const calendarMonth = calendarViewDate.getMonth() + 1;
   const isSameMonth = viewYear === calendarYear && viewMonth === calendarMonth;
 
-  const { data: calendarSchedules = [] } = useQuery({
+  const { data: calendarSchedules = [], error: calendarError, refetch: retryCalendar } = useQuery({
     queryKey: ['schedules', calendarYear, calendarMonth],
     queryFn: () => getSchedules(calendarYear, calendarMonth),
     enabled: !isSameMonth,
@@ -306,8 +324,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
   const changeMonth = (delta) => {
     if (delta < 0 && !canGoPrevMonth) return;
 
-    const newDate = new Date(selectedDate);
-    newDate.setMonth(newDate.getMonth() + delta);
+    const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + delta, 1);
 
     const today = new Date();
     if (newDate.getFullYear() === today.getFullYear() && newDate.getMonth() === today.getMonth()) {
@@ -320,12 +337,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
     setCalendarViewDate(newDate);
   };
 
-  // 날짜 변경 시 스크롤 초기화
-  useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = 0;
-    }
-  }, [selectedDate]);
+
 
 
   // 해당 달의 모든 날짜 배열
@@ -416,16 +428,17 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
       const selectedDay = selectedDate.getDate();
       const buttons = dateScrollRef.current.querySelectorAll('button');
       if (buttons[selectedDay - 1]) {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           buttons[selectedDay - 1].scrollIntoView({
-            behavior: 'smooth',
+            behavior: reduced ? 'instant' : 'smooth',
             inline: 'center',
             block: 'nearest',
           });
         }, 50);
+        return () => clearTimeout(timer);
       }
     }
-  }, [selectedDate, isSearchMode, showPanel]);
+  }, [selectedDate, isSearchMode, showPanel, reduced]);
 
   // 검색 실행 핸들러
   const handleSearch = (term) => {
@@ -582,7 +595,8 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.25, ease: EASE }}
-                  className="overflow-hidden border-b border-hairline"
+                  className="overflow-y-auto overscroll-contain border-b border-hairline"
+                  style={{ maxHeight: 'calc(100dvh - 140px)' }}
                 >
                   <div
                     className="scrollbar-hide flex items-center gap-1.5 overflow-x-auto px-5 py-3.5"
@@ -679,6 +693,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                 <button
                   type="button"
                   aria-label="달력"
+                  aria-expanded={showPanel}
                   onClick={togglePanel}
                   className={showPanel ? 'text-primary' : 'text-ebody'}
                 >
@@ -700,8 +715,9 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: EASE }}
-                  className="overflow-hidden border-b border-hairline"
+                  transition={{ duration: reduced ? 0 : 0.3, ease: EASE }}
+                  className="overflow-y-auto overscroll-contain border-b border-hairline"
+                  style={{ maxHeight: 'calc(100dvh - 140px)' }}
                 >
                   <ScheduleLinkPanel />
                 </motion.div>
@@ -709,15 +725,16 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
             </AnimatePresence>
 
             {/* 인라인 달력 / 년월 픽커 패널 */}
-            <AnimatePresence initial={false}>
+            <AnimatePresence initial={false} mode="wait">
               {showPanel && (
                 <motion.div
                   key={ymMode ? 'ym-panel' : 'cal-panel'}
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: EASE }}
-                  className="overflow-hidden border-b border-hairline"
+                  transition={{ duration: reduced ? 0 : 0.3, ease: EASE }}
+                  className="overflow-y-auto overscroll-contain border-b border-hairline"
+                  style={{ maxHeight: 'calc(100dvh - 140px)' }}
                 >
                   {ymMode ? (
                     <YearMonthPanel
@@ -730,7 +747,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                       }}
                     />
                   ) : (
-                    <CalendarPanel
+                    <CalendarPanel animateMonth
                       viewDate={calendarViewDate}
                       selectedDate={selectedDate}
                       schedules={panelDotSchedules}
@@ -738,6 +755,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                       onToday={handlePanelToday}
                     />
                   )}
+                  {(isSameMonth ? scheduleError : calendarError) && <ContentState onRetry={() => isSameMonth ? retrySchedules() : retryCalendar()}>일정을 불러오지 못했습니다.</ContentState>}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -765,6 +783,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
                       <button
                         key={date.getDate()}
                         type="button"
+                        aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일`} aria-pressed={sel}
                         onClick={() => {
                           setSelectedDate(date);
                           setCalendarViewDate(date);
@@ -848,7 +867,7 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
       </div>
 
       {/* 컨텐츠 영역 */}
-      <div className="mobile-content bg-paper" ref={contentRef}>
+      <div className="mobile-content bg-paper" ref={contentRef} onScroll={rememberScroll} data-scroll-restoration="manual">
         {isSearchMode ? (
           /* ── 검색 결과 ── */
           <motion.div
@@ -1032,6 +1051,8 @@ function MobileSchedule({ onCardClick, hideCelebration = false, onMenuClick, onA
 
             {loading ? (
               <div className="py-20 text-center text-[14.5px] text-mute">로딩 중...</div>
+            ) : scheduleError ? (
+              <ContentState onRetry={() => retrySchedules()}>일정을 불러오지 못했습니다.</ContentState>
             ) : (
               <motion.div
                 key={selectedDate.toDateString()}

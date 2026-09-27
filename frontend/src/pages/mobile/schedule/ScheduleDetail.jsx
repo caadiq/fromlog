@@ -1,9 +1,10 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionConfig } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getSchedule } from '@/api';
+import ContentState from '@/components/pc/public/ContentState';
 import { EASE } from '@/components/editorial';
 import { useDocumentTitle } from '@/hooks/common';
 
@@ -52,10 +53,10 @@ function MobileScheduleDetail() {
     data: schedule,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['schedule', id],
     queryFn: () => getSchedule(id),
-    placeholderData: keepPreviousData,
     retry: false,
   });
 
@@ -76,6 +77,10 @@ function MobileScheduleDetail() {
         </div>
       </div>
     );
+  }
+
+  if (error && error.status !== 404) {
+    return <div className="mobile-layout-container bg-paper"><div className="mobile-content px-5"><ContentState onRetry={() => refetch()}>일정을 불러오지 못했습니다.</ContentState><Link to="/schedule" className="block py-3 text-center">일정 목록</Link></div></div>;
   }
 
   if (error || !schedule) {
@@ -142,7 +147,7 @@ function MobileScheduleDetail() {
       <div className="mobile-layout-container bg-paper text-ink">
         {header}
         <motion.div
-          className="mobile-content"
+          className="mobile-content min-w-0 [overflow-wrap:anywhere]"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: EASE }}
@@ -158,7 +163,7 @@ function MobileScheduleDetail() {
     <div className="mobile-layout-container bg-paper text-ink">
       {header}
       <motion.div
-        className="mobile-content"
+        className="mobile-content min-w-0 [overflow-wrap:anywhere]"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
@@ -169,4 +174,6 @@ function MobileScheduleDetail() {
   );
 }
 
-export default MobileScheduleDetail;
+export default function MobileScheduleDetailWithMotion() {
+  return <MotionConfig reducedMotion="user"><MobileScheduleDetail /></MotionConfig>;
+}
