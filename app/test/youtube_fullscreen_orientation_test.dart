@@ -7,11 +7,15 @@ import 'package:fromis9/widgets/youtube/fullscreen_playback_recovery.dart';
 import 'package:fromis9/widgets/youtube/youtube_fullscreen.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
   final calls = <MethodCall>[];
 
   setUp(() {
     calls.clear();
+    binding.platformDispatcher.views.single.physicalSize = const Size(
+      600,
+      1000,
+    );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
           calls.add(call);
@@ -19,6 +23,7 @@ void main() {
         });
   });
   tearDown(() {
+    binding.platformDispatcher.views.single.resetPhysicalSize();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
@@ -28,19 +33,88 @@ void main() {
       .map((call) => call.arguments)
       .toList();
 
+  testWidgets('exit covers landscape detail until portrait layout is ready', (
+    tester,
+  ) async {
+    final navigator = GlobalKey<NavigatorState>();
+    final fullscreen = YoutubeFullscreenSession();
+    var nativeExit = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigator,
+        home: const Scaffold(body: Text('detail toolbar')),
+      ),
+    );
+    final done = fullscreen.show(
+      navigator: navigator.currentState!,
+      content: const Text('native video'),
+      aspectRatio: 16 / 9,
+      onFlutterExit: () => nativeExit++,
+    );
+    await tester.pumpAndSettle();
+    tester.view.physicalSize = const Size(1000, 600);
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(YoutubeFullScreen), findsOneWidget);
+    expect(nativeExit, 0);
+    expect(getOrientations().last, ['DeviceOrientation.portraitUp']);
+    expect(
+      calls.where((c) => c.arguments == 'SystemUiMode.edgeToEdge'),
+      isEmpty,
+    );
+    // Repeated Back must stay inside the transition, not pop the detail page.
+    await tester.binding.handlePopRoute();
+    tester.view.physicalSize = const Size(600, 1000);
+    await tester.pumpAndSettle();
+    await done;
+    expect(nativeExit, 1);
+    expect(find.byType(YoutubeFullScreen), findsNothing);
+    expect(find.text('detail toolbar'), findsOneWidget);
+    expect(calls.last.arguments, 'SystemUiMode.edgeToEdge');
+  });
+
+  testWidgets('ignored rotation has a bounded exit fallback', (tester) async {
+    final navigator = GlobalKey<NavigatorState>();
+    final fullscreen = YoutubeFullscreenSession();
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigator,
+        home: const Scaffold(body: Text('detail')),
+      ),
+    );
+    final done = fullscreen.show(
+      navigator: navigator.currentState!,
+      content: const Text('video'),
+      aspectRatio: 16 / 9,
+      onFlutterExit: () {},
+    );
+    await tester.pumpAndSettle();
+    tester.view.physicalSize = const Size(1000, 600);
+    await tester.pumpAndSettle();
+    fullscreen.hide();
+    await tester.pumpAndSettle();
+    expect(find.byType(YoutubeFullScreen), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1300));
+    await tester.pumpAndSettle();
+    await done;
+    expect(find.byType(YoutubeFullScreen), findsNothing);
+  });
+
   for (final action in ['none', 'touch', 'background', 'hide', 'back']) {
-    testWidgets('playback recovery waits for rotation and respects $action', (
+    testWidgets('playback recovery starts promptly and respects $action', (
       tester,
     ) async {
       final navigator = GlobalKey<NavigatorState>();
       final fullscreen = YoutubeFullscreenSession();
       var reads = 0;
       var resumes = 0;
+      final sample = Completer<int?>();
       final recovery = FullscreenPlaybackRecovery(
         wasPlaying: true,
         readState: () async {
           reads++;
-          return 2;
+          return sample.future;
         },
         resumeIfPaused: () async {
           resumes++;
@@ -61,7 +135,7 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(reads, 0);
+      expect(reads, 1);
       switch (action) {
         case 'touch':
           await tester.tap(find.text('video'));
@@ -77,14 +151,15 @@ void main() {
         case 'back':
           await tester.binding.handlePopRoute();
       }
+      sample.complete(2);
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
       expect(resumes, action == 'none' ? 1 : 0);
-      expect(reads, action == 'none' ? 1 : 0);
+      expect(reads, 1);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       fullscreen.hide();
       await tester.pumpAndSettle();
       await done;
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     });
   }
 
@@ -209,6 +284,7 @@ void main() {
       fullscreen.hide();
       await tester.pumpAndSettle();
       await done;
+      final beforeLateRotation = modesCount(calls);
       rotation.complete();
       await tester.pump(const Duration(seconds: 1));
       expect(getOrientations().last, ['DeviceOrientation.portraitUp']);
@@ -216,11 +292,12 @@ void main() {
         (c) => c.method == 'SystemChrome.setEnabledSystemUIMode',
       );
       expect(modes.last.arguments, 'SystemUiMode.edgeToEdge');
-      expect(
-        modes.any((c) => c.arguments == 'SystemUiMode.immersiveSticky'),
-        isFalse,
-      );
+      expect(modesCount(calls), beforeLateRotation);
       expect(tester.takeException(), isNull);
     },
   );
 }
+
+int modesCount(List<MethodCall> calls) => calls
+    .where((c) => c.method == "SystemChrome.setEnabledSystemUIMode")
+    .length;

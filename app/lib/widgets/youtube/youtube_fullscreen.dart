@@ -1,28 +1,27 @@
-/// 전체화면 재생.
-///
-/// Preserve the source WebView and restore playback after native view attachment.
-///
-/// 앱 화면이라 방향·상태바는 우리가 잡는다.
-/// 가로 영상은 눕히고 세로 영상(쇼츠)은 세운다.
+/// Keep the source WebView mounted while coordinating native fullscreen rotation.
 library;
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'fullscreen_playback_recovery.dart';
 
 class YoutubeFullScreen extends StatefulWidget {
-  /// 웹뷰가 넘겨준 전체화면 내용
   final Widget content;
-
-  /// 영상 비율 — 눕힐지 세울지 정한다
   final double aspectRatio;
   final FullscreenPlaybackRecovery? playbackRecovery;
+  final ValueListenable<bool> closing;
+  final VoidCallback onReadyToClose;
 
   const YoutubeFullScreen({
     super.key,
     required this.content,
     required this.aspectRatio,
+    required this.closing,
+    required this.onReadyToClose,
     this.playbackRecovery,
   });
 
@@ -31,17 +30,56 @@ class YoutubeFullScreen extends StatefulWidget {
 }
 
 class _YoutubeFullScreenState extends State<YoutubeFullScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  late final AnimationController _veil;
+  Completer<void>? _portraitReady;
+  Timer? _portraitTimeout;
+  bool _leaving = false;
+  bool _canPop = false;
+  bool _restored = false;
+  bool _reducedMotion = false;
+
   bool get _isPortraitVideo => widget.aspectRatio < 1;
+  bool get _isPortrait {
+    final size = View.of(context).physicalSize;
+    return size.height >= size.width;
+  }
 
   @override
   void initState() {
     super.initState();
+    _veil = AnimationController(
+      vsync: this,
+      value: 1,
+      duration: const Duration(milliseconds: 160),
+    );
     WidgetsBinding.instance.addObserver(this);
-    _enter();
+    widget.closing.addListener(_onClosing);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.closing.value) {
+        _leave();
+        return;
+      }
+      // Do not hold playback recovery behind a fixed rotation delay.
+      widget.playbackRecovery?.start();
+      _veil.reverse();
+      _enter();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    _veil.duration = _reducedMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 160);
   }
 
   Future<void> _enter() async {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    if (!mounted || _leaving) return;
     await SystemChrome.setPreferredOrientations(
       _isPortraitVideo
           ? const [DeviceOrientation.portraitUp]
@@ -50,14 +88,72 @@ class _YoutubeFullScreenState extends State<YoutubeFullScreen>
               DeviceOrientation.landscapeRight,
             ],
     );
-    if (!mounted) return;
+    if (!mounted || _leaving) return;
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    // 회전이 끝난 뒤 한 번 더 걸어야 한다 — 먼저만 걸면 회전하면서 상태바가 되살아난다
-    await Future<void>.delayed(const Duration(milliseconds: 450));
+  }
+
+  @override
+  void didChangeMetrics() {
     if (!mounted) return;
-    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    if (!mounted) return;
-    widget.playbackRecovery?.start();
+    if (_leaving) {
+      if (_isPortrait) _completePortraitWait();
+    } else {
+      // Rotation may restore system bars. Reapply after actual metrics change,
+      // rather than delaying playback for an assumed rotation duration.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_leaving) {
+          SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+        }
+      });
+    }
+  }
+
+  void _onClosing() {
+    if (widget.closing.value) _leave();
+  }
+
+  void _completePortraitWait() {
+    _portraitTimeout?.cancel();
+    final ready = _portraitReady;
+    if (ready != null && !ready.isCompleted) ready.complete();
+  }
+
+  Future<void> _waitForPortrait() async {
+    if (_isPortrait) return;
+    _portraitReady = Completer<void>();
+    // Some devices ignore orientation requests. Never trap users in a black view.
+    _portraitTimeout = Timer(
+      const Duration(milliseconds: 1200),
+      _completePortraitWait,
+    );
+    await _portraitReady!.future;
+  }
+
+  Future<void> _leave() async {
+    if (_leaving || !mounted) return;
+    setState(() => _leaving = true);
+    widget.playbackRecovery?.cancel();
+    try {
+      // Keep the underlying landscape toolbar covered throughout rotation.
+      await _veil.forward().orCancel;
+      if (!mounted) return;
+      await SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+      ]);
+      if (!mounted) return;
+      await _waitForPortrait();
+      if (!mounted) return;
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      if (!mounted) return;
+      _restored = true;
+      setState(() => _canPop = true);
+      // Let the detail screen lay out at portrait size before revealing it.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      widget.onReadyToClose();
+    } on TickerCanceled {
+      // The owning screen was removed during the transition.
+    }
   }
 
   @override
@@ -68,22 +164,48 @@ class _YoutubeFullScreenState extends State<YoutubeFullScreen>
   @override
   void dispose() {
     widget.playbackRecovery?.cancel();
+    widget.closing.removeListener(_onClosing);
     WidgetsBinding.instance.removeObserver(this);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
+    _completePortraitWait();
+    _veil.dispose();
+    if (!_restored) {
+      // Fallback for route replacement / owner disposal outside normal exit.
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // 나가기는 유튜브 자체 버튼(또는 뒤로가기)이 처리한다 —
-    // 웹뷰가 onHideCustomWidget으로 알려주면 이 화면이 닫힌다
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) => widget.playbackRecovery?.cancel(),
-        child: SizedBox.expand(child: widget.content),
+    return PopScope<void>(
+      canPop: _canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: AbsorbPointer(
+          absorbing: _leaving,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => widget.playbackRecovery?.cancel(),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                widget.content,
+                IgnorePointer(
+                  child: FadeTransition(
+                    opacity: _veil.drive(CurveTween(curve: Curves.easeInOut)),
+                    child: const ColoredBox(color: Colors.black),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -91,9 +213,10 @@ class _YoutubeFullScreenState extends State<YoutubeFullScreen>
 
 /// Own the exact fullscreen route so a delayed WebView callback cannot pop detail.
 class YoutubeFullscreenSession {
-  Route<void>? _route;
+  PageRoute<void>? _route;
   bool _hiddenByWebView = false;
   FullscreenPlaybackRecovery? _playbackRecovery;
+  ValueNotifier<bool>? _closing;
 
   bool get isOpen => _route != null;
 
@@ -110,35 +233,63 @@ class YoutubeFullscreenSession {
     }
     _playbackRecovery = playbackRecovery;
     _hiddenByWebView = false;
-    final route = PageRouteBuilder<void>(
-      // Keep the source platform view visible to Android while its custom view
-      // covers it. Offstaging the WebView can pause HTML media on fullscreen entry.
-      // The black fullscreen Scaffold still covers and blocks the detail screen.
+    final closing = ValueNotifier(false);
+    _closing = closing;
+    late final PageRoute<void> route;
+    var nativeNotified = false;
+    void notifyNative() {
+      if (_hiddenByWebView || nativeNotified) return;
+      nativeNotified = true;
+      onFlutterExit();
+    }
+
+    route = PageRouteBuilder<void>(
+      // Keep the source platform view onstage; the black surface covers detail.
       opaque: false,
       maintainState: true,
       allowSnapshotting: false,
       transitionDuration: Duration.zero,
-      reverseTransitionDuration: Duration.zero,
+      reverseTransitionDuration:
+          MediaQuery.disableAnimationsOf(navigator.context)
+          ? Duration.zero
+          : const Duration(milliseconds: 160),
+      transitionsBuilder: (_, animation, _, child) => FadeTransition(
+        opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
+        child: child,
+      ),
       pageBuilder: (_, _, _) => YoutubeFullScreen(
         content: content,
         aspectRatio: aspectRatio,
         playbackRecovery: playbackRecovery,
+        closing: closing,
+        onReadyToClose: () {
+          if (!identical(_route, route) || !route.isActive) return;
+          notifyNative();
+          if (route.isCurrent) {
+            navigator.pop();
+          } else {
+            navigator.removeRoute(route);
+          }
+        },
       ),
     );
     _route = route;
     await navigator.push(route);
     playbackRecovery?.cancel();
+    // Keep the session occupied until the exit animation and platform view end.
+    await route.completed;
+    closing.dispose();
     if (!identical(_route, route)) return;
     _route = null;
+    _closing = null;
     _playbackRecovery = null;
-    if (!_hiddenByWebView) onFlutterExit();
+    notifyNative();
   }
 
   void hide() {
     _playbackRecovery?.cancel();
-    final route = _route;
-    if (route == null) return;
+    if (_route == null) return;
     _hiddenByWebView = true;
-    if (route.isActive) route.navigator?.removeRoute(route);
+    _closing?.value = true;
   }
 }

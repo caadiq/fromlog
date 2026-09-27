@@ -70,7 +70,7 @@ APP_AUDIT_OUTPUT=/tmp/fromlog-app-validation flutter test --no-pub test/app_layo
 
 ## Android 실기기 확인 대기
 
-기기가 없어서 아래 항목은 완료로 표시하지 않는다. ADB 연결 기기 또는 Android 에뮬레이터가 준비되면 재개한다. 사용자 기기에서의 관찰 결과도 확인 근거에 추가할 수 있다.
+실물 휴대폰에서 아래 항목을 모두 확인하지 않아 완료로 표시하지 않는다. 2026-09-27 Waydroid 연결 후 YouTube 전환 일부를 직접 확인했으며, 아래 후속 기록과 구분한다. 사용자 기기에서의 관찰 결과도 확인 근거에 추가할 수 있다.
 
 - [ ] Otto 업데이트 설치 후 새 버전으로 실행. 설치 권한 거부/허용, 실패 재시도, 필수 업데이트 게이트.
 - [ ] YouTube 일반/쇼츠 재생, 제목·YouTube 로고를 눌러 앱 연결, 설치되지 않은 경우 외부 브라우저 연결.
@@ -112,3 +112,36 @@ APP_AUDIT_OUTPUT=/tmp/fromlog-app-validation flutter test --no-pub test/app_layo
 - **실기기 확인 대기**: 재생 중 전체화면 진입 후 재생 버튼을 다시 누르지 않아도 이어지는지, 원래 일시정지 상태는 유지되는지, 전체화면 종료 후 세로로 돌아오는지 확인한다. 자동 검사는 native WebView 영상·소리의 무중단 전환을 보장하지 않는다. native show 콜백보다 먼저 pause 이벤트가 전달되는 기기에서는 진입 시 상태를 추가 확인해야 한다.
 
 - Otto **2.0.0+136 / Android versionCode 2136** 선택 업데이트 발행 완료. arm64 릴리스 빌드·업로드 성공 및 2135 기준 업데이트 API의 2136 응답 확인. 웹 배포·push 없음.
+
+
+## 2026-09-27 전체화면 전환·초기 재생 위치·Waydroid 검증
+
+### 피드백과 변경
+
+- **+136 사용자 확인**: 전체화면에서 멈춘 채로 남는 증상은 해결. 추가 요청은 진입 시 짧은 멈춤, 종료 시 가로 툴바 노출, 양방향 전환 효과, 재생 1~2초 후 전체화면 진입 시 처음으로 돌아가는 문제다.
+- 복구 시작을 회전/시스템 바 처리 후 450ms 대기에서 첫 전체화면 프레임으로 당겼다. 상태 조회 간격은 200ms에서 50ms로 줄이며, 최대 2초 관찰·최대 1회 재생 명령·직접 터치/백그라운드/종료 취소 제한은 유지한다.
+- 전체화면 진입 직전 위치를 저장한다. 원래 재생 중이며 현재 위치가 0.75초 이하이고 기존 위치보다 0.5초 이상 뒤로 돌아간 경우에만, 동일 JS 작업에서 상태를 재검사하고 기존 위치로 1회 seek한다. ended/unstarted/cued 및 정상 진행에는 적용하지 않는다. 재생 복구 직후 드러나는 초기화도 관찰하며 반복 재생 명령은 보내지 않는다.
+- 상태 변경 전에 보간 위치를 저장하고, 일시정지 중에는 위치 보간 타이머를 진행시키지 않도록 보완했다.
+- 종료 버튼과 OS Back을 같은 종료 흐름으로 처리한다. 검은 덮개 아래에서 세로 방향을 요청하고 실제 창 크기 변경 및 상세 레이아웃 프레임을 기다린 후 시스템 바/상세를 표시한다. 회전을 무시하는 기기는 1.2초 제한으로 화면 갇힘을 방지한다.
+- 160ms 페이드로 진입·종료를 연결하고 동작 줄이기 설정에서는 페이드를 생략한다. 종료 중 반복 입력은 차단한다. 원래 WebView와 컨트롤러는 유지한다.
+
+### 직접 확인한 결과와 한계
+
+- 사용자가 Ubuntu 데스크톱/Waydroid를 실행해 ADB 연결을 열었다. Android 13 Waydroid, Google WebView 151.0.7922.202에서 설치·조작·캡처·화면 녹화·IFrame 상태 조회를 수행했다.
+- 서버는 x86_64지만 앱의 Kakao 지도 라이브러리는 ARM 전용이다. x64 테스트 빌드는 `libK3fAndroid.so` 아키텍처 불일치로 시작 중 종료됐다. 앱 코드를 우회하지 않고 **arm64 빌드 + 설치된 libndk_translation**으로 실행했다.
+- 스프 9/24 일정의 실제 YouTube 영상: 약 **1.105초** 재생 후 전체화면 진입 → 플레이어가 **0초/paused**로 초기화됨을 재현 → 수정 로직이 **1.113초**로 복구 → 3초 뒤 **3.228초/playing**, 종료 후 **5.777초/playing** 확인.
+- 별도 일시정지 진입/OS Back 왕복은 **76.449555초/paused**를 유지했다. YouTube 종료 버튼과 OS Back 모두 상세로 복귀했다.
+- YouTube IFrame 내부 관찰에서 `onVisibilityChange → stopVideo → load` 호출이 확인됐다. 전체화면 native 뷰로 넘어가는 동안 영상이 재로드되는 경로가 있어, 이번 변경을 완전 무중단 재생으로 표현하지 않는다. Android 소스 WebView의 Hybrid Composition도 비교했으나 같은 초기화가 관찰되어 적용하지 않았다.
+- 창 최대화 후 가로 전체화면/세로 상세 복귀를 녹화하고 프레임으로 점검했다. 가로 상세 툴바가 먼저 드러나는 대신 검은 전환 화면 아래에서 세로로 복귀한다. Waydroid는 ARM 변환·데스크톱 창 환경이라 실제 폰의 프레임/음성 연속성 및 체감 지연의 대체 검증은 아니다.
+- 녹화 및 표본: `/tmp/fromlog-transition.mp4`, `/tmp/fromlog-transition-frames.jpg`, `/tmp/fromlog-waydroid-entry-samples.json`, `/tmp/fromlog-waydroid-media-audit.json`. 후속 비교 실행은 `/tmp/fromlog-waydroid-early-playback.json`을 갱신하므로 본문의 첫 테스트 수치와 구분한다.
+
+### 자동 검사와 재검사
+
+- 관련 Flutter 테스트 **39개 통과**, 실제 생성한 위치 복구 JavaScript를 상태/위치 조합 **180개**로 실행하여 정상 진행·미시작·종료·NaN에는 seek하지 않는지 확인했다.
+- 추가 위젯 검사는 가로 상태에서 종료 요청 후 세로 metrics 전까지 화면 유지, 반복 Back, 회전 미지원 시 제한 시간 종료를 포함한다. 재생 복구 직후 위치 초기화·취소 중 늦은 응답도 검사한다.
+- `flutter analyze --no-pub`: error/warning 없음, 기존 info 10개. 로그: `/tmp/fromlog-fullscreen-final-tests.log`, `/tmp/fromlog-fullscreen-final-analyze.log`.
+- 실제 폰 재검사: 재생 1~2초/10초 이상 각각에서 전체화면 진입, 일시정지 진입, YouTube 종료 버튼/OS Back 복귀, 세로 화면 툴바와 시스템 바 표시 순서. 진입 시 짧은 멈춤의 체감은 별도 확인한다.
+- 참고: [Flutter fullscreen custom widget 수명](https://github.com/flutter/packages/blob/main/packages/webview_flutter/webview_flutter_android/README.md), [화면 크기 변경 통지](https://api.flutter.dev/flutter/widgets/WidgetsBindingObserver/didChangeMetrics.html), [Back 처리](https://api.flutter.dev/flutter/widgets/PopScope-class.html).
+
+- Otto **2.0.0+137 / Android versionCode 2137** 선택 업데이트 발행 완료. arm64 릴리스 빌드·업로드 성공 및 2136 기준 업데이트 API의 2137 응답 확인. 웹 배포·push 없음.
+- Waydroid의 비교 실험용 debug 앱을 제거하고 최종 arm64 릴리스 **2137**을 설치했다. 패키지 버전과 홈 화면 실행을 확인했으며 테스트용 CDP 포워딩을 정리했다. Waydroid는 실행 상태로 유지한다.

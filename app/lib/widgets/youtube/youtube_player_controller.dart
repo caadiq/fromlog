@@ -17,6 +17,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'youtube_links.dart';
+import 'fullscreen_position_script.dart';
 
 /// 재생 상태 (유튜브 IFrame API 값 그대로)
 enum YtState { unstarted, ended, playing, paused, buffering, cued }
@@ -158,12 +159,13 @@ class YoutubeController extends ChangeNotifier {
         );
         notifyListeners();
       case 'state':
+        final positionBeforeStateChange = position;
         _state = _stateOf((data['s'] as num?)?.toInt() ?? -1);
         // 멈추면 흐른 시간도 멈춰야 위치가 앞서 나가지 않는다
         if (_state == YtState.playing) {
           _since.start();
         } else {
-          _lastPos = position;
+          _lastPos = positionBeforeStateChange;
           _since
             ..stop()
             ..reset();
@@ -177,8 +179,9 @@ class YoutubeController extends ChangeNotifier {
           milliseconds: ((data['t'] as num? ?? 0) * 1000).round(),
         );
         _since
-          ..reset()
-          ..start();
+          ..stop()
+          ..reset();
+        if (isPlaying) _since.start();
         if (_duration == Duration.zero && data['d'] != null) {
           _duration = Duration(
             milliseconds: ((data['d'] as num) * 1000).round(),
@@ -216,6 +219,19 @@ class YoutubeController extends ChangeNotifier {
     await webview.runJavaScript(
       'if (player && player.getPlayerState && player.getPlayerState() === 2) player.playVideo();',
     );
+  }
+
+  Future<bool> repairFullscreenPositionIfReset(Duration before) async {
+    if (_disposed ||
+        !_ready ||
+        _openingExternal ||
+        before.inMilliseconds < 750) {
+      return false;
+    }
+    final result = await webview.runJavaScriptReturningResult(
+      fullscreenPositionRepairScript(before),
+    );
+    return result == true || result == 'true';
   }
 
   Future<void> play() => webview.runJavaScript('play()');

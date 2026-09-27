@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fromis9/services/api_client.dart';
 import 'package:fromis9/services/push_navigation.dart';
@@ -234,6 +234,17 @@ void main() {
     tester,
   ) async {
     final key = GlobalKey<NavigatorState>();
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (_) async => null,
+    );
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+    tester.view.physicalSize = const Size(600, 1000);
+    addTearDown(tester.view.resetPhysicalSize);
     final fullscreen = YoutubeFullscreenSession();
     var nativeExit = 0;
     await tester.pumpWidget(
@@ -256,6 +267,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
+    await flush(tester);
     await tester.pumpAndSettle();
     expect(nativeExit, 1);
     fullscreen.hide();

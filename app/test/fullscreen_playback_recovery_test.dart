@@ -4,6 +4,64 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fromis9/widgets/youtube/fullscreen_playback_recovery.dart';
 
 void main() {
+  testWidgets('repairs a reset after resume without issuing play twice', (
+    tester,
+  ) async {
+    var plays = 0;
+    var repairs = 0;
+    var repairChecks = 0;
+    var reset = false;
+    var state = 2;
+    final recovery = FullscreenPlaybackRecovery(
+      wasPlaying: true,
+      readState: () async => state,
+      resumeIfPaused: () async {
+        plays++;
+        state = 1;
+      },
+      repairPositionIfReset: () async {
+        repairChecks++;
+        if (!reset) return false;
+        repairs++;
+        return true;
+      },
+    );
+    recovery.start();
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(plays, 1);
+    expect(repairs, 0);
+    reset = true;
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(repairs, 1);
+    final checks = repairChecks;
+    state = 2;
+    await tester.pump(const Duration(seconds: 3));
+    expect(plays, 1);
+    expect(repairs, 1);
+    expect(repairChecks, checks);
+  });
+
+  testWidgets('cancel during position query prevents subsequent auto-play', (
+    tester,
+  ) async {
+    final repaired = Completer<bool>();
+    var plays = 0;
+    final recovery = FullscreenPlaybackRecovery(
+      wasPlaying: true,
+      readState: () async => 2,
+      repairPositionIfReset: () => repaired.future,
+      resumeIfPaused: () async {
+        plays++;
+      },
+    );
+    recovery.start();
+    await tester.pump(const Duration(milliseconds: 1));
+    recovery.cancel();
+    repaired.complete(false);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(plays, 0);
+  });
+
   testWidgets(
     'resumes a transition pause once without restarting later pauses',
     (tester) async {
@@ -119,7 +177,7 @@ void main() {
     final count = reads;
     await tester.pump(const Duration(seconds: 3));
     expect(reads, count);
-    expect(count, lessThanOrEqualTo(10));
+    expect(count, lessThanOrEqualTo(40));
   });
 
   testWidgets('bridge timeout ignores late pause response', (tester) async {

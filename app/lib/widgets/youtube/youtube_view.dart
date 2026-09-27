@@ -63,10 +63,13 @@ class _YoutubeViewState extends State<YoutubeView> {
         }
         if (_fullscreen.isOpen) return;
         _playbackRecovery?.cancel();
+        final positionBeforeFullscreen = c.position;
         final recovery = FullscreenPlaybackRecovery(
           wasPlaying: c.isPlaying,
           readState: c.readPlaybackState,
           resumeIfPaused: c.resumeFullscreenPlaybackIfPaused,
+          repairPositionIfReset: () =>
+              c.repairFullscreenPositionIfReset(positionBeforeFullscreen),
         );
         _playbackRecovery = recovery;
         debugPrint('[yt-fullscreen] enter: ${c.state.name}');
