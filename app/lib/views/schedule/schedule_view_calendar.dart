@@ -66,7 +66,9 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
       );
     } else {
       _refresh(() => _calendarViewDate = next);
-      ref.read(scheduleProvider.notifier).loadCalendarMonth(next.year, next.month);
+      ref
+          .read(scheduleProvider.notifier)
+          .loadCalendarMonth(next.year, next.month);
     }
   }
 
@@ -127,8 +129,8 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
                         color: i == 0
                             ? EColors.calSun
                             : i == 6
-                                ? EColors.calSat
-                                : EColors.mute,
+                            ? EColors.calSat
+                            : EColors.mute,
                       ),
                     ),
                   ),
@@ -169,8 +171,10 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-              decoration: BoxDecoration(border: Border.all(color: appPalette.primary)),
-              child:  Text(
+              decoration: BoxDecoration(
+                border: Border.all(color: appPalette.primary),
+              ),
+              child: Text(
                 '오늘',
                 style: TextStyle(
                   fontSize: 13,
@@ -222,6 +226,7 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
         }
 
         return GestureDetector(
+          key: ValueKey('calendar-day-${date.year}-${date.month}-${date.day}'),
           onTap: outside
               ? null
               : () {
@@ -259,14 +264,18 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
                             return Container(
                               width: 5,
                               height: 5,
-                              margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 1.5,
+                              ),
                               decoration: BoxDecoration(
                                 color: parseColor(s.categoryColor),
                                 shape: BoxShape.circle,
                                 boxShadow: sel
                                     ? [
                                         BoxShadow(
-                                          color: Colors.white.withValues(alpha: 0.9),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
                                           spreadRadius: 1.5,
                                         ),
                                       ]
@@ -307,8 +316,8 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
               color: selected
                   ? EColors.ink
                   : isNow
-                      ? appPalette.primary
-                      : EColors.hairline,
+                  ? appPalette.primary
+                  : EColors.hairline,
             ),
           ),
           child: Text(
@@ -319,8 +328,8 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
               color: selected
                   ? Colors.white
                   : isNow
-                      ? appPalette.primary
-                      : EColors.ebody,
+                  ? appPalette.primary
+                  : EColors.ebody,
             ),
           ),
         ),
@@ -371,7 +380,11 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
                 behavior: HitTestBehavior.opaque,
                 child: const Padding(
                   padding: EdgeInsets.all(4),
-                  child: Icon(Icons.chevron_right, size: 18, color: EColors.esub),
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: EColors.esub,
+                  ),
                 ),
               ),
             ],
@@ -397,8 +410,11 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
                     selected: years[i] == _calendarViewDate.year,
                     isNow: years[i] == now.year,
                     onTap: () {
-                      final next =
-                          DateTime(years[i], _calendarViewDate.month, 1);
+                      final next = DateTime(
+                        years[i],
+                        _calendarViewDate.month,
+                        1,
+                      );
                       _refresh(() => _calendarViewDate = next);
                       _syncCalendarPage(next);
                     },
@@ -432,11 +448,15 @@ extension _ScheduleCalendarPart on _ScheduleViewState {
                         return cell(
                           label: '$month',
                           selected: month == _calendarViewDate.month,
-                          isNow: month == now.month &&
+                          isNow:
+                              month == now.month &&
                               _calendarViewDate.year == now.year,
                           onTap: () {
-                            final next =
-                                DateTime(_calendarViewDate.year, month, 1);
+                            final next = DateTime(
+                              _calendarViewDate.year,
+                              month,
+                              1,
+                            );
                             _refresh(() {
                               _calendarViewDate = next;
                               _showYearMonthPicker = false;

@@ -44,10 +44,12 @@ class _UpdateDialogState extends State<UpdateDialog> {
       _error = null;
       _progress = 0;
     });
+    _sub?.cancel();
     _sub = UpdateService()
         .downloadAndInstall(widget.info)
         .listen(
           (event) {
+            if (!mounted) return;
             switch (event.status) {
               case OtaStatus.DOWNLOADING:
                 final p = double.tryParse(event.value ?? '0') ?? 0;
@@ -79,6 +81,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
             }
           },
           onError: (e) {
+            if (!mounted) return;
             setState(() {
               _error = '업데이트에 실패했습니다.\n$e';
               _busy = false;
@@ -93,11 +96,12 @@ class _UpdateDialogState extends State<UpdateDialog> {
     return PopScope(
       canPop: !info.mandatory && !_busy,
       child: AlertDialog(
+        scrollable: true,
         title: Row(
           children: [
             Icon(Icons.system_update, color: _accent),
             const SizedBox(width: 8),
-            Text('새 버전 ${info.versionName}'),
+            Expanded(child: Text('새 버전 ${info.versionName}')),
           ],
         ),
         content: Column(

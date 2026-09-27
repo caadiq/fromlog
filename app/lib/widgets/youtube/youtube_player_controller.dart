@@ -41,7 +41,14 @@ class YoutubeController extends ChangeNotifier {
     this.autoPlay = false,
   }) {
     _lastPos = startAt;
-    _init();
+    unawaited(
+      _init().catchError((Object error) {
+        if (!_disposed) {
+          errorCode = -1;
+          notifyListeners();
+        }
+      }),
+    );
   }
 
   final String videoId;
@@ -82,6 +89,7 @@ class YoutubeController extends ChangeNotifier {
   }
 
   bool _openingExternal = false;
+  bool _disposed = false;
 
   Future<void> _init() async {
     webview = WebViewController()
@@ -104,7 +112,7 @@ class YoutubeController extends ChangeNotifier {
     await webview.setNavigationDelegate(
       NavigationDelegate(onNavigationRequest: _onNavigationRequest),
     );
-    await webview.loadHtmlString(_html, baseUrl: _host);
+    if (!_disposed) await webview.loadHtmlString(_html, baseUrl: _host);
   }
 
   NavigationDecision _onNavigationRequest(NavigationRequest request) {
@@ -135,7 +143,13 @@ class YoutubeController extends ChangeNotifier {
   }
 
   void _onMessage(JavaScriptMessage msg) {
-    final data = jsonDecode(msg.message) as Map<String, dynamic>;
+    if (_disposed) return;
+    final Map<String, dynamic> data;
+    try {
+      data = jsonDecode(msg.message) as Map<String, dynamic>;
+    } catch (_) {
+      return;
+    }
     switch (data['e']) {
       case 'ready':
         _ready = true;
@@ -171,6 +185,20 @@ class YoutubeController extends ChangeNotifier {
           );
         }
     }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _since.stop();
+    unawaited(
+      webview
+          .runJavaScript(
+            'clearInterval(timer); if (player && player.destroy) player.destroy();',
+          )
+          .catchError((Object _) {}),
+    );
+    super.dispose();
   }
 
   Future<void> play() => webview.runJavaScript('play()');

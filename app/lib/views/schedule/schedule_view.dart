@@ -73,7 +73,18 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
   @override
   void initState() {
     super.initState();
-    _calendarPageController = PageController(initialPage: _initialPage);
+    _calendarPageController = PageController(
+      initialPage: _initialPage,
+      keepPage: false,
+      onAttach: (_) {
+        // The calendar is mounted after its opening animation has started.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _calendarPageController.hasClients) {
+            _calendarPageController.jumpToPage(_pageForDate(_calendarViewDate));
+          }
+        });
+      },
+    );
     // 검색 무한 스크롤 리스너
     _searchScrollController.addListener(_onSearchScroll);
     _loadScheduleLinks();
@@ -223,111 +234,135 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
       },
       child: ColoredBox(
         color: EColors.paper,
-        child: Column(
-          children: [
-            // 툴바 (검색 모드 전환 애니메이션)
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 340),
-              switchInCurve: Curves.easeInOutCubic,
-              switchOutCurve: Curves.easeInOutCubic,
-              transitionBuilder: (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
-              child: _isSearchMode
-                  ? KeyedSubtree(
-                      key: const ValueKey('search_toolbar'),
-                      child: _buildSearchToolbar(),
-                    )
-                  : KeyedSubtree(
-                      key: const ValueKey('normal_toolbar'),
-                      child: _buildToolbar(scheduleState, controller),
-                    ),
-            ),
-            // 고정 링크 패널 — 달력과 같은 자리·같은 애니메이션
-            if (!_isSearchMode)
-              ExpandFade(
-                expanded: _showLinks,
-                openDuration: const Duration(milliseconds: 250),
-                closeDuration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-                child: ScheduleLinkPanel(links: _links),
-              ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Column(
+              children: [
+                // 툴바 (검색 모드 전환 애니메이션)
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 340),
+                  switchInCurve: Curves.easeInOutCubic,
+                  switchOutCurve: Curves.easeInOutCubic,
+                  transitionBuilder: (child, animation) =>
+                      FadeTransition(opacity: animation, child: child),
+                  child: _isSearchMode
+                      ? KeyedSubtree(
+                          key: const ValueKey('search_toolbar'),
+                          child: _buildSearchToolbar(),
+                        )
+                      : KeyedSubtree(
+                          key: const ValueKey('normal_toolbar'),
+                          child: _buildToolbar(scheduleState, controller),
+                        ),
+                ),
+                // Bound the combined panels during transitions as well as at rest.
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight:
+                        (constraints.maxHeight -
+                                MediaQuery.paddingOf(context).top -
+                                88)
+                            .clamp(0.0, double.infinity),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 고정 링크 패널 — 달력과 같은 자리·같은 애니메이션
+                        if (!_isSearchMode)
+                          ExpandFade(
+                            expanded: _showLinks,
+                            openDuration: const Duration(milliseconds: 250),
+                            closeDuration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                            child: ScheduleLinkPanel(links: _links),
+                          ),
 
-            // 툴바 아래 패널 — 웹 1:1
-            //  · 열기/닫기: ExpandFade — height 0↔auto + opacity 동시(닫힐 때 페이드아웃하며
-            //    접혀 빈 공간 없음). 열기(600)/닫기(440) 속도 분리.
-            //  · cal↔ym: 내부 SlideUpCover(새 패널이 아래서 올라와 덮음) + AnimatedSize(높이 즉시 반영)
-            if (!_isSearchMode)
-              ExpandFade(
-                expanded: _showCalendar,
-                // 앱은 easeInOut + 웹보다 조금 빠르게(250ms)
-                openDuration: const Duration(milliseconds: 250),
-                closeDuration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-                child: ClipRect(
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 460),
-                    curve: Curves.easeInOutCubic,
-                    alignment: Alignment.topCenter,
-                    child: SlideUpCover(
-                      duration: const Duration(milliseconds: 460),
-                      child: _showYearMonthPicker
-                          ? KeyedSubtree(
-                              key: const ValueKey('ym'),
-                              child: _buildYearMonthPanel(),
-                            )
-                          : KeyedSubtree(
-                              key: const ValueKey('cal'),
-                              child: _buildMonthGrid(scheduleState, controller),
+                        // 툴바 아래 패널 — 웹 1:1
+                        //  · 열기/닫기: ExpandFade — height 0↔auto + opacity 동시(닫힐 때 페이드아웃하며
+                        //    접혀 빈 공간 없음). 열기(600)/닫기(440) 속도 분리.
+                        //  · cal↔ym: 내부 SlideUpCover(새 패널이 아래서 올라와 덮음) + AnimatedSize(높이 즉시 반영)
+                        if (!_isSearchMode)
+                          ExpandFade(
+                            expanded: _showCalendar,
+                            // 앱은 easeInOut + 웹보다 조금 빠르게(250ms)
+                            openDuration: const Duration(milliseconds: 250),
+                            closeDuration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                            child: ClipRect(
+                              child: AnimatedSize(
+                                duration: const Duration(milliseconds: 460),
+                                curve: Curves.easeInOutCubic,
+                                alignment: Alignment.topCenter,
+                                child: SlideUpCover(
+                                  duration: const Duration(milliseconds: 460),
+                                  child: _showYearMonthPicker
+                                      ? KeyedSubtree(
+                                          key: const ValueKey('ym'),
+                                          child: _buildYearMonthPanel(),
+                                        )
+                                      : KeyedSubtree(
+                                          key: const ValueKey('cal'),
+                                          child: _buildMonthGrid(
+                                            scheduleState,
+                                            controller,
+                                          ),
+                                        ),
+                                ),
+                              ),
                             ),
+                          ),
+                        // 스트립 + 필터 (즉시, 웹 {!showPanel && ...}) — 패널 접힘과 함께 위로 올라옴
+                        if (!_isSearchMode && !_showCalendar) ...[
+                          _buildDateSelector(scheduleState, controller),
+                          Container(height: 1, color: EColors.hairline),
+                          _buildCategoryFilter(scheduleState, controller),
+                        ],
+                      ],
                     ),
                   ),
                 ),
-              ),
-            // 스트립 + 필터 (즉시, 웹 {!showPanel && ...}) — 패널 접힘과 함께 위로 올라옴
-            if (!_isSearchMode && !_showCalendar) ...[
-              _buildDateSelector(scheduleState, controller),
-              Container(height: 1, color: EColors.hairline),
-              _buildCategoryFilter(scheduleState, controller),
-            ],
-            // 일정 목록, 추천 검색어, 또는 검색 결과 (전환·날짜 변경 시 부드러운 페이드업)
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 360),
-                switchInCurve: Curves.easeInOutCubic,
-                switchOutCurve: Curves.easeInOutCubic,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.03),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
+                // 일정 목록, 추천 검색어, 또는 검색 결과 (전환·날짜 변경 시 부드러운 페이드업)
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 360),
+                    switchInCurve: Curves.easeInOutCubic,
+                    switchOutCurve: Curves.easeInOutCubic,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.03),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    ),
+                    // 이전 자식을 남기지 않고 즉시 교체 (웹처럼) — 검색 진입 시 일정 목록이
+                    // 잠깐 보였다 사라지는 크로스페이드 잔상 제거. 새 자식만 페이드인.
+                    layoutBuilder: (currentChild, previousChildren) =>
+                        currentChild ?? const SizedBox.shrink(),
+                    child: _isSearchMode
+                        ? (_showSuggestions
+                              ? KeyedSubtree(
+                                  key: const ValueKey('suggestions'),
+                                  child: _buildSuggestions(suggestionState),
+                                )
+                              : KeyedSubtree(
+                                  key: const ValueKey('search_results'),
+                                  child: _buildSearchResults(searchState),
+                                ))
+                        : KeyedSubtree(
+                            // 키 고정: 날짜 변경 시 바깥 스위처는 재생하지 않고(헤더 유지),
+                            // _buildScheduleList 안의 안쪽 EFadeUp이 목록만 날짜별로 재생 (웹과 동일)
+                            key: const ValueKey('schedule_list'),
+                            child: _buildScheduleList(scheduleState),
+                          ),
                   ),
                 ),
-                // 이전 자식을 남기지 않고 즉시 교체 (웹처럼) — 검색 진입 시 일정 목록이
-                // 잠깐 보였다 사라지는 크로스페이드 잔상 제거. 새 자식만 페이드인.
-                layoutBuilder: (currentChild, previousChildren) =>
-                    currentChild ?? const SizedBox.shrink(),
-                child: _isSearchMode
-                    ? (_showSuggestions
-                          ? KeyedSubtree(
-                              key: const ValueKey('suggestions'),
-                              child: _buildSuggestions(suggestionState),
-                            )
-                          : KeyedSubtree(
-                              key: const ValueKey('search_results'),
-                              child: _buildSearchResults(searchState),
-                            ))
-                    : KeyedSubtree(
-                        // 키 고정: 날짜 변경 시 바깥 스위처는 재생하지 않고(헤더 유지),
-                        // _buildScheduleList 안의 안쪽 EFadeUp이 목록만 날짜별로 재생 (웹과 동일)
-                        key: const ValueKey('schedule_list'),
-                        child: _buildScheduleList(scheduleState),
-                      ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -378,45 +413,51 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
               ),
               const SizedBox(width: 4),
               // 년월 타이틀 (달력 열림 시 ▼ 토글)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _showCalendar
-                    ? () => setState(() {
-                        _showYearMonthPicker = !_showYearMonthPicker;
-                        _yearRangeStart =
-                            _minYear +
-                            ((_calendarViewDate.year - _minYear) ~/ 4) * 4;
-                      })
-                    : null,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${displayDate.year}. ${displayDate.month}',
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                        color: (_showCalendar && _showYearMonthPicker)
-                            ? appPalette.primary
-                            : EColors.ink,
-                      ),
-                    ),
-                    if (_showCalendar) ...[
-                      const SizedBox(width: 4),
-                      AnimatedRotation(
-                        turns: _showYearMonthPicker ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Text(
-                          '▼',
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _showCalendar
+                      ? () => setState(() {
+                          _showYearMonthPicker = !_showYearMonthPicker;
+                          _yearRangeStart =
+                              _minYear +
+                              ((_calendarViewDate.year - _minYear) ~/ 4) * 4;
+                        })
+                      : null,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${displayDate.year}. ${displayDate.month}',
                           style: TextStyle(
-                            fontSize: 13,
-                            color: appPalette.primary,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            color: (_showCalendar && _showYearMonthPicker)
+                                ? appPalette.primary
+                                : EColors.ink,
                           ),
                         ),
-                      ),
-                    ],
-                  ],
+                        if (_showCalendar) ...[
+                          const SizedBox(width: 4),
+                          AnimatedRotation(
+                            turns: _showYearMonthPicker ? 0.5 : 0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Text(
+                              '▼',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: appPalette.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 4),
@@ -426,7 +467,7 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
                 color: EColors.mute,
                 onTap: goNext,
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               // 고정 링크 토글 — 링크가 있을 때만 나온다
               if (_links.isNotEmpty) ...[
                 Stack(
@@ -633,95 +674,98 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           children: [
-          // 날짜 헤딩 — "7. 12. SUNDAY" (첫 로드만, 날짜 변경 시 텍스트만 갱신)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  '${sel.month}. ${sel.day}.',
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1,
-                    color: EColors.ink,
+            // 날짜 헤딩 — "7. 12. SUNDAY" (첫 로드만, 날짜 변경 시 텍스트만 갱신)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    '${sel.month}. ${sel.day}.',
+                    style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1,
+                      color: EColors.ink,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  weekdaysKoFull[sel.weekday % 7],
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                    color: EColors.mute,
+                  const SizedBox(width: 12),
+                  Text(
+                    weekdaysKoFull[sel.weekday % 7],
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                      color: EColors.mute,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          EFadeUp(
-            // 안쪽: 날짜 변경마다 목록만 페이드업 (웹 안쪽 motion.div key=date)
-            key: ValueKey('list_${sel.toIso8601String()}'),
-            duration: const Duration(milliseconds: 420),
-            fromY: 8,
-            child: (dated.isEmpty && undated.isEmpty)
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 80),
-                    child: Center(
-                      child: Text(
-                        '${sel.month}월 ${sel.day}일 일정이 없습니다',
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          color: EColors.mute,
+            EFadeUp(
+              // 안쪽: 날짜 변경마다 목록만 페이드업 (웹 안쪽 motion.div key=date)
+              key: ValueKey('list_${sel.toIso8601String()}'),
+              duration: const Duration(milliseconds: 420),
+              fromY: 8,
+              child: (dated.isEmpty && undated.isEmpty)
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 80),
+                      child: Center(
+                        child: Text(
+                          '${sel.month}월 ${sel.day}일 일정이 없습니다',
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            color: EColors.mute,
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 0, 22, 96),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final s in dated) buildEntry(s),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 96),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final s in dated) buildEntry(s),
 
-                        // 날짜 미정 섹션
-                        if (undated.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(top: 26, bottom: 2),
-                            child: Row(
-                              children: [
-                                Text(
-                                  '날짜 미정 — ${sel.month}월 중',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 2,
-                                    color: EColors.mute,
+                          // 날짜 미정 섹션
+                          if (undated.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: 26,
+                                bottom: 2,
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '날짜 미정 — ${sel.month}월 중',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 2,
+                                      color: EColors.mute,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                const Expanded(child: DashedLine()),
-                              ],
+                                  const SizedBox(width: 10),
+                                  const Expanded(child: DashedLine()),
+                                ],
+                              ),
                             ),
-                          ),
-                          for (final s in undated)
-                            EventRow(
-                              schedule: s,
-                              onTap: () => openSchedule(s),
-                              dashed: true,
-                              subtitleOverride:
-                                  s.sourceName ?? '${sel.month}월 중 공개',
-                            ),
+                            for (final s in undated)
+                              EventRow(
+                                schedule: s,
+                                onTap: () => openSchedule(s),
+                                dashed: true,
+                                subtitleOverride:
+                                    s.sourceName ?? '${sel.month}월 중 공개',
+                              ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-          ),
-        ],
+            ),
+          ],
         ),
       ),
     );

@@ -34,6 +34,7 @@ class _VideoListViewState extends State<VideoListView> {
   bool _loadingMore = false;
   String? _error;
   String _channel = '';
+  int _requestId = 0;
 
   bool get _isShorts => widget.category == 'shorts';
   bool get _hasFilter =>
@@ -47,13 +48,25 @@ class _VideoListViewState extends State<VideoListView> {
   }
 
   @override
+  void didUpdateWidget(covariant VideoListView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.category != widget.category) {
+      _channel = '';
+      _monthCounts = {};
+      _channels = [];
+      _categoryLabel = null;
+      _load(reset: true);
+    }
+  }
+
+  @override
   void dispose() {
     _scroll.dispose();
     super.dispose();
   }
 
   void _onScroll() {
-    if (!_hasMore || _loadingMore || _loading) return;
+    if (!_hasMore || _loadingMore || _loading || _error != null) return;
     // 웹 IntersectionObserver rootMargin 600px 대응
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 600) {
       _load();
@@ -61,14 +74,21 @@ class _VideoListViewState extends State<VideoListView> {
   }
 
   Future<void> _load({bool reset = false}) async {
+    if (!reset && (_loading || _loadingMore || !_hasMore)) return;
+    final requestId = ++_requestId;
     if (reset) {
       setState(() {
         _loading = true;
         _error = null;
         _videos.clear();
+        _loadingMore = false;
+        _hasMore = false;
       });
     } else {
-      setState(() => _loadingMore = true);
+      setState(() {
+        _loadingMore = true;
+        _error = null;
+      });
     }
     try {
       final page = await getVideos(
@@ -78,6 +98,7 @@ class _VideoListViewState extends State<VideoListView> {
         limit: _pageSize,
         offset: reset ? 0 : _videos.length,
       );
+      if (!mounted || requestId != _requestId) return;
       setState(() {
         _videos.addAll(page.videos);
         _total = page.total;
@@ -91,6 +112,7 @@ class _VideoListViewState extends State<VideoListView> {
         _loadingMore = false;
       });
     } catch (e) {
+      if (!mounted || requestId != _requestId) return;
       setState(() {
         _loading = false;
         _loadingMore = false;
@@ -98,6 +120,20 @@ class _VideoListViewState extends State<VideoListView> {
       });
     }
   }
+
+  Widget _retry({required bool reset}) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        reset ? '영상을 불러오지 못했습니다' : '다음 영상을 불러오지 못했습니다',
+        style: const TextStyle(fontSize: 13.5, color: EColors.mute),
+      ),
+      TextButton(
+        onPressed: () => _load(reset: reset),
+        child: const Text('다시 시도'),
+      ),
+    ],
+  );
 
   /// 월별 그룹 (게시순 유지 — 웹 groups useMemo)
   List<({String ym, List<VideoItem> videos})> get _groups {
@@ -114,197 +150,234 @@ class _VideoListViewState extends State<VideoListView> {
 
   @override
   Widget build(BuildContext context) {
-    final label =
-        _isShorts ? 'SHORTS' : (_categoryLabel ?? videoCategoryKo(widget.category));
+    final label = _isShorts
+        ? 'SHORTS'
+        : (_categoryLabel ?? videoCategoryKo(widget.category));
 
     // 전환 중 이전 화면이 비치지 않도록 페이지 자체를 불투명하게
     return ColoredBox(
       color: EColors.paper,
       child: ListView(
-      controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(22, 26, 22, 64),
-      children: [
-        // 크럼 + 타이틀
-        EFadeUp(
-          child: Row(children: [
-            GestureDetector(
-              onTap: () => context.pop(),
-              child: const Text('VIDEOS',
-                  style: TextStyle(
+        controller: _scroll,
+        padding: const EdgeInsets.fromLTRB(22, 26, 22, 64),
+        children: [
+          // 크럼 + 타이틀
+          EFadeUp(
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () =>
+                      context.canPop() ? context.pop() : context.go('/video'),
+                  child: const Text(
+                    'VIDEOS',
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 2,
-                      color: EColors.mute)),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Text('/',
-                  style: TextStyle(
+                      color: EColors.mute,
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    '/',
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: EColors.faint)),
-            ),
-            Flexible(
-              child: Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                      color: EColors.faint,
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 2,
-                      color: appPalette.primary)),
+                      color: appPalette.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ),
-        const SizedBox(height: 6),
-        EFadeUp(
-          delayMs: kStaggerMs,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Flexible(
-                child: Text(label,
+          ),
+          const SizedBox(height: 6),
+          EFadeUp(
+            delayMs: kStaggerMs,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1,
-                        color: EColors.ink)),
-              ),
-              const SizedBox(width: 8),
-              Text('$_total',
-                  style: const TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 28,
                       fontWeight: FontWeight.w800,
-                      color: EColors.mute)),
-            ],
-          ),
-        ),
-
-        // 필터 (음방·예능·쇼츠 = 채널 드롭다운)
-        const SizedBox(height: 16),
-        if (_hasFilter)
-          Container(
-            decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: EColors.ink, width: 2),
-                bottom: BorderSide(color: EColors.hairline),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: _ChannelSelect(
-              channels: _channels,
-              value: _channel,
-              onChange: (v) {
-                setState(() {
-                  _channel = v;
-                  _monthCounts = {};
-                });
-                _load(reset: true);
-              },
-            ),
-          )
-        else
-          Container(height: 2, color: EColors.ink),
-
-        // 본문
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.only(top: 80),
-            child: Center(
-              child: CircularProgressIndicator(color: EColors.ink, strokeWidth: 2.5),
-            ),
-          )
-        else if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 80),
-            child: Center(
-              child: Text(_error!,
-                  style: const TextStyle(fontSize: 13.5, color: EColors.mute)),
-            ),
-          )
-        else if (_videos.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 80),
-            child: Center(
-              child: Text('조건에 맞는 영상이 없습니다.',
-                  style: TextStyle(fontSize: 13.5, color: EColors.mute)),
-            ),
-          )
-        else
-          // 월 그룹 단위로 스크롤 진입 시 페이드업 (웹 Reveal)
-          for (final g in _groups)
-            EReveal(
-              key: ValueKey('vg-${g.ym}'),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-            // 월 구분선
-            Padding(
-              padding: const EdgeInsets.only(top: 28, bottom: 12),
-              child: Row(children: [
-                Text(g.ym.replaceAll('-', '. '),
-                    style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                        color: EColors.ink,
-                        fontFeatures: [FontFeature.tabularFigures()])),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: CustomPaint(
-                    size: const Size(double.infinity, 1),
-                    painter: _DashedLinePainter(),
+                      letterSpacing: -1,
+                      color: EColors.ink,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text('${_monthCounts[g.ym] ?? g.videos.length}개',
-                    style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: EColors.mute)),
-              ]),
-            ),
-            LayoutBuilder(builder: (context, constraints) {
-              final cols = _isShorts ? 3 : 2;
-              final gap = _isShorts ? 10.0 : 12.0;
-              final w = (constraints.maxWidth - gap * (cols - 1)) / cols;
-              return Wrap(
-                spacing: gap,
-                runSpacing: _isShorts ? 16 : 20,
-                children: [
-                  for (final v in g.videos)
-                    SizedBox(
-                      width: w,
-                      child: _isShorts
-                          ? ShortsCard(video: v)
-                          : VideoCard(
-                              video: v,
-                              showChannel: widget.category == 'music' ||
-                                  widget.category == 'variety',
-                            ),
-                    ),
-                ],
-              );
-            }),
-                ],
-              ),
-            ),
-
-        if (_loadingMore)
-          const Padding(
-            padding: EdgeInsets.only(top: 32),
-            child: Center(
-              child: Text('불러오는 중...',
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: EColors.mute)),
+                const SizedBox(width: 8),
+                Text(
+                  '$_total',
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: EColors.mute,
+                  ),
+                ),
+              ],
             ),
           ),
-      ],
+
+          // 필터 (음방·예능·쇼츠 = 채널 드롭다운)
+          const SizedBox(height: 16),
+          if (_hasFilter)
+            Container(
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: EColors.ink, width: 2),
+                  bottom: BorderSide(color: EColors.hairline),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: _ChannelSelect(
+                channels: _channels,
+                value: _channel,
+                onChange: (v) {
+                  setState(() {
+                    _channel = v;
+                    _monthCounts = {};
+                  });
+                  _load(reset: true);
+                },
+              ),
+            )
+          else
+            Container(height: 2, color: EColors.ink),
+
+          // 본문
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.only(top: 80),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: EColors.ink,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            )
+          else if (_error != null && _videos.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 80),
+              child: Center(child: _retry(reset: true)),
+            )
+          else if (_videos.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 80),
+              child: Center(
+                child: Text(
+                  '조건에 맞는 영상이 없습니다.',
+                  style: TextStyle(fontSize: 13.5, color: EColors.mute),
+                ),
+              ),
+            )
+          else
+            // 월 그룹 단위로 스크롤 진입 시 페이드업 (웹 Reveal)
+            for (final g in _groups)
+              EReveal(
+                key: ValueKey('vg-${g.ym}'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 월 구분선
+                    Padding(
+                      padding: const EdgeInsets.only(top: 28, bottom: 12),
+                      child: Row(
+                        children: [
+                          Text(
+                            g.ym.replaceAll('-', '. '),
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1,
+                              color: EColors.ink,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: CustomPaint(
+                              size: const Size(double.infinity, 1),
+                              painter: _DashedLinePainter(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            '${_monthCounts[g.ym] ?? g.videos.length}개',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: EColors.mute,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final cols = _isShorts ? 3 : 2;
+                        final gap = _isShorts ? 10.0 : 12.0;
+                        final w =
+                            (constraints.maxWidth - gap * (cols - 1)) / cols;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: _isShorts ? 16 : 20,
+                          children: [
+                            for (final v in g.videos)
+                              SizedBox(
+                                width: w,
+                                child: _isShorts
+                                    ? ShortsCard(video: v)
+                                    : VideoCard(
+                                        video: v,
+                                        showChannel:
+                                            widget.category == 'music' ||
+                                            widget.category == 'variety',
+                                      ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+          if (_error != null && _videos.isNotEmpty) _retry(reset: false),
+          if (_loadingMore)
+            const Padding(
+              padding: EdgeInsets.only(top: 32),
+              child: Center(
+                child: Text(
+                  '불러오는 중...',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: EColors.mute,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -345,14 +418,49 @@ class _ChannelSelect extends StatefulWidget {
   State<_ChannelSelect> createState() => _ChannelSelectState();
 }
 
-class _ChannelSelectState extends State<_ChannelSelect> {
+class _ChannelSelectState extends State<_ChannelSelect>
+    with WidgetsBindingObserver {
   final _portal = OverlayPortalController();
   final _link = LayerLink();
   double _width = 0;
+  double _maxHeight = 320;
+  bool _above = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (_portal.isShowing) setState(() => _portal.hide());
+  }
 
   void _toggle() {
     final box = context.findRenderObject() as RenderBox?;
-    if (box != null) _width = box.size.width;
+    if (box != null) {
+      _width = box.size.width;
+      final media = MediaQuery.of(context);
+      final top = box.localToGlobal(Offset.zero).dy;
+      final above = (top - media.padding.top - 8).clamp(0.0, 320.0);
+      final below =
+          (media.size.height -
+                  media.viewInsets.bottom -
+                  media.padding.bottom -
+                  top -
+                  box.size.height -
+                  8)
+              .clamp(0.0, 320.0);
+      _above = above > below;
+      _maxHeight = _above ? above : below;
+    }
     setState(() => _portal.isShowing ? _portal.hide() : _portal.show());
   }
 
@@ -361,8 +469,13 @@ class _ChannelSelectState extends State<_ChannelSelect> {
     widget.onChange(v);
   }
 
-  Widget _item(String label, int? count, String v, bool active,
-      {bool topBorder = false}) {
+  Widget _item(
+    String label,
+    int? count,
+    String v,
+    bool active, {
+    bool topBorder = false,
+  }) {
     return InkWell(
       onTap: () => _select(v),
       child: Container(
@@ -373,107 +486,138 @@ class _ChannelSelectState extends State<_ChannelSelect> {
               : null,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        child: Row(children: [
-          Expanded(
-            child: Text(label,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: active ? EColors.ink : EColors.esub)),
-          ),
-          if (count != null)
-            Text('$count',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: active ? EColors.ink : EColors.esub,
+                ),
+              ),
+            ),
+            if (count != null)
+              Text(
+                '$count',
                 style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: EColors.mute)),
-        ]),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: EColors.mute,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final current =
-        widget.channels.where((c) => c.name == widget.value).firstOrNull;
+    final current = widget.channels
+        .where((c) => c.name == widget.value)
+        .firstOrNull;
 
-    return CompositedTransformTarget(
-      link: _link,
-      child: OverlayPortal(
-        controller: _portal,
-        overlayChildBuilder: (context) => Stack(children: [
-          // 바깥 탭으로 닫기
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _portal.hide()),
-            ),
-          ),
-          CompositedTransformFollower(
-            link: _link,
-            targetAnchor: Alignment.bottomLeft,
-            offset: const Offset(0, 2),
-            child: SizedBox(
-              width: _width,
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 320),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: EColors.ink),
-                  boxShadow: [
-                    BoxShadow(
-                      color: EColors.ink.withValues(alpha: 0.18),
-                      blurRadius: 50,
-                      offset: const Offset(0, 20),
-                    ),
-                  ],
+    return PopScope(
+      canPop: !_portal.isShowing,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _portal.isShowing) setState(() => _portal.hide());
+      },
+      child: CompositedTransformTarget(
+        link: _link,
+        child: OverlayPortal(
+          controller: _portal,
+          overlayChildBuilder: (context) => Stack(
+            children: [
+              // 바깥 탭으로 닫기
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _portal.hide()),
                 ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _item('전체 채널', null, '', widget.value.isEmpty),
-                      for (final c in widget.channels)
-                        _item(c.name, c.count, c.name, widget.value == c.name,
-                            topBorder: true),
-                    ],
+              ),
+              CompositedTransformFollower(
+                link: _link,
+                targetAnchor: _above ? Alignment.topLeft : Alignment.bottomLeft,
+                followerAnchor: _above
+                    ? Alignment.bottomLeft
+                    : Alignment.topLeft,
+                offset: Offset(0, _above ? -2 : 2),
+                child: SizedBox(
+                  width: _width,
+                  child: Container(
+                    constraints: BoxConstraints(maxHeight: _maxHeight),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: EColors.ink),
+                      boxShadow: [
+                        BoxShadow(
+                          color: EColors.ink.withValues(alpha: 0.18),
+                          blurRadius: 50,
+                          offset: const Offset(0, 20),
+                        ),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _item('전체 채널', null, '', widget.value.isEmpty),
+                          for (final c in widget.channels)
+                            _item(
+                              c.name,
+                              c.count,
+                              c.name,
+                              widget.value == c.name,
+                              topBorder: true,
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ]),
-        child: GestureDetector(
-          onTap: _toggle,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: EColors.hairline),
+          child: GestureDetector(
+            onTap: _toggle,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: EColors.hairline),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      current != null
+                          ? '${current.name} (${current.count})'
+                          : '전체 채널',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: EColors.ink,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _portal.isShowing ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 150),
+                    child: const Icon(
+                      LucideIcons.chevronDown,
+                      size: 14,
+                      color: EColors.mute,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            child: Row(children: [
-              Expanded(
-                child: Text(
-                  current != null
-                      ? '${current.name} (${current.count})'
-                      : '전체 채널',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: EColors.ink),
-                ),
-              ),
-              AnimatedRotation(
-                turns: _portal.isShowing ? 0.5 : 0,
-                duration: const Duration(milliseconds: 150),
-                child: const Icon(LucideIcons.chevronDown,
-                    size: 14, color: EColors.mute),
-              ),
-            ]),
           ),
         ),
       ),

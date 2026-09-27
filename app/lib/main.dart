@@ -7,6 +7,8 @@
 /// - Services: API 통신
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,14 +36,13 @@ void main() async {
   // 다운로드 서비스 초기화
   await initDownloadService();
 
-  // 푸시 알림 초기화 (FCM) — 실패해도 앱 구동엔 지장 없음
-  await initPush();
-
   // 동적 테마 팔레트 로드 (/api/theme) — 실패 시 기본 브랜드 그린 유지
   await loadPalette();
 
   // 스크롤 리빌(EReveal) 반응 속도 — 기본 500ms는 너무 늦음
-  VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 80);
+  VisibilityDetectorController.instance.updateInterval = const Duration(
+    milliseconds: 80,
+  );
 
   // 상태바 및 네비게이션 바 스타일 설정
   SystemChrome.setSystemUIOverlayStyle(
@@ -56,6 +57,8 @@ void main() async {
   );
 
   runApp(const ProviderScope(child: Fromis9App()));
+  // Permission prompts and FCM network calls must not hold the launch screen.
+  unawaited(initPush());
 }
 
 class Fromis9App extends StatelessWidget {
@@ -72,7 +75,8 @@ class Fromis9App extends StatelessWidget {
         systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: MaterialApp.router(
-        title: 'fromis_9',
+        title: 'fromlog',
+        scaffoldMessengerKey: pushMessengerKey,
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
@@ -85,7 +89,7 @@ class Fromis9App extends StatelessWidget {
           scaffoldBackgroundColor: EColors.paper,
           canvasColor: EColors.paper,
           applyElevationOverlayColor: false,
-          appBarTheme:  AppBarTheme(
+          appBarTheme: AppBarTheme(
             backgroundColor: EColors.paper,
             surfaceTintColor: Colors.transparent,
             foregroundColor: EColors.ink,

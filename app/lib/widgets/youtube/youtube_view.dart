@@ -33,7 +33,7 @@ class _YoutubeViewState extends State<YoutubeView> {
   late YoutubeController _controller;
 
   /// 전체화면 화면을 닫을 때 쓸 것 (웹뷰가 알려주면 우리가 닫는다)
-  NavigatorState? _fsNavigator;
+  final _fullscreen = YoutubeFullscreenSession();
 
   @override
   void initState() {
@@ -54,26 +54,16 @@ class _YoutubeViewState extends State<YoutubeView> {
     final platform = c.webview.platform;
     if (platform is! AndroidWebViewController) return;
     platform.setCustomWidgetCallbacks(
-      onShowCustomWidget: (content, _) {
+      onShowCustomWidget: (content, onCustomWidgetHidden) {
         if (!mounted) return;
-        final nav = Navigator.of(context, rootNavigator: true);
-        _fsNavigator = nav;
-        nav.push(
-          PageRouteBuilder<void>(
-            opaque: true,
-            transitionDuration: Duration.zero,
-            reverseTransitionDuration: Duration.zero,
-            pageBuilder: (_, _, _) => YoutubeFullScreen(
-              content: content,
-              aspectRatio: widget.aspectRatio,
-            ),
-          ),
+        _fullscreen.show(
+          navigator: Navigator.of(context, rootNavigator: true),
+          content: content,
+          aspectRatio: widget.aspectRatio,
+          onFlutterExit: onCustomWidgetHidden,
         );
       },
-      onHideCustomWidget: () {
-        _fsNavigator?.maybePop();
-        _fsNavigator = null;
-      },
+      onHideCustomWidget: _fullscreen.hide,
     );
   }
 
@@ -115,12 +105,13 @@ class _YoutubeViewState extends State<YoutubeView> {
                   top: 6,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3),
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     color: Colors.black54,
                     child: Text(
                       'onError: $code',
-                      style: const TextStyle(
-                          fontSize: 11, color: Colors.white),
+                      style: const TextStyle(fontSize: 11, color: Colors.white),
                     ),
                   ),
                 );

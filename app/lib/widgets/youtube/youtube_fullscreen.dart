@@ -70,3 +70,37 @@ class _YoutubeFullScreenState extends State<YoutubeFullScreen> {
     );
   }
 }
+
+/// Own the exact fullscreen route so a delayed WebView callback cannot pop detail.
+class YoutubeFullscreenSession {
+  Route<void>? _route;
+  bool _hiddenByWebView = false;
+
+  Future<void> show({
+    required NavigatorState navigator,
+    required Widget content,
+    required double aspectRatio,
+    required VoidCallback onFlutterExit,
+  }) async {
+    if (_route != null) return;
+    _hiddenByWebView = false;
+    final route = PageRouteBuilder<void>(
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      pageBuilder: (_, _, _) =>
+          YoutubeFullScreen(content: content, aspectRatio: aspectRatio),
+    );
+    _route = route;
+    await navigator.push(route);
+    if (!identical(_route, route)) return;
+    _route = null;
+    if (!_hiddenByWebView) onFlutterExit();
+  }
+
+  void hide() {
+    final route = _route;
+    if (route == null) return;
+    _hiddenByWebView = true;
+    if (route.isActive) route.navigator?.removeRoute(route);
+  }
+}

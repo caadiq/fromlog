@@ -3,6 +3,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants.dart';
+import '../services/push_service.dart';
 import '../update/update_dialog.dart';
 import '../update/update_info.dart';
 import '../update/update_service.dart';
@@ -43,6 +44,7 @@ class _SplashGateState extends State<SplashGate> {
     }
     if (!mounted) return;
     context.go('/');
+    pushNavigation.markReady();
   }
 
   @override

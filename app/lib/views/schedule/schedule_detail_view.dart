@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -21,7 +22,7 @@ final scheduleDetailProvider = FutureProvider.family<ScheduleDetail, int>((
   id,
 ) async {
   return await getSchedule(id);
-});
+}, retry: (_, _) => null);
 
 class ScheduleDetailView extends ConsumerStatefulWidget {
   final int scheduleId;
@@ -51,6 +52,16 @@ class _ScheduleDetailViewState extends ConsumerState<ScheduleDetailView> {
     super.initState();
     _currentScheduleId = widget.scheduleId;
   }
+
+  @override
+  void didUpdateWidget(covariant ScheduleDetailView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scheduleId != widget.scheduleId) {
+      _currentScheduleId = widget.scheduleId;
+    }
+  }
+
+  void _goBack() => context.canPop() ? context.pop() : context.go('/schedule');
 
   /// URL 열기 (외부 앱)
   Future<void> _launchUrl(String url) async {
@@ -82,8 +93,31 @@ class _ScheduleDetailViewState extends ConsumerState<ScheduleDetailView> {
           ),
         ),
       ),
-      error: (error, stack) =>
-          Scaffold(backgroundColor: EColors.paper, body: _buildErrorView()),
+      error: (error, stack) => Scaffold(
+        backgroundColor: EColors.paper,
+        body: error is DioException && error.response?.statusCode == 404
+            ? _buildErrorView()
+            : SafeArea(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('일정을 불러오지 못했습니다.'),
+                      TextButton(
+                        onPressed: () => ref.invalidate(
+                          scheduleDetailProvider(_currentScheduleId),
+                        ),
+                        child: const Text('다시 시도'),
+                      ),
+                      TextButton(
+                        onPressed: _goBack,
+                        child: const Text('이전 페이지'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+      ),
       data: (schedule) {
         final isEditorial = _editorialCategories.contains(schedule.categoryId);
         final bottomInset = MediaQuery.of(context).padding.bottom;
@@ -133,7 +167,7 @@ class _ScheduleDetailViewState extends ConsumerState<ScheduleDetailView> {
               children: [
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => Navigator.of(context).maybePop(),
+                  onTap: _goBack,
                   child: const Padding(
                     padding: EdgeInsets.only(right: 12),
                     child: Icon(
@@ -206,7 +240,7 @@ class _ScheduleDetailViewState extends ConsumerState<ScheduleDetailView> {
             SizedBox(
               width: double.infinity,
               child: GestureDetector(
-                onTap: () => Navigator.of(context).maybePop(),
+                onTap: _goBack,
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   alignment: Alignment.center,

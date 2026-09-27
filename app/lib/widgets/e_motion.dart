@@ -78,6 +78,7 @@ class _EFadeUpState extends State<EFadeUp>
   @override
   Widget build(BuildContext context) {
     super.build(context); // AutomaticKeepAliveClientMixin
+    if (MediaQuery.disableAnimationsOf(context)) return widget.child;
     return AnimatedBuilder(
       animation: _t,
       builder: (context, child) {
@@ -154,6 +155,7 @@ class _ERevealState extends State<EReveal>
   @override
   Widget build(BuildContext context) {
     super.build(context); // AutomaticKeepAliveClientMixin
+    if (MediaQuery.disableAnimationsOf(context)) return widget.child;
     return VisibilityDetector(
       key: ValueKey('ereveal-${widget.key ?? identityHashCode(this)}'),
       onVisibilityChanged: _onVisibility,

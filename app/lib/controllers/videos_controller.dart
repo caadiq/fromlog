@@ -23,18 +23,24 @@ class VideosState {
 }
 
 class VideosController extends Notifier<VideosState> {
+  int _requestId = 0;
   @override
   VideosState build() {
-    Future.microtask(load);
+    Future.microtask(() {
+      if (ref.mounted) load();
+    });
     return const VideosState();
   }
 
   Future<void> load() async {
+    final requestId = ++_requestId;
     state = state.copyWith(isLoading: true, error: null);
     try {
       final data = await getVideosHome();
+      if (!ref.mounted || requestId != _requestId) return;
       state = VideosState(data: data, isLoading: false);
     } catch (e) {
+      if (!ref.mounted || requestId != _requestId) return;
       state = state.copyWith(isLoading: false, error: '영상을 불러오지 못했습니다');
     }
   }
