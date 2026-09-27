@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
+import 'fullscreen_playback_recovery.dart';
 import 'youtube_fullscreen.dart';
 import 'youtube_player_controller.dart';
 
@@ -34,6 +35,7 @@ class _YoutubeViewState extends State<YoutubeView> {
 
   /// 전체화면 화면을 닫을 때 쓸 것 (웹뷰가 알려주면 우리가 닫는다)
   final _fullscreen = YoutubeFullscreenSession();
+  FullscreenPlaybackRecovery? _playbackRecovery;
 
   @override
   void initState() {
@@ -49,18 +51,31 @@ class _YoutubeViewState extends State<YoutubeView> {
   }
 
   /// 유튜브가 전체화면을 요청하면 웹뷰가 그 화면을 통째로 넘겨준다.
-  /// 같은 웹뷰의 내용이 옮겨오는 것이라 재생이 끊기지 않는다.
+  /// Preserve the WebView and recover playback after native view attachment.
   void _wireFullScreen(YoutubeController c) {
     final platform = c.webview.platform;
     if (platform is! AndroidWebViewController) return;
     platform.setCustomWidgetCallbacks(
       onShowCustomWidget: (content, onCustomWidgetHidden) {
-        if (!mounted) return;
+        if (!mounted || !identical(c, _controller)) {
+          onCustomWidgetHidden();
+          return;
+        }
+        if (_fullscreen.isOpen) return;
+        _playbackRecovery?.cancel();
+        final recovery = FullscreenPlaybackRecovery(
+          wasPlaying: c.isPlaying,
+          readState: c.readPlaybackState,
+          resumeIfPaused: c.resumeFullscreenPlaybackIfPaused,
+        );
+        _playbackRecovery = recovery;
+        debugPrint('[yt-fullscreen] enter: ${c.state.name}');
         _fullscreen.show(
           navigator: Navigator.of(context, rootNavigator: true),
           content: content,
           aspectRatio: widget.aspectRatio,
           onFlutterExit: onCustomWidgetHidden,
+          playbackRecovery: recovery,
         );
       },
       onHideCustomWidget: _fullscreen.hide,
@@ -71,6 +86,7 @@ class _YoutubeViewState extends State<YoutubeView> {
   void didUpdateWidget(YoutubeView old) {
     super.didUpdateWidget(old);
     if (old.videoId != widget.videoId) {
+      _playbackRecovery?.cancel();
       _controller.dispose();
       _controller = _create();
     }
@@ -78,6 +94,7 @@ class _YoutubeViewState extends State<YoutubeView> {
 
   @override
   void dispose() {
+    _playbackRecovery?.cancel();
     _controller.dispose();
     super.dispose();
   }

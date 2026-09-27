@@ -99,3 +99,16 @@ APP_AUDIT_OUTPUT=/tmp/fromlog-app-validation flutter test --no-pub test/app_layo
 - 재검사: 일반 영상 재생 중 전체화면 → 10초 재생 → 플레이어 종료 버튼/OS Back 각각으로 복귀, 일시정지 상태에서도 진입/종료하여 임의 재생되지 않는지 확인. 일반 일정·검색 화면은 기기를 돌려도 세로 유지 확인.
 
 - Otto **2.0.0+135 / Android versionCode 2135** 선택 업데이트 발행 완료. arm64 릴리스 빌드·업로드 및 2134 기준 업데이트 API의 2135 응답 확인. 웹 배포·push 없음.
+
+
+## 2026-09-27 전체화면 일시정지 후속 수정
+
+- **+135 실사용 결과**: 한국어 적용은 사용자가 확인했다. 전체화면 전환 후에는 여전히 멈춘 채로 있고 재생 버튼을 다시 눌러야 한다고 확인했다. 이전 onstage 유지 변경만으로 해결되지 않았으므로 재생 유지 항목은 완료 처리하지 않는다.
+- 전체화면 진입 직전의 `isPlaying`을 기록한다. 회전 및 시스템 바 처리 후 실제 IFrame 재생 상태를 최대 2초간 조회하고, 원래 재생 중이었으나 현재 paused인 경우에만 한 번 `playVideo()`를 보낸다. 영상 재로드·seek는 하지 않는다.
+- 처음부터 일시정지한 영상·종료/미시작/cued 상태에는 적용하지 않는다. 전체화면 터치·앱 비활성화·뒤로가기·native hide·컨트롤러 교체/폐기 시 복구를 취소하며, 취소 후 도착한 응답도 무시한다. 조회 실패/1초 응답 제한/2초 관찰 제한으로 무한 재시도를 방지한다.
+- 자동 검증 **35개 통과**: 신규 12개 복구 로직 검사, 전체화면 위젯 통합 5개 추가, 기존 18개 회귀. 지연 일시정지, 1회 복구, 원래 일시정지/종료 유지, 늦은 응답/실패/시간 제한, 터치/백그라운드/native 종료/Back 취소 및 방향 복귀를 확인했다.
+- `flutter analyze --no-pub`: error/warning 없음, 기존 info 10개 유지. 로그: `/tmp/fromlog-youtube-recovery-tests.log`, `/tmp/fromlog-youtube-recovery-analyze.log`.
+- 재현: `cd app`에서 `flutter test --no-pub test/fullscreen_playback_recovery_test.dart test/youtube_fullscreen_orientation_test.dart test/app_validation_test.dart test/youtube_script_string_test.dart test/youtube_links_test.dart`.
+- **실기기 확인 대기**: 재생 중 전체화면 진입 후 재생 버튼을 다시 누르지 않아도 이어지는지, 원래 일시정지 상태는 유지되는지, 전체화면 종료 후 세로로 돌아오는지 확인한다. 자동 검사는 native WebView 영상·소리의 무중단 전환을 보장하지 않는다. native show 콜백보다 먼저 pause 이벤트가 전달되는 기기에서는 진입 시 상태를 추가 확인해야 한다.
+
+- Otto **2.0.0+136 / Android versionCode 2136** 선택 업데이트 발행 완료. arm64 릴리스 빌드·업로드 성공 및 2135 기준 업데이트 API의 2136 응답 확인. 웹 배포·push 없음.

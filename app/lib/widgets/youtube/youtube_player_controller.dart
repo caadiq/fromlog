@@ -201,6 +201,23 @@ class YoutubeController extends ChangeNotifier {
     super.dispose();
   }
 
+  Future<int?> readPlaybackState() async {
+    if (_disposed || !_ready) return null;
+    final value = await webview.runJavaScriptReturningResult(
+      'player && player.getPlayerState ? player.getPlayerState() : -1',
+    );
+    if (_disposed) return null;
+    return value is num ? value.toInt() : int.tryParse(value.toString());
+  }
+
+  Future<void> resumeFullscreenPlaybackIfPaused() async {
+    if (_disposed || !_ready || _openingExternal) return;
+    // Check again in JS so an already-ended video is never started over.
+    await webview.runJavaScript(
+      'if (player && player.getPlayerState && player.getPlayerState() === 2) player.playVideo();',
+    );
+  }
+
   Future<void> play() => webview.runJavaScript('play()');
   Future<void> pause() => webview.runJavaScript('pause()');
 

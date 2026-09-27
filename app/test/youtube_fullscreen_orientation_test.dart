@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fromis9/widgets/youtube/fullscreen_playback_recovery.dart';
 import 'package:fromis9/widgets/youtube/youtube_fullscreen.dart';
 
 void main() {
@@ -26,6 +27,66 @@ void main() {
       .where((call) => call.method == 'SystemChrome.setPreferredOrientations')
       .map((call) => call.arguments)
       .toList();
+
+  for (final action in ['none', 'touch', 'background', 'hide', 'back']) {
+    testWidgets('playback recovery waits for rotation and respects $action', (
+      tester,
+    ) async {
+      final navigator = GlobalKey<NavigatorState>();
+      final fullscreen = YoutubeFullscreenSession();
+      var reads = 0;
+      var resumes = 0;
+      final recovery = FullscreenPlaybackRecovery(
+        wasPlaying: true,
+        readState: () async {
+          reads++;
+          return 2;
+        },
+        resumeIfPaused: () async {
+          resumes++;
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: navigator,
+          home: const Scaffold(body: Text('detail')),
+        ),
+      );
+      final done = fullscreen.show(
+        navigator: navigator.currentState!,
+        content: const Center(child: Text('video')),
+        aspectRatio: 16 / 9,
+        onFlutterExit: () {},
+        playbackRecovery: recovery,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(reads, 0);
+      switch (action) {
+        case 'touch':
+          await tester.tap(find.text('video'));
+        case 'background':
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.inactive,
+          );
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.paused,
+          );
+        case 'hide':
+          fullscreen.hide();
+        case 'back':
+          await tester.binding.handlePopRoute();
+      }
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      expect(resumes, action == 'none' ? 1 : 0);
+      expect(reads, action == 'none' ? 1 : 0);
+      fullscreen.hide();
+      await tester.pumpAndSettle();
+      await done;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+  }
 
   testWidgets(
     'fullscreen keeps source onstage, blocks taps and restores portrait',
