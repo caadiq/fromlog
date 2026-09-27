@@ -53,8 +53,8 @@ docker compose logs --since 15m fromlog-backend
 
 - 이번 변경은 먼저 `backend/sql/20260927-ops-alerts.sql`을 적용한다. additive 테이블이며 기존 행을 바꾸지 않는다.
 - 백엔드는 개발·운영 공용 bind mount + watch이다. 소스 편집 자체가 공용 서버 재시작과 정상 봇 시작 폴링을 유발한다. 운영 데이터를 사용하는 장애 주입은 하지 않는다.
-- 다음 승인된 백엔드 재생성부터 `init: true`, 종료 유예 25초, `/api/ready` healthcheck, 고정 의존성 설치(`npm ci`), 로그 회전이 적용된다. healthcheck의 unhealthy만으로 Docker가 자동 재시작하지는 않는다.
-- 종료 신호는 `app.close()`로 보내 cron/집중 폴링을 멈춘다. 실행 중 수집은 최대 8초 기다리고 전체 종료는 20초로 제한한다. 장기 작업이 잘리면 앞선 검증의 DB 체크포인트/중복 방지로 재개한다. Docker의 다음 재생성 전에는 기존 프로세스 실행 래퍼가 남아 있다.
+- 2026-09-28 승인된 백엔드 재생성으로 `init: true`, 종료 유예 25초, `/api/ready` healthcheck, 고정 의존성 설치(`npm ci`), 로그 회전을 적용했다. healthcheck의 unhealthy만으로 Docker가 자동 재시작하지는 않는다.
+- 종료 신호는 `app.close()`로 보내 cron/집중 폴링을 멈춘다. 실행 중 수집은 최대 8초 기다리고 전체 종료는 20초로 제한한다. 장기 작업이 잘리면 앞선 검증의 DB 체크포인트/중복 방지로 재개한다. 기존 프로세스 실행 래퍼는 이번 재생성으로 교체했다.
 - 승인된 재생성 명령: `docker compose up -d --build fromlog-backend`. 프론트 배포는 별도 `fromlog-frontend-prod` 서비스로 한정한다. 전체 compose를 무조건 재시작하지 않는다.
 - 배포 전 정상 이미지와 커밋을 기록한다. 프론트는 이전 정적 이미지로 복구할 수 있다. **백엔드는 이미지 교체만으로 bind mount 소스가 되돌아가지 않는다.** 현재 작업을 보존한 뒤 해당 변경의 revert 또는 별도 검증된 체크아웃을 사용한다.
 - 코드 롤백 시 `bot_ops_alerts`는 먼저 유지한다. pending 알림을 확인하기 전에 DROP하지 않는다. 이전 코드에서는 대기열이 처리되지 않으므로 새 버전 복귀 후 재시도하거나 운영자가 처리한다.
