@@ -405,67 +405,75 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
           ),
           child: Row(
             children: [
-              // 이전 달
-              _IconBtn(
-                icon: Icons.chevron_left,
-                color: canGoPrev ? EColors.mute : EColors.faint,
-                onTap: canGoPrev ? goPrev : null,
-              ),
-              const SizedBox(width: 4),
-              // 년월 타이틀 (달력 열림 시 ▼ 토글)
+              // Keep month navigation together; leave spare width before actions.
               Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _showCalendar
-                      ? () => setState(() {
-                          _showYearMonthPicker = !_showYearMonthPicker;
-                          _yearRangeStart =
-                              _minYear +
-                              ((_calendarViewDate.year - _minYear) ~/ 4) * 4;
-                        })
-                      : null,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${displayDate.year}. ${displayDate.month}',
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                            color: (_showCalendar && _showYearMonthPicker)
-                                ? appPalette.primary
-                                : EColors.ink,
+                child: Row(
+                  children: [
+                    // 이전 달
+                    _IconBtn(
+                      icon: Icons.chevron_left,
+                      color: canGoPrev ? EColors.mute : EColors.faint,
+                      onTap: canGoPrev ? goPrev : null,
+                    ),
+                    const SizedBox(width: 4),
+                    // 년월 타이틀 (달력 열림 시 ▼ 토글)
+                    Flexible(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _showCalendar
+                            ? () => setState(() {
+                                _showYearMonthPicker = !_showYearMonthPicker;
+                                _yearRangeStart =
+                                    _minYear +
+                                    ((_calendarViewDate.year - _minYear) ~/ 4) *
+                                        4;
+                              })
+                            : null,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${displayDate.year}. ${displayDate.month}',
+                                style: TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                  color: (_showCalendar && _showYearMonthPicker)
+                                      ? appPalette.primary
+                                      : EColors.ink,
+                                ),
+                              ),
+                              if (_showCalendar) ...[
+                                const SizedBox(width: 4),
+                                AnimatedRotation(
+                                  turns: _showYearMonthPicker ? 0.5 : 0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Text(
+                                    '▼',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: appPalette.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        if (_showCalendar) ...[
-                          const SizedBox(width: 4),
-                          AnimatedRotation(
-                            turns: _showYearMonthPicker ? 0.5 : 0,
-                            duration: const Duration(milliseconds: 200),
-                            child: Text(
-                              '▼',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: appPalette.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    // 다음 달
+                    _IconBtn(
+                      icon: Icons.chevron_right,
+                      color: EColors.mute,
+                      onTap: goNext,
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 4),
-              // 다음 달
-              _IconBtn(
-                icon: Icons.chevron_right,
-                color: EColors.mute,
-                onTap: goNext,
               ),
               const SizedBox(width: 8),
               // 고정 링크 토글 — 링크가 있을 때만 나온다
