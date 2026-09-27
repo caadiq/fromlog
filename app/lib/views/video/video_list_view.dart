@@ -150,6 +150,8 @@ class _VideoListViewState extends State<VideoListView> {
 
   @override
   Widget build(BuildContext context) {
+    final columns = _isShorts ? 3 : 2;
+    final gap = _isShorts ? 10.0 : 12.0;
     final label = _isShorts
         ? 'SHORTS'
         : (_categoryLabel ?? videoCategoryKo(widget.category));
@@ -291,76 +293,73 @@ class _VideoListViewState extends State<VideoListView> {
               ),
             )
           else
-            // 월 그룹 단위로 스크롤 진입 시 페이드업 (웹 Reveal)
-            for (final g in _groups)
-              EReveal(
-                key: ValueKey('vg-${g.ym}'),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            // Separate rows let ListView dispose cards outside the viewport.
+            for (final g in _groups) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 28, bottom: 12),
+                child: Row(
                   children: [
-                    // 월 구분선
-                    Padding(
-                      padding: const EdgeInsets.only(top: 28, bottom: 12),
-                      child: Row(
-                        children: [
-                          Text(
-                            g.ym.replaceAll('-', '. '),
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1,
-                              color: EColors.ink,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: CustomPaint(
-                              size: const Size(double.infinity, 1),
-                              painter: _DashedLinePainter(),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            '${_monthCounts[g.ym] ?? g.videos.length}개',
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: EColors.mute,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      g.ym.replaceAll('-', '. '),
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                        color: EColors.ink,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final cols = _isShorts ? 3 : 2;
-                        final gap = _isShorts ? 10.0 : 12.0;
-                        final w =
-                            (constraints.maxWidth - gap * (cols - 1)) / cols;
-                        return Wrap(
-                          spacing: gap,
-                          runSpacing: _isShorts ? 16 : 20,
-                          children: [
-                            for (final v in g.videos)
-                              SizedBox(
-                                width: w,
-                                child: _isShorts
-                                    ? ShortsCard(video: v)
-                                    : VideoCard(
-                                        video: v,
-                                        showChannel:
-                                            widget.category == 'music' ||
-                                            widget.category == 'variety',
-                                      ),
-                              ),
-                          ],
-                        );
-                      },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: CustomPaint(
+                        size: const Size(double.infinity, 1),
+                        painter: _DashedLinePainter(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${_monthCounts[g.ym] ?? g.videos.length}개',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: EColors.mute,
+                      ),
                     ),
                   ],
                 ),
               ),
+              for (var start = 0; start < g.videos.length; start += columns)
+                Padding(
+                  key: ValueKey('video-row-${g.ym}-${g.videos[start].videoId}'),
+                  padding: EdgeInsets.only(
+                    bottom: start + columns < g.videos.length
+                        ? (_isShorts ? 16 : 20)
+                        : 0,
+                  ),
+                  child: EReveal(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var column = 0; column < columns; column++) ...[
+                          if (column > 0) SizedBox(width: gap),
+                          Expanded(
+                            child: start + column >= g.videos.length
+                                ? const SizedBox.shrink()
+                                : _isShorts
+                                ? ShortsCard(video: g.videos[start + column])
+                                : VideoCard(
+                                    video: g.videos[start + column],
+                                    showChannel:
+                                        widget.category == 'music' ||
+                                        widget.category == 'variety',
+                                  ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+            ],
 
           if (_error != null && _videos.isNotEmpty) _retry(reset: false),
           if (_loadingMore)

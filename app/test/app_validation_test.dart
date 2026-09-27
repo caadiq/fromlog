@@ -141,7 +141,15 @@ void main() {
     expect(adapter.calls.length, 2);
     adapter.finish(1, status: 500);
     await flush(tester);
-    expect(find.text('기존 영상 0', skipOffstage: false), findsOneWidget);
+    scroll.jumpTo(0);
+    await flush(tester);
+    expect(find.text('기존 영상 0'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('다시 시도'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await flush(tester);
     expect(find.text('다음 영상을 불러오지 못했습니다'), findsOneWidget);
     scroll.jumpTo(scroll.position.maxScrollExtent - 10);
     await flush(tester);
@@ -152,7 +160,13 @@ void main() {
     expect(adapter.calls.last.options.queryParameters['offset'], '24');
     adapter.finish(2, title: '추가 영상');
     await flush(tester);
-    expect(find.text('추가 영상', skipOffstage: false), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('추가 영상'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await flush(tester);
+    expect(find.text('추가 영상'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets('channel menu stays inside a short viewport and Back closes it', (

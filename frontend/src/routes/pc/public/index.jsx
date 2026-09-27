@@ -1,23 +1,24 @@
+import { lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
 // 레이아웃
 import { Layout } from '@/components/pc/public';
 
 // 공개 페이지
-import Home from '@/pages/pc/public/home/Home';
-import Members from '@/pages/pc/public/members/Members';
-import MemberDetail from '@/pages/pc/public/members/MemberDetail';
-import MemberPhotos from '@/pages/pc/public/members/MemberPhotos';
-import Schedule from '@/pages/pc/public/schedule/Schedule';
-import ScheduleDetail from '@/pages/pc/public/schedule/ScheduleDetail';
-import Album from '@/pages/pc/public/album/Album';
-import Video from '@/pages/pc/public/video/Video';
-import VideoList from '@/pages/pc/public/video/VideoList';
-import AlbumDetail from '@/pages/pc/public/album/AlbumDetail';
-import TrackDetail from '@/pages/pc/public/album/TrackDetail';
-import Fanchant from '@/pages/pc/public/album/Fanchant';
-import AlbumGallery from '@/pages/pc/public/album/AlbumGallery';
-import NotFound from '@/pages/pc/public/common/NotFound';
+const Home = lazy(() => import('@/pages/pc/public/home/Home'));
+const Members = lazy(() => import('@/pages/pc/public/members/Members'));
+const MemberDetail = lazy(() => import('@/pages/pc/public/members/MemberDetail'));
+const MemberPhotos = lazy(() => import('@/pages/pc/public/members/MemberPhotos'));
+const Schedule = lazy(() => import('@/pages/pc/public/schedule/Schedule'));
+const ScheduleDetail = lazy(() => import('@/pages/pc/public/schedule/ScheduleDetail'));
+const Album = lazy(() => import('@/pages/pc/public/album/Album'));
+const Video = lazy(() => import('@/pages/pc/public/video/Video'));
+const VideoList = lazy(() => import('@/pages/pc/public/video/VideoList'));
+const AlbumDetail = lazy(() => import('@/pages/pc/public/album/AlbumDetail'));
+const TrackDetail = lazy(() => import('@/pages/pc/public/album/TrackDetail'));
+const Fanchant = lazy(() => import('@/pages/pc/public/album/Fanchant'));
+const AlbumGallery = lazy(() => import('@/pages/pc/public/album/AlbumGallery'));
+const NotFound = lazy(() => import('@/pages/pc/public/common/NotFound'));
 
 /**
  * PC 공개 라우트

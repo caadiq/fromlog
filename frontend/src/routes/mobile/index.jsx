@@ -1,23 +1,24 @@
+import { lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
 // 레이아웃
 import { Layout } from '@/components/mobile';
 
 // 페이지
-import Home from '@/pages/mobile/home/Home';
-import Members from '@/pages/mobile/members/Members';
-import MemberDetail from '@/pages/mobile/members/MemberDetail';
-import MemberPhotos from '@/pages/mobile/members/MemberPhotos';
-import Schedule from '@/pages/mobile/schedule/Schedule';
-import ScheduleDetail from '@/pages/mobile/schedule/ScheduleDetail';
-import Album from '@/pages/mobile/album/Album';
-import Video from '@/pages/mobile/video/Video';
-import VideoList from '@/pages/mobile/video/VideoList';
-import AlbumDetail from '@/pages/mobile/album/AlbumDetail';
-import TrackDetail from '@/pages/mobile/album/TrackDetail';
-import Fanchant from '@/pages/mobile/album/Fanchant';
-import AlbumGallery from '@/pages/mobile/album/AlbumGallery';
-import NotFound from '@/pages/mobile/common/NotFound';
+const Home = lazy(() => import('@/pages/mobile/home/Home'));
+const Members = lazy(() => import('@/pages/mobile/members/Members'));
+const MemberDetail = lazy(() => import('@/pages/mobile/members/MemberDetail'));
+const MemberPhotos = lazy(() => import('@/pages/mobile/members/MemberPhotos'));
+const Schedule = lazy(() => import('@/pages/mobile/schedule/Schedule'));
+const ScheduleDetail = lazy(() => import('@/pages/mobile/schedule/ScheduleDetail'));
+const Album = lazy(() => import('@/pages/mobile/album/Album'));
+const Video = lazy(() => import('@/pages/mobile/video/Video'));
+const VideoList = lazy(() => import('@/pages/mobile/video/VideoList'));
+const AlbumDetail = lazy(() => import('@/pages/mobile/album/AlbumDetail'));
+const TrackDetail = lazy(() => import('@/pages/mobile/album/TrackDetail'));
+const Fanchant = lazy(() => import('@/pages/mobile/album/Fanchant'));
+const AlbumGallery = lazy(() => import('@/pages/mobile/album/AlbumGallery'));
+const NotFound = lazy(() => import('@/pages/mobile/common/NotFound'));
 
 /**
  * Mobile 라우트

@@ -37,13 +37,14 @@ function pickRandom(photos, count = 10) {
 /** 히어로 우측 — 컨셉 포토 크로스페이드 슬라이드 */
 function HeroSlides({ hero, members }) {
   const slides = useMemo(() => (hero?.photos?.length ? pickRandom(hero.photos) : []), [hero]);
-  const [idx, setIdx] = useState(0);
+  const [position, setPosition] = useState({ current: 0, previous: 0 });
+  const idx = position.current;
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    setIdx(0);
+    setPosition({ current: 0, previous: 0 });
     if (slides.length < 2 || reduceMotion) return undefined;
-    const t = setInterval(() => setIdx((i) => (i + 1) % slides.length), 5500);
+    const t = setInterval(() => setPosition(({ current }) => ({ previous: current, current: (current + 1) % slides.length })), 5500);
     return () => clearInterval(t);
   }, [slides, reduceMotion]);
 
@@ -59,7 +60,8 @@ function HeroSlides({ hero, members }) {
       transition={{ duration: 0.9, ease: 'easeOut', delay: 0.15 }}
     >
       {slides.length > 0 ? (
-        slides.map((url, i) => (
+        // Keep the fading-out frame and preload only the next frame.
+        slides.map((url, i) => (i === idx || (!reduceMotion && (i === position.previous || i === (idx + 1) % slides.length))) && (
           <ContentImage
             key={url}
             src={url}

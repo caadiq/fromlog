@@ -1,10 +1,11 @@
+import { lazy } from 'react';
 import { useAdminAuth } from '@/hooks/pc/admin';
 import AdminSessionStatus from '@/components/common/AdminSessionStatus';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores';
 
 // 관리자 페이지
-import AdminLogin from '@/pages/pc/admin/login/Login';
+const AdminLogin = lazy(() => import('@/pages/pc/admin/login/Login'));
 
 /**
  * 인증 필수 라우트 가드
@@ -26,31 +27,31 @@ function RequireAuth({ children }) {
   if (!auth.isAuthenticated) return <AdminSessionStatus auth={auth} />;
   return children;
 }
-import AdminDashboard from '@/pages/pc/admin/dashboard/Dashboard';
-import AdminMembers from '@/pages/pc/admin/members/Members';
-import AdminMemberEdit from '@/pages/pc/admin/members/MemberEdit';
-import AdminAlbums from '@/pages/pc/admin/albums/Albums';
-import AdminAlbumForm from '@/pages/pc/admin/albums/AlbumForm';
-import AdminAlbumPhotos from '@/pages/pc/admin/albums/AlbumPhotos';
-import AdminFanchantEditor from '@/pages/pc/admin/albums/FanchantEditor';
-import AdminSchedules from '@/pages/pc/admin/schedules/Schedules';
-import AdminScheduleForm from '@/pages/pc/admin/schedules/ScheduleForm';
-import AdminScheduleFormPage from '@/pages/pc/admin/schedules/form';
-import AdminYouTubeEditForm from '@/pages/pc/admin/schedules/edit/YouTubeEditForm';
-import AdminConcertEditForm from '@/pages/pc/admin/schedules/edit/ConcertEditForm';
-import AdminVarietyEditForm from '@/pages/pc/admin/schedules/edit/VarietyEditForm';
-import AdminEventEditForm from '@/pages/pc/admin/schedules/edit/EventEditForm';
-import AdminEtcEditForm from '@/pages/pc/admin/schedules/edit/EtcEditForm';
-import AdminFansignForm from '@/pages/pc/admin/schedules/form/FansignForm';
-import AdminTicketingForm from '@/pages/pc/admin/schedules/form/TicketingForm';
-import AdminScheduleDict from '@/pages/pc/admin/schedules/ScheduleDict';
-import AdminScheduleBots from '@/pages/pc/admin/schedules/ScheduleBots';
-import AdminScheduleQueue from '@/pages/pc/admin/schedules/ScheduleQueue';
-import AdminScheduleLinks from '@/pages/pc/admin/schedules/ScheduleLinks';
-import AdminLogs from '@/pages/pc/admin/logs/Logs';
-import AdminVideos from '@/pages/pc/admin/videos/Videos';
-import AdminTheme from '@/pages/pc/admin/theme/Theme';
-import AdminNotFound from '@/pages/pc/admin/common/NotFound';
+const AdminDashboard = lazy(() => import('@/pages/pc/admin/dashboard/Dashboard'));
+const AdminMembers = lazy(() => import('@/pages/pc/admin/members/Members'));
+const AdminMemberEdit = lazy(() => import('@/pages/pc/admin/members/MemberEdit'));
+const AdminAlbums = lazy(() => import('@/pages/pc/admin/albums/Albums'));
+const AdminAlbumForm = lazy(() => import('@/pages/pc/admin/albums/AlbumForm'));
+const AdminAlbumPhotos = lazy(() => import('@/pages/pc/admin/albums/AlbumPhotos'));
+const AdminFanchantEditor = lazy(() => import('@/pages/pc/admin/albums/FanchantEditor'));
+const AdminSchedules = lazy(() => import('@/pages/pc/admin/schedules/Schedules'));
+const AdminScheduleForm = lazy(() => import('@/pages/pc/admin/schedules/ScheduleForm'));
+const AdminScheduleFormPage = lazy(() => import('@/pages/pc/admin/schedules/form'));
+const AdminYouTubeEditForm = lazy(() => import('@/pages/pc/admin/schedules/edit/YouTubeEditForm'));
+const AdminConcertEditForm = lazy(() => import('@/pages/pc/admin/schedules/edit/ConcertEditForm'));
+const AdminVarietyEditForm = lazy(() => import('@/pages/pc/admin/schedules/edit/VarietyEditForm'));
+const AdminEventEditForm = lazy(() => import('@/pages/pc/admin/schedules/edit/EventEditForm'));
+const AdminEtcEditForm = lazy(() => import('@/pages/pc/admin/schedules/edit/EtcEditForm'));
+const AdminFansignForm = lazy(() => import('@/pages/pc/admin/schedules/form/FansignForm'));
+const AdminTicketingForm = lazy(() => import('@/pages/pc/admin/schedules/form/TicketingForm'));
+const AdminScheduleDict = lazy(() => import('@/pages/pc/admin/schedules/ScheduleDict'));
+const AdminScheduleBots = lazy(() => import('@/pages/pc/admin/schedules/ScheduleBots'));
+const AdminScheduleQueue = lazy(() => import('@/pages/pc/admin/schedules/ScheduleQueue'));
+const AdminScheduleLinks = lazy(() => import('@/pages/pc/admin/schedules/ScheduleLinks'));
+const AdminLogs = lazy(() => import('@/pages/pc/admin/logs/Logs'));
+const AdminVideos = lazy(() => import('@/pages/pc/admin/videos/Videos'));
+const AdminTheme = lazy(() => import('@/pages/pc/admin/theme/Theme'));
+const AdminNotFound = lazy(() => import('@/pages/pc/admin/common/NotFound'));
 
 /**
  * PC 관리자 라우트

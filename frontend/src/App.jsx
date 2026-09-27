@@ -1,24 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import RouteLoadingBoundary from '@/components/common/RouteLoadingBoundary';
 import { BrowserRouter, useLocation } from 'react-router-dom';
 
 // 공통 컴포넌트
 import { ScrollToTop } from '@/components/common';
 
 // 라우트
-import { PCPublicRoutes, PCAdminRoutes, MobileRoutes } from '@/routes';
+const PCPublicRoutes = lazy(() => import('@/routes/pc/public'));
+const PCAdminRoutes = lazy(() => import('@/routes/pc/admin'));
+const MobileRoutes = lazy(() => import('@/routes/mobile'));
 
 // 스토어
 import { useAuthStore } from '@/stores';
-import AdminLogin from '@/pages/pc/admin/login/Login';
-import MobileAdminHome from '@/pages/mobile/admin/Home';
-import MobileAdminQueue from '@/pages/mobile/admin/Queue';
-import MobileAdminSchedules from '@/pages/mobile/admin/Schedules';
-import MobileAdminScheduleLinks from '@/pages/mobile/admin/ScheduleLinks';
-import MobileAdminBots from '@/pages/mobile/admin/Bots';
-import MobileAdminVideos from '@/pages/mobile/admin/Videos';
-import MobileAdminTheme from '@/pages/mobile/admin/Theme';
-import MobileAdminLogs from '@/pages/mobile/admin/Logs';
-import MobileAdminScheduleCreate from '@/pages/mobile/admin/ScheduleCreate';
+const AdminLogin = lazy(() => import('@/pages/pc/admin/login/Login'));
+const MobileAdminHome = lazy(() => import('@/pages/mobile/admin/Home'));
+const MobileAdminQueue = lazy(() => import('@/pages/mobile/admin/Queue'));
+const MobileAdminSchedules = lazy(() => import('@/pages/mobile/admin/Schedules'));
+const MobileAdminScheduleLinks = lazy(() => import('@/pages/mobile/admin/ScheduleLinks'));
+const MobileAdminBots = lazy(() => import('@/pages/mobile/admin/Bots'));
+const MobileAdminVideos = lazy(() => import('@/pages/mobile/admin/Videos'));
+const MobileAdminTheme = lazy(() => import('@/pages/mobile/admin/Theme'));
+const MobileAdminLogs = lazy(() => import('@/pages/mobile/admin/Logs'));
+const MobileAdminScheduleCreate = lazy(() => import('@/pages/mobile/admin/ScheduleCreate'));
 
 /**
  * PC/모바일은 **뷰포트 폭(matchMedia)** 하나로 판정한다. UA는 보지 않는다.
@@ -126,7 +129,11 @@ function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ScrollToTop />
-      <DeviceRoutes />
+      <RouteLoadingBoundary>
+        <Suspense fallback={<div role="status" className="p-6 text-center text-sm text-mute">화면을 불러오는 중...</div>}>
+          <DeviceRoutes />
+        </Suspense>
+      </RouteLoadingBoundary>
     </BrowserRouter>
   );
 }

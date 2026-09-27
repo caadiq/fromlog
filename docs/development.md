@@ -1224,3 +1224,13 @@ invalidateSchedules(queryClient);
 - 봇 자동 정지 알림은 DB 대기열로 재시도하며 수동 시작 시 과거 알림을 취소한다. YouTube/X/검색의 본문 수신도 시간 제한에 포함한다.
 - 종료 시 cron/집중 폴링 정리, 수집 최대 8초 대기, 전체 종료 20초 제한. 다음 백엔드 재생성부터 init/25초 유예/healthcheck/로그 회전/npm ci 실행을 적용한다.
 - 자동 검사 고유 129개 노드, 12.1.2 DB 백업 복원(45테이블/29외래키), 미디어 표본 복원 및 실제 SIGTERM 종료 확인. 운영 DB 복원·강제 장애·프론트 배포·push 없음.
+
+
+## 2026-09-27 웹·앱 성능 검증
+
+- [13번 결과와 한계](validation/13-performance.md), [재현 방법](../frontend/test/performance/README.md). 웹/Flutter 자동 검사·수정 완료, Android 실기기 성능은 대기.
+- PC/모바일/관리자 라우트와 페이지는 React.lazy로 분리. 공통 Suspense 및 실패 경계에서 재시도 제공. 거부된 lazy import 캐시를 비우려면 페이지를 새로고침해야 한다.
+- PC 홈 사진은 현재/이전/다음 프레임만 유지하며 동작 줄이기는 한 장만 요청. 앱 영상은 월 전체 대신 각 줄이 ListView 자식이 되어 화면 밖 카드 상태를 정리한다.
+- 웹 최초 JS 약 393KB→160~193KB(gzip, 경로별), 앱 600개 일반 영상 마운트 600→4개. 합성 환경 수치이며 실제 Android 프레임 성능을 의미하지 않는다.
+- Vite build, 공개 PC/모바일 회귀, 관리자 69+50 화면 조합, Flutter 고유 91개 테스트 확인(전체 90개 통과 후 성능 2개 재검사, 1개 추가). 분석 기존 info 10개 유지.
+- Otto **2.0.0+134 / versionCode 2134** 발행. 웹 prod 및 push 없음.
