@@ -1234,3 +1234,12 @@ invalidateSchedules(queryClient);
 - 웹 최초 JS 약 393KB→160~193KB(gzip, 경로별), 앱 600개 일반 영상 마운트 600→4개. 합성 환경 수치이며 실제 Android 프레임 성능을 의미하지 않는다.
 - Vite build, 공개 PC/모바일 회귀, 관리자 69+50 화면 조합, Flutter 고유 91개 테스트 확인(전체 90개 통과 후 성능 2개 재검사, 1개 추가). 분석 기존 info 10개 유지.
 - Otto **2.0.0+134 / versionCode 2134** 발행. 웹 prod 및 push 없음.
+
+
+## 2026-09-27 PC 앨범·공통 뷰어 심화 검증
+
+- [14번 검증](validation/14-pc-public-content.md), [재현 스크립트](../frontend/test/pc-public-content/README.md). PC 앨범/곡/응원법/갤러리의 실패·404·빈 상태 구분과 재시도, 긴 콘텐츠 배치를 보완했다.
+- 공통 Lightbox는 미디어 오류/재시도·20초 제한, 원본 파일명 다운로드/15초 제한/중복·취소, 최상위 모달 포커스·Escape·Back, 인디케이터 클릭 전파·동작 줄이기를 처리한다.
+- YouTube API 실패는 다시 로드할 수 있고 15초 제한을 둔다. PC 응원법에 재시도 UI를 제공한다. 버튼/링크의 기본 키보드 동작은 플레이어 단축키가 가로채지 않는다.
+- **공용 fromis-9 버킷 CORS 적용**: fromlog 및 dev.fromlog 두 Origin의 GET/HEAD만 허용. 기존 설정은 없었으며 백업 경로와 복구 방법은 14번 문서에 기록했다. 조회: `docker exec fromlog-backend node scripts/configure-media-cors.mjs`. 자동 서버 시작 시 설정을 변경하지 않는다.
+- 실제 앨범 17개·원본 WebP 다운로드, 15개 배치 조합·브라우저 3종 한정 흐름, 기존 일정 포스터 회귀·최종 build 통과. UI는 개발만 반영, 공용 CORS는 적용 완료. 다음은 모바일 공개 콘텐츠.

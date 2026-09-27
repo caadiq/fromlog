@@ -1,3 +1,4 @@
+import { useReducedMotion } from 'framer-motion';
 import { memo } from 'react';
 
 /**
@@ -11,6 +12,7 @@ const LightboxIndicator = memo(function LightboxIndicator({
   goToIndex,
   width = 200,
 }) {
+  const reduceMotion = useReducedMotion();
   const halfWidth = width / 2;
   const translateX = -(currentIndex * 18) + halfWidth - 6;
 
@@ -33,20 +35,21 @@ const LightboxIndicator = memo(function LightboxIndicator({
         style={{
           width: `${count * 18}px`,
           transform: `translateX(${translateX}px)`,
-          transition: 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          transition: reduceMotion ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         }}
       >
         {Array.from({ length: count }).map((_, i) => (
           <button
             key={i}
             aria-label={`이미지 ${i + 1}/${count}`}
+            tabIndex={i === currentIndex ? 0 : -1}
             aria-current={i === currentIndex ? 'true' : undefined}
             className={`rounded-full flex-shrink-0 transition-all duration-300 ${
               i === currentIndex
                 ? 'w-3 h-3 bg-white'
                 : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/60'
             }`}
-            onClick={() => goToIndex(i)}
+            onClick={event => { event.stopPropagation(); goToIndex(i); }}
           />
         ))}
       </div>

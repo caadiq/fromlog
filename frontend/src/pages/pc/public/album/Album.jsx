@@ -1,3 +1,5 @@
+import ContentImage from '@/components/editorial/ContentImage';
+import ContentState from '@/components/pc/public/ContentState';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -24,7 +26,7 @@ const MotionLink = motion(Link);
 function PCAlbum() {
   useDocumentTitle('앨범');
 
-  const { data: albums = [], isLoading } = useQuery({
+  const { data: albums = [], isLoading, error, refetch } = useQuery({
     queryKey: ['albums'],
     queryFn: getAlbums,
   });
@@ -42,6 +44,9 @@ function PCAlbum() {
   }, [albums]);
 
   if (isLoading) return <Loading />;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>앨범 목록을 불러오지 못했습니다.</ContentState>;
+
+  if (!albums.length) return <ContentState>등록된 앨범이 없습니다.</ContentState>;
 
   return (
     <div className="flex-1 bg-paper text-ink">
@@ -66,10 +71,10 @@ function PCAlbum() {
             </Reveal>
             <Reveal className="grid grid-cols-3 gap-x-8 gap-y-12 pb-6 pt-4" variants={stagger}>
               {list.map((a) => (
-                <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="group block">
+                <MotionLink key={a.id} to={`/album/${a.folder_name}`} variants={fadeUp} className="group block min-w-0">
                   <div className="relative overflow-hidden">
                     {a.cover_medium_url || a.cover_thumb_url || a.cover_original_url ? (
-                      <img
+                      <ContentImage
                         src={a.cover_medium_url || a.cover_thumb_url || a.cover_original_url}
                         alt={a.title}
                         loading="lazy"
@@ -86,7 +91,7 @@ function PCAlbum() {
                     <b className="overflow-hidden text-ellipsis whitespace-nowrap pr-3 text-[22px] font-extrabold tracking-[-0.4px]">
                       {a.title}
                     </b>
-                    <span className="whitespace-nowrap text-[14px] font-bold tracking-k1 text-mute">
+                    <span className="max-w-[45%] break-words text-right text-[14px] font-bold tracking-k1 text-mute">
                       {a.album_type}
                     </span>
                   </div>

@@ -1,3 +1,5 @@
+import ContentState from '@/components/pc/public/ContentState';
+import { Loading } from '@/components/common';
 /**
  * PC 응원법 페이지
  *
@@ -9,7 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
 
@@ -26,7 +28,7 @@ function PCFanchant() {
   // 주소는 곡 상세와 같은 결로 둔다: /album/:name/track/:trackTitle/fanchant
   // 예전 /fanchant/:trackId 도 그대로 받는다(관리자 미리보기 등)
   const { trackId: trackIdParam, name: albumName, trackTitle } = useParams();
-  const { data: track } = useQuery({
+  const { data: track, isLoading: trackLoading, error: trackError, refetch: retryTrack } = useQuery({
     queryKey: ['track', albumName, trackTitle],
     queryFn: () => getTrack(albumName, trackTitle),
     enabled: !!albumName && !!trackTitle,
@@ -35,11 +37,10 @@ function PCFanchant() {
   const trackId = trackIdParam ?? track?.id;
   const navigate = useNavigate();
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['fanchant', trackId],
     queryFn: () => getFanchant(trackId),
     enabled: !!trackId,
-    placeholderData: keepPreviousData,
     retry: false,
   });
 
@@ -62,7 +63,9 @@ function PCFanchant() {
     return () => ro.disconnect();
   }, []);
 
-  if (isLoading) return <div className="min-h-0 flex-1 bg-paper" />;
+  if (trackLoading || isLoading) return <Loading />;
+  if (trackError && trackError.status !== 404) return <ContentState onRetry={retryTrack}>곡을 불러오지 못했습니다.</ContentState>;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>응원법을 불러오지 못했습니다.</ContentState>;
 
   if (error || !data) {
     return (
@@ -89,21 +92,21 @@ function PCFanchant() {
     // svh를 쓰는 이유: dvh는 브라우저 주소창이 숨은 상태의 큰 값이라
     // 태블릿에서 주소창이 나오면 그만큼 아래가 잘렸다.
     <div
-      className="flex flex-col overflow-hidden bg-paper text-ink"
+      className="flex min-h-[400px] flex-col overflow-hidden break-words bg-paper text-ink"
       style={{ height: `calc(100svh - ${headerH}px)` }}
     >
       <div className="mx-auto flex w-full min-h-0 max-w-[1280px] flex-1 flex-col px-10 pb-8 pt-[38px]">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
-          <div className="text-[11.5px] font-extrabold tracking-k2 text-faint">
+          <div className="text-[13px] font-extrabold tracking-k2 text-faint">
             {data.albumTitle} / {data.trackTitle} / 응원법
           </div>
           <h1 className="mt-2.5 text-[40px] font-black leading-none tracking-[-1.5px]">{data.trackTitle} 응원법</h1>
         </motion.div>
 
-        <div className="mt-7 grid min-h-0 flex-1 grid-cols-[1fr_620px] gap-[52px]">
+        <div className="mt-7 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-[40px]">
           {/* 가사 — 여기만 스크롤된다 */}
           <div className="flex min-h-0 flex-col border-t-2 border-ink pt-3.5">
-            <div className="shrink-0 text-[11.5px] font-black tracking-k2">FANCHANT</div>
+            <div className="shrink-0 text-[13px] font-black tracking-k2">FANCHANT</div>
             <OverlayScrollbarsComponent
               element="div"
               className="mt-[18px] min-h-0 flex-1 pb-10 pr-3"
@@ -125,7 +128,8 @@ function PCFanchant() {
             <div className="aspect-video w-full border border-hairline bg-black">
               <div ref={player.containerRef} className="h-full w-full" />
             </div>
-            <div className="mt-[9px] text-[11px] font-black tracking-k18 text-faint">FANCHANT — YOUTUBE</div>
+            {player.error && <ContentState onRetry={player.retry}>{player.error}</ContentState>}
+            <div className="mt-[9px] text-[13px] font-black tracking-k18 text-faint">FANCHANT — YOUTUBE</div>
             {data.video && (
               <div className="mt-4 border-t border-hairline pt-4">
                 <a

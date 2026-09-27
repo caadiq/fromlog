@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import ContentState from '@/components/pc/public/ContentState';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAlbumByName } from '@/api';
@@ -14,7 +15,7 @@ import { TYPE_LABEL } from '@/constants';
 function PCAlbumGallery() {
   const { name } = useParams();
 
-  const { data: album, isLoading } = useQuery({
+  const { data: album, isLoading, error, refetch } = useQuery({
     queryKey: ['album', name],
     queryFn: () => getAlbumByName(name),
   });
@@ -49,7 +50,10 @@ function PCAlbumGallery() {
 
   const [lightbox, setLightbox] = useState({ open: false, index: 0 });
 
+  useEffect(() => { setFilter({ kind: 'all', value: null }); setLightbox({ open: false, index: 0 }); }, [name]);
+
   if (isLoading) return <Loading />;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>앨범을 불러오지 못했습니다.</ContentState>;
   if (!album) {
     return (
       <div className="flex flex-1 items-center justify-center bg-paper py-40 text-mute">
@@ -64,16 +68,16 @@ function PCAlbumGallery() {
   }, {});
   const isActive = (kind, value) => filter.kind === kind && filter.value === value;
   const chip = (active) =>
-    `border px-[18px] py-[9px] text-[13px] font-extrabold tracking-k15 transition-colors ${
+    `max-w-full break-words border px-[18px] py-[9px] text-[13px] font-extrabold tracking-k15 transition-colors ${
       active ? 'border-ink bg-ink text-white' : 'border-hairline text-esub hover:border-ink'
     }`;
 
   return (
-    <div className="flex-1 bg-paper text-ink">
+    <div className="min-w-0 flex-1 break-words bg-paper text-ink">
       <div className="mx-auto w-full max-w-[1300px] px-[70px] pb-[90px]">
         {/* 헤더 */}
-        <div className="flex items-end justify-between border-b border-hairline pb-9 pt-14">
-          <div>
+        <div className="flex items-end justify-between gap-6 border-b border-hairline pb-9 pt-14">
+          <div className="min-w-0">
             <div className="text-[13px] font-extrabold tracking-k25 text-mute">
               <Link to="/album" className="hover:text-ink">DISCOGRAPHY</Link>
               <i className="not-italic mx-2 text-primary">/</i>
@@ -85,19 +89,20 @@ function PCAlbumGallery() {
               CONCEPT PHOTOS
             </h1>
           </div>
-          <div className="text-right text-[13.5px] font-semibold tracking-k2 text-mute">
+          <div className="shrink-0 text-right text-[13.5px] font-semibold tracking-k2 text-mute">
             {photos.length} PHOTOS
           </div>
         </div>
 
         {/* 필터: 컨셉 + 타입 */}
         <div className="flex flex-wrap gap-2 border-b border-hairline py-5">
-          <button onClick={() => setFilter({ kind: 'all', value: null })} className={chip(filter.kind === 'all')}>
+          <button aria-pressed={filter.kind === 'all'} onClick={() => setFilter({ kind: 'all', value: null })} className={chip(filter.kind === 'all')}>
             ALL {photos.length}
           </button>
           {concepts.map((c) => (
               <button
                 key={c}
+                aria-pressed={isActive('concept', c)}
                 onClick={() => setFilter({ kind: 'concept', value: c })}
                 className={chip(isActive('concept', c))}
               >
@@ -109,6 +114,7 @@ function PCAlbumGallery() {
             .map((t) => (
               <button
                 key={t}
+                aria-pressed={isActive('type', t)}
                 onClick={() => setFilter({ kind: 'type', value: t })}
                 className={chip(isActive('type', t))}
               >
@@ -118,6 +124,7 @@ function PCAlbumGallery() {
         </div>
 
         <div className="pt-[34px]">
+          {!filtered.length && <ContentState>등록된 사진이 없습니다.</ContentState>}
           <JustifiedGallery
             photos={filtered}
             onPhotoClick={(p, i) => setLightbox({ open: true, index: i })}
@@ -125,7 +132,7 @@ function PCAlbumGallery() {
         </div>
 
         <Lightbox
-          images={filtered.map((p) => p.medium_url)}
+          images={filtered.map((p) => p.medium_url || p.thumb_url || p.original_url)}
           photos={filtered}
           currentIndex={lightbox.index}
           isOpen={lightbox.open}

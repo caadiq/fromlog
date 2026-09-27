@@ -1,4 +1,9 @@
-import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import useAdminModal from '@/hooks/common/useAdminModal';
+import ContentImage from '@/components/editorial/ContentImage';
+import ContentState from '@/components/pc/public/ContentState';
+import { useMemo, useState, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAlbumByName } from '@/api';
@@ -14,7 +19,7 @@ import { useDialogBackClose } from '@/hooks/common';
 function PCAlbumDetail() {
   const { name } = useParams();
 
-  const { data: album, isLoading } = useQuery({
+  const { data: album, isLoading, error, refetch } = useQuery({
     queryKey: ['album', name],
     queryFn: () => getAlbumByName(name),
   });
@@ -23,6 +28,8 @@ function PCAlbumDetail() {
 
   const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0, teasers: null, photos: null });
   const [showDescription, setShowDescription] = useState(false);
+  const descriptionRef = useRef(null);
+  useAdminModal(showDescription, descriptionRef, () => setShowDescription(false));
   // 뒤로가기 시 소개 모달만 닫기
   useDialogBackClose(showDescription, () => setShowDescription(false));
 
@@ -47,6 +54,7 @@ function PCAlbumDetail() {
   const teasers = album?.teasers || [];
 
   if (isLoading) return <Loading />;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>앨범을 불러오지 못했습니다.</ContentState>;
   if (!album) {
     return (
       <div className="flex flex-1 items-center justify-center bg-paper py-40 text-mute">
@@ -59,21 +67,22 @@ function PCAlbumDetail() {
     setLightbox({ open: true, images, index, teasers: teasersMeta, photos: photosMeta });
 
   return (
-    <div className="flex-1 bg-paper text-ink">
+    <div className="min-w-0 flex-1 break-words bg-paper text-ink">
       <div className="mx-auto w-full max-w-[1300px] px-[70px] pb-[90px]">
         {/* 스프레드 */}
-        <div className="grid grid-cols-[1fr_1.1fr] border-b border-hairline">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] border-b border-hairline">
           <div className="border-r border-hairline">
-            {album.cover_medium_url || album.cover_original_url ? (
+            {album.cover_medium_url || album.cover_thumb_url || album.cover_original_url ? (
               <button
                 type="button"
+                aria-label="앨범 커버 크게 보기"
                 onClick={() =>
-                  openLightbox([album.cover_original_url || album.cover_medium_url], 0)
+                  openLightbox([album.cover_original_url || album.cover_medium_url || album.cover_thumb_url], 0)
                 }
                 className="group block h-full w-full overflow-hidden"
               >
-                <img
-                  src={album.cover_medium_url || album.cover_original_url}
+                <ContentImage
+                  src={album.cover_medium_url || album.cover_thumb_url || album.cover_original_url}
                   alt={album.title}
                   className="block h-full min-h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                 />
@@ -93,7 +102,7 @@ function PCAlbumDetail() {
             <span className="mt-8 text-[14.5px] font-extrabold tracking-k3 text-primary">
               {album.album_type}
             </span>
-            <h1 className="mt-3 text-[58px] font-black leading-[1.05] tracking-[-2.2px]" style={{ textWrap: 'balance' }}>
+            <h1 className="mt-3 break-words text-[58px] font-black leading-[1.05] tracking-[-2.2px]" style={{ textWrap: 'balance' }}>
               {album.title}
             </h1>
             <FactSheet
@@ -140,7 +149,7 @@ function PCAlbumDetail() {
                   <span className="min-w-0">
                     <span className="text-[17px] font-bold tracking-[-0.2px]">{t.title}</span>
                     {!!t.is_title_track && (
-                      <i className="not-italic ml-2.5 rounded-[3px] bg-primary px-[7px] py-0.5 align-[2px] text-[12px] font-extrabold tracking-k1 text-white">
+                      <i className="not-italic ml-2.5 rounded-[3px] bg-primary px-[7px] py-0.5 align-[2px] text-[13px] font-extrabold tracking-k1 text-white">
                         TITLE
                       </i>
                     )}
@@ -168,11 +177,12 @@ function PCAlbumDetail() {
           <>
             <Reveal>
             <SectionHeader label="TEASERS" className="pb-[22px] pt-[54px]" />
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               {teasers.map((t, i) => (
                 <button
                   key={t.original_url || i}
                   type="button"
+                  aria-label={`티저 ${i + 1} 보기`}
                   onClick={() =>
                     openLightbox(
                       teasers.map((x) =>
@@ -184,7 +194,7 @@ function PCAlbumDetail() {
                   }
                   className="group relative block w-[180px] overflow-hidden"
                 >
-                  <img
+                  <ContentImage
                     src={t.thumb_url || t.medium_url}
                     alt=""
                     className="block aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
@@ -213,9 +223,10 @@ function PCAlbumDetail() {
                 <button
                   key={p.id || i}
                   type="button"
+                  aria-label={`컨셉 포토 ${i + 1} 크게 보기`}
                   onClick={() =>
                     openLightbox(
-                      conceptPhotos.slice(0, 4).map((x) => x.medium_url),
+                      conceptPhotos.slice(0, 4).map((x) => x.medium_url || x.thumb_url || x.original_url),
                       i,
                       null,
                       conceptPhotos.slice(0, 4)
@@ -223,7 +234,7 @@ function PCAlbumDetail() {
                   }
                   className="group min-w-0 flex-1 overflow-hidden"
                 >
-                  <img
+                  <ContentImage
                     src={p.medium_url || p.thumb_url}
                     alt=""
                     className="block aspect-[0.8] w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
@@ -256,19 +267,22 @@ function PCAlbumDetail() {
         />
 
         {/* 앨범 소개 모달 */}
-        {showDescription && (
-          <div
+        {createPortal(<AnimatePresence>{showDescription && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-6"
             onClick={() => setShowDescription(false)}
           >
             <div
-              className="max-h-[70vh] w-full max-w-[560px] overflow-y-auto border border-ink bg-paper"
+              ref={descriptionRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="앨범 소개"
+              className="max-h-[70vh] break-words w-full max-w-[560px] overflow-y-auto border border-ink bg-paper"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
                 <b className="text-[13.5px] font-extrabold tracking-k3">ABOUT — {album.title}</b>
                 <button
                   type="button"
+                  aria-label="닫기"
                   onClick={() => setShowDescription(false)}
                   className="text-[16px] text-mute hover:text-ink"
                 >
@@ -279,8 +293,8 @@ function PCAlbumDetail() {
                 {album.description}
               </p>
             </div>
-          </div>
-        )}
+          </motion.div>
+        )}</AnimatePresence>, document.body)}
       </div>
     </div>
   );

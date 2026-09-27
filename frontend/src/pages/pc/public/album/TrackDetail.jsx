@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import ContentState from '@/components/pc/public/ContentState';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getTrack, getFanchantTracks } from '@/api';
@@ -14,7 +15,7 @@ import { Megaphone } from 'lucide-react';
 function PCTrackDetail() {
   const { name: albumName, trackTitle } = useParams();
 
-  const { data: track, isLoading } = useQuery({
+  const { data: track, isLoading, error, refetch } = useQuery({
     queryKey: ['track', albumName, trackTitle],
     queryFn: () => getTrack(albumName, trackTitle),
     enabled: !!albumName && !!trackTitle,
@@ -34,7 +35,10 @@ function PCTrackDetail() {
   const videoLabel = track?.video_type === 'special' ? 'SPECIAL VIDEO' : 'OFFICIAL MV';
   const [lyricsOpen, setLyricsOpen] = useState(false);
 
+  useEffect(() => setLyricsOpen(false), [albumName, trackTitle]);
+
   if (isLoading) return <Loading />;
+  if (error && error.status !== 404) return <ContentState onRetry={refetch}>곡을 불러오지 못했습니다.</ContentState>;
   if (!track) {
     return (
       <div className="flex flex-1 items-center justify-center bg-paper py-40 text-mute">
@@ -55,10 +59,10 @@ function PCTrackDetail() {
   const lyricsLong = lyricsLines.length > 10;
 
   return (
-    <div className="flex-1 bg-paper text-ink">
+    <div className="min-w-0 flex-1 break-words bg-paper text-ink">
       <div className="mx-auto w-full max-w-[1300px] px-[70px] pb-[90px]">
         {/* 히어로 */}
-        <div className={`grid ${youtubeVideoId ? 'grid-cols-[1.05fr_0.95fr]' : 'grid-cols-1'}`}>
+        <div className={`grid ${youtubeVideoId ? 'grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]' : 'grid-cols-1'}`}>
           <div className={`relative pb-5 pt-[60px] ${youtubeVideoId ? 'border-r border-hairline pr-[50px]' : ''}`}>
             {/* 아웃라인 트랙 번호 워터마크 */}
             <span
@@ -77,13 +81,13 @@ function PCTrackDetail() {
             {/* TITLE 태그 유무와 무관하게 곡명 시작 위치 고정 (워터마크 겹침 방지) */}
             <div className="mt-9 h-[22px]">
               {!!track.is_title_track && (
-                <span className="inline-block rounded-[3px] bg-primary px-[9px] py-[3px] text-[12px] font-extrabold tracking-k15 text-white">
+                <span className="inline-block rounded-[3px] bg-primary px-[9px] py-[3px] text-[13px] font-extrabold tracking-k15 text-white">
                   TITLE
                 </span>
               )}
             </div>
             <h1
-              className="mt-3 text-[64px] font-black leading-[1.02] tracking-[-2.5px]"
+              className="mt-3 break-words text-[64px] font-black leading-[1.02] tracking-[-2.5px]"
               style={{ textWrap: 'balance' }}
             >
               {track.title}
@@ -101,7 +105,7 @@ function PCTrackDetail() {
                 {credits.map((c) => (
                   <div
                     key={c.k}
-                    className="grid grid-cols-[110px_1fr] items-baseline border-b border-hairline px-1 py-[13px]"
+                    className="grid grid-cols-[110px_minmax(0,1fr)] items-baseline border-b border-hairline px-1 py-[13px]"
                   >
                     <span className="text-[13px] font-extrabold tracking-k25 text-mute">{c.k}</span>
                     <span className="text-[15px] font-semibold leading-[1.65]">
@@ -138,6 +142,12 @@ function PCTrackDetail() {
             </div>
           )}
         </div>
+
+        {hasFanchant && !youtubeVideoId && (
+          <Link to={`/album/${encodeURIComponent(albumName)}/track/${encodeURIComponent(trackTitle)}/fanchant`} className="mt-4 inline-flex items-center gap-2 border border-ink px-5 py-2.5 text-[13px] font-extrabold">
+            <Megaphone size={14} /> 응원법 보기
+          </Link>
+        )}
 
         {/* 본문: 가사 / 같은 앨범 트랙 */}
         <Reveal className="grid grid-cols-2 gap-[70px] pt-[54px]">
@@ -188,7 +198,7 @@ function PCTrackDetail() {
                     >
                       {t.title}
                       {!!t.is_title_track && (
-                        <i className="not-italic ml-2 rounded-[3px] bg-primary px-1.5 py-0.5 align-[1px] text-[12px] font-extrabold tracking-k1 text-white">
+                        <i className="not-italic ml-2 rounded-[3px] bg-primary px-1.5 py-0.5 align-[1px] text-[13px] font-extrabold tracking-k1 text-white">
                           TITLE
                         </i>
                       )}

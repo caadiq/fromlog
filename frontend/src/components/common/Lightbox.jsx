@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import useAdminModal from '@/hooks/common/useAdminModal';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Download, Info, Tag, Users } from 'lucide-react';
 import LightboxIndicator from './LightboxIndicator';
 import { useDialogBackClose } from '@/hooks/common';
@@ -33,6 +34,15 @@ function Lightbox({
   showCounter = true,
   showDownload = true,
 }) {
+  const panelRef = useRef(null);
+  const infoRef = useRef(null);
+  const reduceMotion = useReducedMotion();
+  const [mediaError, setMediaError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [downloadError, setDownloadError] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const downloadRef = useRef(null);
+  const currentSrc = images[currentIndex];
   // 뒤로가기 시 페이지 이동 대신 다이얼로그만 닫기
   useDialogBackClose(isOpen, onClose);
 
@@ -42,6 +52,9 @@ function Lightbox({
   const [showInfo, setShowInfo] = useState(false);
   // 정보 다이얼로그가 열려 있으면 뒤로가기로 정보창부터 닫기 (LIFO)
   useDialogBackClose(showInfo, () => setShowInfo(false));
+
+  useAdminModal(isOpen, panelRef, onClose);
+  useAdminModal(isOpen && showInfo, infoRef, () => setShowInfo(false));
 
   // X·배경·Escape 닫기 (히스토리 정리는 useDialogBackClose가 담당)
   const requestClose = useCallback(() => {
@@ -84,56 +97,60 @@ function Lightbox({
     [currentIndex, onIndexChange]
   );
 
-  // 이미지 다운로드
+  // Download the original asset and preserve its file type.
   const downloadImage = useCallback(async () => {
-    const imageUrl = images[currentIndex];
-    if (!imageUrl) return;
-
+    const imageUrl = photos?.[currentIndex]?.original_url || images[currentIndex];
+    if (!imageUrl || downloadRef.current) return;
+    const controller = new AbortController();
+    downloadRef.current = controller;
+    setDownloading(true);
+    setDownloadError('');
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(imageUrl, { signal: controller.signal });
+      if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
+      if (/text\/html|application\/json/.test(blob.type)) throw new Error('Invalid media');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `image_${currentIndex + 1}.jpg`;
+      link.download = decodeURIComponent(new URL(imageUrl, window.location.href).pathname.split('/').pop()) || `media_${currentIndex + 1}`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('이미지 다운로드 실패:', error);
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      if (downloadRef.current === controller) setDownloadError('다운로드하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      clearTimeout(timeout);
+      if (downloadRef.current === controller) { downloadRef.current = null; setDownloading(false); }
     }
-  }, [images, currentIndex]);
+  }, [images, photos, currentIndex]);
 
-  // 라이트박스 열릴 때 body 스크롤 숨기기
   useEffect(() => {
-    if (isOpen) {
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.documentElement.style.overflow = '';
-      document.body.style.overflow = '';
-    }
+    if (!isOpen) return undefined;
+    const htmlOverflow = document.documentElement.style.overflow;
+    const bodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.documentElement.style.overflow = '';
-      document.body.style.overflow = '';
+      document.documentElement.style.overflow = htmlOverflow;
+      document.body.style.overflow = bodyOverflow;
     };
   }, [isOpen]);
 
   // 키보드 이벤트 핸들러
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || showInfo) return;
 
     const handleKeyDown = (e) => {
+      if (e.defaultPrevented || e.target.tagName === 'VIDEO') return;
       switch (e.key) {
         case 'ArrowLeft':
           goToPrev();
           break;
         case 'ArrowRight':
           goToNext();
-          break;
-        case 'Escape':
-          requestClose();
           break;
         default:
           break;
@@ -142,13 +159,23 @@ function Lightbox({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, goToPrev, goToNext, requestClose]);
+  }, [isOpen, showInfo, goToPrev, goToNext]);
 
   // 이미지가 바뀔 때 로딩/줌 상태 리셋
   useEffect(() => {
     setImageLoaded(false);
     setZoomed(false);
-  }, [currentIndex]);
+    setMediaError(!currentSrc);
+    setDownloadError('');
+    setDownloading(false);
+    return () => { const controller = downloadRef.current; downloadRef.current = null; controller?.abort(); };
+  }, [currentIndex, currentSrc, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || imageLoaded || mediaError) return undefined;
+    const timer = setTimeout(() => setMediaError(true), 20000);
+    return () => clearTimeout(timer);
+  }, [isOpen, imageLoaded, mediaError, currentSrc, attempt]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -160,7 +187,7 @@ function Lightbox({
   // 현재 사진의 메타데이터
   const currentPhoto = photos?.[currentIndex];
   const photoTitle = currentPhoto?.title || currentPhoto?.concept;
-  const hasValidTitle = photoTitle && photoTitle.trim() && photoTitle !== 'Default';
+  const hasValidTitle = photoTitle && photoTitle.trim() && photoTitle.toLowerCase() !== 'default';
   const photoMembers = currentPhoto?.members;
   const hasMembers = photoMembers && String(photoMembers).trim();
   const hasPhotoInfo = hasValidTitle || hasMembers;
@@ -169,13 +196,15 @@ function Lightbox({
     <AnimatePresence>
       {isOpen && images.length > 0 && (
         <motion.div
+          ref={panelRef}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-label="이미지 뷰어"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2 }}
           className="fixed inset-0 bg-black/95 z-50 overflow-hidden"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           onClick={requestClose}
@@ -206,7 +235,8 @@ function Lightbox({
               )}
               {showDownload && (
                 <button
-                  aria-label="다운로드"
+                  aria-label={downloading ? "다운로드 중" : "다운로드"}
+                  disabled={downloading}
                   className="text-white/70 hover:text-white transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -243,35 +273,42 @@ function Lightbox({
             )}
 
             {/* 로딩 스피너 */}
-            {!imageLoaded && (
+            {!imageLoaded && !mediaError && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
+                <div role="status" aria-label="미디어 불러오는 중" className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
               </div>
             )}
 
+            {downloadError && <p role="alert" className="absolute left-24 right-24 top-20 z-20 text-center text-sm text-white">{downloadError}</p>}
+            {mediaError && <div role="alert" className="relative z-10 flex flex-col items-center gap-4 text-white" onClick={e => e.stopPropagation()}>
+              <p>미디어를 불러오지 못했습니다.</p>
+              <button className="border border-white/50 px-5 py-2" onClick={() => { setMediaError(false); setImageLoaded(false); setAttempt(v => v + 1); }}>다시 시도</button>
+            </div>}
             {/* 이미지/비디오 + 메타데이터 */}
-            <div className="flex flex-col items-center mx-24">
+            <div className={`flex flex-col items-center mx-24 ${mediaError ? 'hidden' : ''}`}>
               {teasers?.[currentIndex]?.media_type === 'video' ? (
                 <motion.video
-                  key={currentIndex}
+                  key={`${currentSrc}-${currentIndex}-${attempt}`}
                   src={images[currentIndex]}
                   className={`max-w-[min(1100px,calc(100vw-200px))] max-h-[min(900px,calc(100dvh-140px))] object-contain transition-opacity duration-200 ${
                     imageLoaded ? 'opacity-100' : 'opacity-0'
                   }`}
                   onClick={(e) => e.stopPropagation()}
+                  style={{ transition: reduceMotion ? 'none' : undefined }}
                   onCanPlay={() => setImageLoaded(true)}
+                  onError={() => setMediaError(true)}
                   initial={{ x: slideDirection * 100 }}
                   animate={{ x: 0 }}
-                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  transition={{ duration: reduceMotion ? 0 : 0.25, ease: 'easeOut' }}
                   controls
                   autoPlay
                 />
               ) : (
                 <motion.div
-                  key={currentIndex}
+                  key={`${currentSrc}-${currentIndex}-${attempt}`}
                   initial={{ x: slideDirection * 100 }}
                   animate={{ x: 0 }}
-                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  transition={{ duration: reduceMotion ? 0 : 0.25, ease: 'easeOut' }}
                 >
                   <img
                     src={images[currentIndex]}
@@ -282,7 +319,7 @@ function Lightbox({
                     style={{
                       transform: zoomed ? 'scale(2)' : 'none',
                       transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
-                      transition: 'transform 0.25s ease',
+                      transition: reduceMotion ? 'none' : 'transform 0.25s ease',
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -293,6 +330,7 @@ function Lightbox({
                       if (zoomed) updateZoomOrigin(e);
                     }}
                     onLoad={() => setImageLoaded(true)}
+                    onError={() => setMediaError(true)}
                   />
                 </motion.div>
               )}
@@ -329,6 +367,7 @@ function Lightbox({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
                   className="fixed inset-0 z-[60] flex items-end justify-center"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -340,9 +379,10 @@ function Lightbox({
                     initial={{ y: '100%' }}
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
-                    transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                    transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 320 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="relative w-full max-w-lg rounded-t-2xl bg-zinc-900 px-6 pb-9 pt-5 shadow-2xl"
+                    ref={infoRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="사진 정보"
+                    className="relative max-h-[80dvh] overflow-y-auto break-words w-full max-w-lg rounded-t-2xl bg-zinc-900 px-6 pb-9 pt-5 shadow-2xl"
                   >
                     <div className="mb-5 flex items-center justify-between">
                       <h3 className="text-[17px] font-semibold text-white">사진 정보</h3>
@@ -360,7 +400,7 @@ function Lightbox({
                           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10">
                             <Tag size={16} className="text-zinc-400" />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <p className="mb-1 text-[13px] text-zinc-400">컨셉</p>
                             <p className="text-[15px] text-white">{photoTitle}</p>
                           </div>
@@ -371,7 +411,7 @@ function Lightbox({
                           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/20">
                             <Users size={16} className="text-primary" />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <p className="mb-1 text-[13px] text-zinc-400">멤버</p>
                             <p className="text-[15px] text-white">{String(photoMembers)}</p>
                           </div>

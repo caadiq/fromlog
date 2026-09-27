@@ -19,7 +19,7 @@ export default function usePlayerKeys(player, enabled = true) {
 
     const onKey = (e) => {
       // 입력 중이거나 브라우저 단축키(Ctrl+← 등)는 건드리지 않는다
-      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return;
+      if (e.defaultPrevented || e.target.closest('input, textarea, select, button, a[href], video, [role="dialog"]') || e.target.isContentEditable) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.code === 'Space') { e.preventDefault(); toggle(); }

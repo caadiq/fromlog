@@ -19,16 +19,21 @@ function loadApi() {
 
   apiPromise = new Promise((resolve, reject) => {
     const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      prev?.();
-      resolve(window.YT);
+    const script = document.createElement('script');
+    const finish = (error) => {
+      clearTimeout(timer);
+      if (window.onYouTubeIframeAPIReady === ready) window.onYouTubeIframeAPIReady = prev;
+      if (error) { script.remove(); reject(error); }
+      else resolve(window.YT);
     };
-    const s = document.createElement('script');
-    s.src = API_SRC;
-    s.async = true;
-    s.onerror = () => reject(new Error('YouTube IFrame API를 불러오지 못했습니다.'));
-    document.head.appendChild(s);
-  });
+    const ready = () => { try { prev?.(); } finally { finish(); } };
+    const timer = setTimeout(() => finish(new Error('YouTube 연결 시간이 초과되었습니다.')), 15000);
+    window.onYouTubeIframeAPIReady = ready;
+    script.src = API_SRC;
+    script.async = true;
+    script.onerror = () => finish(new Error('YouTube 영상을 불러오지 못했습니다.'));
+    document.head.appendChild(script);
+  }).catch(error => { apiPromise = null; throw error; });
   return apiPromise;
 }
 
@@ -46,6 +51,8 @@ export default function useYouTubePlayer(videoId) {
   const playerRef = useRef(null);
   const rafRef = useRef(0);
 
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt(value => value + 1), []);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -54,12 +61,14 @@ export default function useYouTubePlayer(videoId) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!videoId || !containerRef.current) return undefined;
-    let disposed = false;
-
     setReady(false);
+    setPlaying(false);
+    setDuration(0);
+    setRateState(1);
     setError(null);
     setTime(0);
+    if (!videoId || !containerRef.current) return undefined;
+    let disposed = false;
 
     // YT.Player는 넘겨준 노드를 iframe으로 **교체**한다.
     // React가 관리하는 노드를 넘기면 언마운트 때 React가 이미 없는 노드를 지우려다
@@ -109,7 +118,7 @@ export default function useYouTubePlayer(videoId) {
     };
     // duration은 의도적으로 제외 — 넣으면 플레이어가 매번 다시 만들어진다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoId]);
+  }, [videoId, attempt]);
 
   // 재생 중에만 시간 추적
   useEffect(() => {
@@ -142,5 +151,5 @@ export default function useYouTubePlayer(videoId) {
   }, []);
 
   return { containerRef, player: playerRef.current, ready, playing, time, duration, rate, error,
-           seek, play, pause, toggle, setRate, getTime };
+           seek, play, pause, toggle, setRate, getTime, retry };
 }
