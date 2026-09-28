@@ -11,6 +11,7 @@ for suite in flows extended edges layout; do
 done
 ```
 
+- `recovery.cjs`: 복구 대기/재시도 KST 표시, 수동 정지 API 선택, 320·390·1440px 넘침 검사. `node frontend/test/mobile-admin-other/recovery.cjs`로 별도 실행.
 - `base.cjs`: KST 날짜 고정, 목록/CRUD 응답 대역, 요청 기록, 실패·지연 주입. type/channel/행위자/날짜 필터의 서버 처리는 모의하지 않으며 요청 파라미터를 검사한다.
 - `flows.cjs`: 19개. 영상 CRUD/필터/페이지, 봇 동작 및 3종 폼, 링크 CRUD/순서, 테마, 로그, 조회 실패/재시도.
 - `extended.cjs`: 9개. 포커스/저장 잠금, 오류/할당량, 날짜, 새로고침, 애니메이션과 큰 글자.

@@ -100,7 +100,7 @@ function ScheduleBots() {
     if (actionBusy.current) return;
     actionBusy.current = true; setBusy(true);
     try {
-      const action = currentStatus === 'running' ? 'stop' : 'start';
+      const action = ['running', 'recovering'].includes(currentStatus) ? 'stop' : 'start';
 
       if (action === 'start') {
         await botsApi.startBot(botId);
@@ -122,7 +122,10 @@ function ScheduleBots() {
     } catch (error) {
       console.error('봇 토글 오류:', error);
       setToast({ type: 'error', message: error.message || '작업 중 오류가 발생했습니다.' });
-    } finally { actionBusy.current = false; setBusy(false); }
+    } finally {
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'bots'] });
+      actionBusy.current = false; setBusy(false);
+    }
   };
 
   // 전체 동기화
@@ -175,6 +178,8 @@ function ScheduleBots() {
     switch (bot?.status) {
       case 'running':
         return { text: '실행중' };
+      case 'recovering':
+        return { text: '복구 대기' };
       case 'stopped':
         return { text: '정지됨' };
       case 'error':
@@ -189,6 +194,7 @@ function ScheduleBots() {
     if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -222,6 +228,7 @@ function ScheduleBots() {
   const STATS = [
     { label: 'TOTAL', value: bots.length, className: 'text-ink' },
     { label: 'RUNNING', value: runningCount, className: 'text-primary' },
+    { label: 'RECOVERING', value: bots.filter(b => b.status === 'recovering').length, className: 'text-[#8A6D1B]' },
     { label: 'STOPPED', value: stoppedCount, className: 'text-ink' },
     { label: 'ERROR', value: errorCount, className: 'text-[#C0392B]' },
   ];
@@ -288,7 +295,7 @@ function ScheduleBots() {
           transition={{ duration: 0.55, ease: EASE, delay: 0.08 }}
         >
           {/* 봇 통계 */}
-          <div className="mt-8 grid grid-cols-4 border-t-2 border-ink">
+          <div className="mt-8 grid grid-cols-5 border-t-2 border-ink">
             {STATS.map((s, i) => (
               <div
                 key={s.label}

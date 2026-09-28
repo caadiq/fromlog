@@ -12,6 +12,20 @@ const REDIS_PREFIX = 'bot:status:';
 const TIMEZONE = 'Asia/Seoul';
 const MAX_CONSECUTIVE_ERRORS = 10;
 
+export function isTransientBotError(err) {
+  const text = `${err?.message || ''} ${err?.code || ''} ${err?.cause?.message || ''} ${err?.cause?.code || ''}`.toLowerCase();
+  // Explicit credentials/configuration failures must not be hidden by retrying fetch wrappers.
+  if (/quota|api.?key|keyinvalid|unauthori[sz]ed|forbidden|certificate|cert_|invalid url|session expired|세션 만료/.test(text)) return false;
+  const status = Number(err?.status || err?.statusCode || err?.response?.status || text.match(/http\s*(\d{3})/)?.[1]);
+  if (status) return status === 408 || status === 429 || status >= 500 && status <= 599;
+  return /eai_again|enotfound|econnrefused|econnreset|enetunreach|ehostunreach|etimedout|und_err_|fetch failed|getaddrinfo|timeout|timed out|타임아웃|abort/.test(text);
+}
+
+export function recoveryDelayMs(attempt) {
+  return Math.min(30, 2 ** Math.min(Math.max(0, attempt - 1), 5)) * 60000;
+}
+
+
 
 /**
  * 에러 객체에서 활동 로그용 details 구성
@@ -53,18 +67,8 @@ export function describeBotError(bot, err) {
       ? { reason: 'Gemini API 키 오류', action: 'GEMINI_API_KEY 값을 확인해주세요.' }
       : { reason: 'YouTube API 키 오류', action: 'GOOGLE_API_KEY 값을 확인해주세요.' };
   }
-  // X 봇: 타임아웃·5xx는 대부분 Nitter 세션 만료
-  if (isX && (all.includes('타임아웃') || all.includes('timeout') || all.includes('abort'))) {
-    return {
-      reason: 'X 세션 만료로 보입니다 (Nitter 응답 없음)',
-      action: '브라우저 쿠키(auth_token·ct0)로 세션을 갱신해주세요.',
-    };
-  }
-  if (isX && /http (50\d|429)/i.test(msg)) {
-    return {
-      reason: 'X 접근 차단 또는 세션 만료',
-      action: '잠시 후에도 계속되면 세션 쿠키를 갱신해주세요.',
-    };
+  if (/http 5\d\d/i.test(msg)) {
+    return { reason: '외부 서비스 일시 오류', action: '자동으로 재시도합니다. 계속되면 대상 서비스 상태를 확인해주세요.' };
   }
   // 레이트 리밋
   if (all.includes('http 429') || all.includes('rate limit')) {
@@ -105,6 +109,7 @@ export function describeBotError(bot, err) {
 
 async function schedulerPlugin(fastify, opts) {
   const tasks = new Map();
+  const recoveries = new Map();
   const activeSyncs = new Set();
   const generations = new Map();
   const alerts = opts?.sendOpsAlert ? null : createOpsAlerts(fastify.db, fastify.log, sendOpsAlert);
@@ -239,8 +244,9 @@ async function schedulerPlugin(fastify, opts) {
   /**
    * 봇 상태 Redis에 저장
    */
-  async function updateStatus(botId, status) {
+  async function updateStatus(botId, status, generation) {
     const current = await getStatus(botId);
+    if (generation !== undefined && generations.get(botId) !== generation) return current;
     const updated = { ...current, ...status, updatedAt: nowKST() };
     localStatus.set(botId, updated);
     dirtyStatus.add(botId);
@@ -302,19 +308,22 @@ async function schedulerPlugin(fastify, opts) {
    * 동기화 결과 처리
    */
   async function handleSyncResult(botId, result, options = {}) {
-    const { setRunningStatus = false } = options;
+    const { setRunningStatus = false, generation } = options;
     const status = await getStatus(botId);
     const updateData = {
       lastCheckAt: nowKST(),
       totalAdded: (status.totalAdded || 0) + result.addedCount,
       consecutiveErrors: 0,
       errorMessage: null,
+      nextRetryAt: null,
+      recoveryStartedAt: null,
+      recoveryAttempts: 0,
       lastAddedCount: result.addedCount,
     };
     if (setRunningStatus) {
       updateData.status = 'running';
     }
-    await updateStatus(botId, updateData);
+    await updateStatus(botId, updateData, generation);
     return result.addedCount;
   }
 
@@ -335,15 +344,23 @@ async function schedulerPlugin(fastify, opts) {
    * 단일 동기화 실행 + 에러 처리 (consecutiveErrors, 자동 정지 포함)
    */
   async function runSync(botId, bot, syncFn, { setRunningStatus = false } = {}) {
-    if (activeSyncs.has(botId)) return { ok: true, addedCount: 0, foundTarget: false };
+    const recovery = recoveries.get(botId);
+    if (!tasks.has(botId) || recovery && Date.now() < Date.parse(recovery.nextRetryAt) || activeSyncs.has(botId)) return { ok: true, addedCount: 0, foundTarget: false };
     activeSyncs.add(botId);
     const generation = generations.get(botId);
     const startedAt = Date.now();
     try {
       const result = await syncFn(bot);
       if (generations.get(botId) !== generation) return { ok: true, addedCount: 0, foundTarget: false };
-      const addedCount = await handleSyncResult(botId, result, { setRunningStatus });
-      await updateStatus(botId, { lastSyncDuration: Date.now() - startedAt });
+      const addedCount = await handleSyncResult(botId, result, { setRunningStatus: setRunningStatus || Boolean(recovery), generation });
+      if (generations.get(botId) !== generation) return { ok: true, addedCount: 0, foundTarget: false };
+      recoveries.delete(botId);
+      if (recovery && result?.foundTarget && burstTimers.has(botId)) {
+        clearInterval(burstTimers.get(botId).timer);
+        burstTimers.delete(botId);
+      }
+      if (recovery) await recoveryNotice(botId, bot, false);
+      await updateStatus(botId, { lastSyncDuration: Date.now() - startedAt }, generation);
       fastify.log.info(`[${botId}] 동기화 완료: ${addedCount}개 추가`);
       if (addedCount > 0) {
         logActivity(fastify.db, {
@@ -358,13 +375,35 @@ async function schedulerPlugin(fastify, opts) {
     } catch (err) {
       if (generations.get(botId) !== generation) return { ok: false, err };
       const prev = await getStatus(botId);
+      if (generations.get(botId) !== generation) return { ok: false, err };
       const consecutiveErrors = (prev.consecutiveErrors || 0) + 1;
+      if (isTransientBotError(err)) {
+        const attempts = (recovery?.attempts || 0) + 1;
+        const pending = {
+          nextRetryAt: new Date(Date.now() + recoveryDelayMs(attempts)).toISOString(),
+          startedAt: recovery?.startedAt || new Date().toISOString(),
+          attempts,
+        };
+        recoveries.set(botId, pending);
+        await updateStatus(botId, {
+          status: 'recovering', lastCheckAt: nowKST(), errorMessage: err.message,
+          consecutiveErrors, nextRetryAt: pending.nextRetryAt,
+          recoveryStartedAt: pending.startedAt, recoveryAttempts: attempts,
+        }, generation);
+        if (generations.get(botId) !== generation) return { ok: false, err };
+        fastify.log.warn(`[${botId}] 통신 오류: ${pending.nextRetryAt} 이후 자동 재시도`);
+        if (!recovery) await recoveryNotice(botId, bot, true, err);
+        return { ok: false, err };
+      }
+      recoveries.delete(botId);
       await updateStatus(botId, {
         status: 'error',
+        nextRetryAt: null, recoveryStartedAt: null, recoveryAttempts: 0,
         lastCheckAt: nowKST(),
         errorMessage: err.message,
         consecutiveErrors,
-      });
+      }, generation);
+      if (generations.get(botId) !== generation) return { ok: false, err };
       fastify.log.error(`[${botId}] 동기화 오류 (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}): ${err.message}`);
       if (consecutiveErrors === 1) {
         logActivity(fastify.db, {
@@ -408,6 +447,35 @@ async function schedulerPlugin(fastify, opts) {
     } finally {
       activeSyncs.delete(botId);
     }
+  }
+
+  async function recoveryNotice(botId, bot, waiting, err) {
+    const name = bot.channelName || bot.displayName || bot.name || bot.username || botId;
+    const summary = waiting ? `${name} 통신 오류로 자동 복구 대기` : `${name} 연결 복구 · 수집 재개`;
+    await logActivity(fastify.db, {
+      actor: botId, action: 'update', category: 'bot', summary,
+      details: waiting ? buildErrorDetails(err) : { recovered: true },
+    });
+    try {
+      await notify(fastify.db, {
+        title: summary,
+        body: waiting ? '연결이 돌아오면 자동으로 수집합니다. 재시도 간격은 최대 30분까지 늘어납니다.' : '동기화가 정상 완료되어 기존 수집 주기로 돌아갑니다.',
+        data: { botId, kind: waiting ? 'bot_recovering' : 'bot_recovered' },
+      });
+    } catch (err) { fastify.log.warn(`[${botId}] 복구 상태 알림 실패: ${err.message}`); }
+  }
+
+  // A separate sweep also recovers weekly and long-interval bots outside their cron window.
+  async function retryRecovering() {
+    await Promise.all([...recoveries].map(async ([botId, pending]) => {
+      if (!tasks.has(botId) || Date.now() < Date.parse(pending.nextRetryAt)) return;
+      const generation = generations.get(botId);
+      try {
+        const bot = await findBot(botId);
+        if (!bot?.enabled || !tasks.has(botId) || generations.get(botId) !== generation) return;
+        await runSync(botId, bot, getSyncFunction(bot), { setRunningStatus: true });
+      } catch (err) { fastify.log.warn(`[${botId}] 복구 재시도 실패: ${err.message}`); }
+    }));
   }
 
   /**
@@ -463,6 +531,11 @@ async function schedulerPlugin(fastify, opts) {
       throw new Error(`봇을 찾을 수 없습니다: ${botId}`);
     }
 
+    const saved = resetErrors ? null : await getStatus(botId);
+    recoveries.delete(botId);
+    if (saved?.nextRetryAt && Number.isFinite(Date.parse(saved.nextRetryAt))) {
+      recoveries.set(botId, { nextRetryAt: saved.nextRetryAt, startedAt: saved.recoveryStartedAt, attempts: saved.recoveryAttempts || 1 });
+    }
     if (resetErrors && alerts) await alerts.cancel(botId);
     generations.set(botId, (generations.get(botId) || 0) + 1);
 
@@ -496,7 +569,7 @@ async function schedulerPlugin(fastify, opts) {
 
     tasks.set(botId, task);
     // 수동 시작은 새 출발 — 자동 정지로 누적된 연속 실패 카운터/에러 초기화
-    await updateStatus(botId, { status: 'running', ...(resetErrors ? { consecutiveErrors: 0, errorMessage: null } : {}) });
+    await updateStatus(botId, { status: recoveries.has(botId) ? 'recovering' : 'running', ...(resetErrors ? { consecutiveErrors: 0, errorMessage: null, nextRetryAt: null, recoveryStartedAt: null, recoveryAttempts: 0 } : {}) });
     fastify.log.info(`[${botId}] 스케줄 시작 (cron: ${bot.cron})`);
 
     // Resume the latest scheduled window, including one crossing midnight.
@@ -522,6 +595,7 @@ async function schedulerPlugin(fastify, opts) {
    * 봇 정지
    */
   async function stopBot(botId) {
+    recoveries.delete(botId);
     generations.set(botId, (generations.get(botId) || 0) + 1);
     if (tasks.has(botId)) {
       tasks.get(botId).stop();
@@ -534,7 +608,8 @@ async function schedulerPlugin(fastify, opts) {
     }
     // DB enabled 비활성화
     await setEnabled(botId, false);
-    await updateStatus(botId, { status: 'stopped' });
+    await updateStatus(botId, { status: 'stopped', nextRetryAt: null, recoveryStartedAt: null, recoveryAttempts: 0 });
+    if (alerts) await alerts.cancel(botId);
     fastify.log.info(`[${botId}] 스케줄 정지`);
   }
 
@@ -551,7 +626,8 @@ async function schedulerPlugin(fastify, opts) {
           fastify.log.error(`[${bot.id}] 시작 실패: ${err.message}`);
         }
       } else {
-        await updateStatus(bot.id, { status: 'stopped' });
+        recoveries.delete(bot.id);
+        await updateStatus(bot.id, { status: 'stopped', nextRetryAt: null, recoveryStartedAt: null, recoveryAttempts: 0 });
       }
     }
 
@@ -569,7 +645,8 @@ async function schedulerPlugin(fastify, opts) {
     tasks.clear();
     for (const { timer } of burstTimers.values()) clearInterval(timer);
     burstTimers.clear();
-    await Promise.all(ids.map(botId => updateStatus(botId, { status: 'stopped' })));
+    await Promise.all(ids.map(botId => updateStatus(botId, { status: recoveries.has(botId) ? 'recovering' : 'stopped' })));
+    recoveries.clear();
   }
 
   /**
@@ -594,6 +671,7 @@ async function schedulerPlugin(fastify, opts) {
     }
   }, { timezone: TIMEZONE });
 
+  const recoveryTask = cron.schedule('* * * * *', retryRecovering, { timezone: TIMEZONE });
   const alertTask = alerts ? cron.schedule('* * * * *', () => alerts.flush(), { timezone: TIMEZONE }) : null;
 
   // 데코레이터 등록
@@ -610,6 +688,7 @@ async function schedulerPlugin(fastify, opts) {
   // 앱 종료 시 모든 봇 정지
   fastify.addHook('onClose', async () => {
     deadlineTask.stop();
+    recoveryTask.stop();
     alertTask?.stop();
     await stopAll();
     const deadline = Date.now() + 8000;

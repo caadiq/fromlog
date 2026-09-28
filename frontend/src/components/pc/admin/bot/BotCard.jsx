@@ -58,6 +58,7 @@ export const MeilisearchIcon = ({ size = 20 }) => (
 // 상태 배지 스타일
 const STATUS_PILL = {
   running: 'bg-green-soft text-green-deep',
+  recovering: 'bg-[#FBF6E4] text-[#8A6D1B]',
   stopped: 'bg-canvas text-esub',
   error: 'bg-[#F9E9E7] text-[#C0392B]',
 };
@@ -95,7 +96,7 @@ export const BotTableRow = memo(function BotTableRow({
       </td>
       <td className="px-2 py-[15px]">
         <span
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-extrabold tracking-k1 ${
+          className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-1.5 text-[13px] font-extrabold tracking-k1 ${
             STATUS_PILL[bot.status] || STATUS_PILL.stopped
           }`}
         >
@@ -124,6 +125,7 @@ export const BotTableRow = memo(function BotTableRow({
       </td>
       <td className="px-2 py-[15px] text-[14px] text-mute" style={{ fontVariantNumeric: 'tabular-nums' }}>
         {bot.last_check_at ? formatTime(bot.last_check_at) : '-'}
+        {bot.status === 'recovering' && <span className="mt-1 block text-[13px] text-[#8A6D1B]">자동 재시도 · {formatTime(bot.next_retry_at)}</span>}
       </td>
       <td className="px-2 py-[15px]">
         <div className="flex items-baseline justify-end gap-3">
@@ -131,10 +133,10 @@ export const BotTableRow = memo(function BotTableRow({
           <button
             disabled={busy} onClick={() => onToggle(bot.id, bot.status, bot.name)}
             className={`text-[13.5px] font-bold transition-colors ${
-              bot.status === 'running' ? 'text-mute hover:text-ink' : 'text-primary hover:text-green-deep'
+              ['running', 'recovering'].includes(bot.status) ? 'text-mute hover:text-ink' : 'text-primary hover:text-green-deep'
             }`}
           >
-            {bot.status === 'running' ? '정지' : '시작'}
+            {['running', 'recovering'].includes(bot.status) ? '정지' : '시작'}
           </button>
           {/* 전체 동기화 */}
           <button

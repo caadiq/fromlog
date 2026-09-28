@@ -5,6 +5,20 @@ const API_KEY = config.google.apiKey;
 const API_BASE = 'https://www.googleapis.com/youtube/v3';
 const FETCH_TIMEOUT = 10000;
 
+async function readApiResponse(res) {
+  let data;
+  try { data = await res.json(); }
+  catch (err) {
+    if (res.ok === false) throw Object.assign(new Error(`YouTube API HTTP ${res.status}`, { cause: err }), { status: res.status });
+    throw err;
+  }
+  if (data.error || res.ok === false) {
+    throw Object.assign(new Error(data.error?.message || `YouTube API HTTP ${res.status}`), { status: data.error?.code || res.status });
+  }
+  return data;
+}
+
+
 /**
  * 타임아웃이 있는 fetch (업스트림 행으로 봇/요청이 무한 대기하는 것 방지)
  */
@@ -42,8 +56,7 @@ function getVideoUrl(videoId, isShorts) {
 export async function getUploadsPlaylistId(channelId) {
   const url = `${API_BASE}/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
-  const data = await res.json();
-  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
+  const data = await readApiResponse(res);
 
   if (!data.items?.length) {
     throw new Error('채널을 찾을 수 없습니다');
@@ -61,8 +74,7 @@ export async function getChannelByHandle(handle) {
   const cleanHandle = handle.startsWith('@') ? handle.slice(1) : handle;
   const url = `${API_BASE}/channels?part=snippet,brandingSettings&forHandle=${cleanHandle}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
-  const data = await res.json();
-  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
+  const data = await readApiResponse(res);
 
   if (!data.items?.length) {
     throw new Error('채널을 찾을 수 없습니다');
@@ -143,8 +155,7 @@ export async function getVideoDurations(videoIds) {
   if (!videoIds.length) return {};
   const url = `${API_BASE}/videos?part=contentDetails&id=${videoIds.join(',')}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
-  const data = await res.json();
-  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
+  const data = await readApiResponse(res);
 
   const durations = {};
   if (data.items) {
@@ -176,8 +187,7 @@ export async function fetchRecentUploads(channelId, maxResults = 10) {
   const fetchCount = Math.min(maxResults * 2, 50);
   const url = `${API_BASE}/activities?part=snippet,contentDetails&channelId=${channelId}&type=upload&maxResults=${fetchCount}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
-  const data = await res.json();
-  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
+  const data = await readApiResponse(res);
 
 
   return (data.items || [])
@@ -206,8 +216,7 @@ export async function fetchAllVideos(channelId, uploadsPlaylistId = null) {
   do {
     const url = `${API_BASE}/playlistItems?part=snippet,contentDetails&playlistId=${uploadsId}&maxResults=50&key=${API_KEY}${pageToken ? `&pageToken=${pageToken}` : ''}`;
     const res = await fetchWithTimeout(url);
-    const data = await res.json();
-    if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
+    const data = await readApiResponse(res);
 
 
     const videoIds = data.items.map(item => item.snippet.resourceId.videoId);
@@ -249,8 +258,7 @@ export async function fetchAllVideos(channelId, uploadsPlaylistId = null) {
 export async function fetchVideoInfo(videoId) {
   const url = `${API_BASE}/videos?part=snippet,contentDetails&id=${videoId}&key=${API_KEY}`;
   const res = await fetchWithTimeout(url);
-  const data = await res.json();
-  if (data.error || res.ok === false) throw new Error(data.error?.message || `YouTube API HTTP ${res.status}`);
+  const data = await readApiResponse(res);
 
   if (!data.items?.length) {
     return null;

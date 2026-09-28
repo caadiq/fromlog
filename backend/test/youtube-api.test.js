@@ -36,3 +36,10 @@ test('related-video network failures remain retryable rather than title exclusio
   t.mock.method(globalThis, 'fetch', async () => ({ status: 429 }));
   await assert.rejects(fetchShortsLinkedVideo('abcdefghijk'), /HTTP 429/);
 });
+
+test('YouTube failures preserve HTTP status for automatic recovery, including HTML gateway errors', async t => {
+  t.mock.method(globalThis, 'fetch', async () => ({ ok: false, status: 503, json: async () => ({ error: { message: 'Backend Error', code: 503 } }) }));
+  await assert.rejects(fetchVideoInfo('abcdefghijk'), err => err.status === 503 && err.message === 'Backend Error');
+  globalThis.fetch = async () => ({ ok: false, status: 502, json: async () => { throw new SyntaxError('HTML response'); } });
+  await assert.rejects(fetchVideoInfo('abcdefghijk'), err => err.status === 502 && /HTTP 502/.test(err.message));
+});
