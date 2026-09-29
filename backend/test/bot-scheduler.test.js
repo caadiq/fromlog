@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import cron from 'node-cron';
-import schedulerPlugin, { describeBotError, isTransientBotError, recoveryDelayMs } from '../src/plugins/scheduler.js';
+import schedulerPlugin, { botAlertLabel, describeBotError, isTransientBotError, recoveryDelayMs } from '../src/plugins/scheduler.js';
 
 async function fixture(t, weekly = false) {
   const tasks = [], intervals = new Map(), hooks = {}, values = new Map();
@@ -80,6 +80,7 @@ test('startup preserves error history, stops at the threshold, then manual resta
   const status = await f.fastify.scheduler.getStatus('youtube-1');
   assert.equal(status.consecutiveErrors, 10); assert.equal(status.status, 'stopped'); assert.equal(f.row.enabled, 0); assert.equal(f.alerts.length, 1);
   assert.match(f.alerts[0].data.rawError, /403/);
+  assert.match(f.alerts[0].title, /^YouTube 봇 · Test — 자동 정지$/);
   await f.fastify.scheduler.startBot('youtube-1', { runImmediately: false });
   assert.equal((await f.fastify.scheduler.getStatus('youtube-1')).consecutiveErrors, 0);
 });
@@ -170,6 +171,7 @@ test('network failures keep ownership enabled, back off past ten errors, then re
   const status = await f.fastify.scheduler.getStatus('youtube-1');
   assert.equal(status.status, 'running'); assert.equal(status.nextRetryAt, null); assert.equal(status.consecutiveErrors, 0);
   assert.deepEqual(f.alerts.map(a => a.data.kind), ['bot_recovering', 'bot_recovered']);
+  assert.ok(f.alerts.every(a => a.title.startsWith('YouTube 봇 · Test —')));
 });
 
 test('manual stop cancels recovery and restart never re-enables disabled bots', async t => {
@@ -229,4 +231,13 @@ test('admin bot API exposes recovery status and retry deadline', async () => {
     assert.equal(res.json()[0].status, 'recovering'); assert.equal(res.json()[0].enabled, true);
     assert.equal(res.json()[0].next_retry_at, '2026-09-28T05:30:00.000Z');
   } finally { await app.close(); }
+});
+
+
+test('bot alerts distinguish X and YouTube accounts with the same display name', () => {
+  assert.equal(botAlertLabel('x-1', { type: 'x', username: 'realfromis_9', displayName: 'fromis_9' }), 'X 봇 · @realfromis_9');
+  assert.equal(botAlertLabel('x-1', { username: '@realfromis_9' }), 'X 봇 · @realfromis_9');
+  assert.equal(botAlertLabel('youtube-1', { type: 'youtube', channelName: 'fromis_9' }), 'YouTube 봇 · fromis_9');
+  assert.equal(botAlertLabel('festival-1', { type: 'festival', name: 'DC 일정' }), '일정 수집 봇 · DC 일정');
+  assert.equal(botAlertLabel('x-1'), 'X 봇 · x-1');
 });

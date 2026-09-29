@@ -12,6 +12,16 @@ const REDIS_PREFIX = 'bot:status:';
 const TIMEZONE = 'Asia/Seoul';
 const MAX_CONSECUTIVE_ERRORS = 10;
 
+// Identify the affected collector, including when a notification is truncated.
+export function botAlertLabel(botId, bot) {
+  const type = bot?.type || botId.split('-')[0];
+  const service = { x: 'X 봇', youtube: 'YouTube 봇', festival: '일정 수집 봇', meilisearch: '검색 동기화 봇' }[type] || '봇';
+  const name = type === 'x' && bot?.username
+    ? `@${bot.username.replace(/^@/, '')}`
+    : bot?.channelName || bot?.displayName || bot?.name || bot?.username || botId;
+  return `${service} · ${name}`;
+}
+
 export function isTransientBotError(err) {
   const text = `${err?.message || ''} ${err?.code || ''} ${err?.cause?.message || ''} ${err?.cause?.code || ''}`.toLowerCase();
   // Explicit credentials/configuration failures must not be hidden by retrying fetch wrappers.
@@ -420,7 +430,7 @@ async function schedulerPlugin(fastify, opts) {
           actor: botId,
           action: 'stop',
           category: 'bot',
-          summary: `${botId} 연속 ${MAX_CONSECUTIVE_ERRORS}회 실패로 자동 정지`,
+          summary: `${botAlertLabel(botId, bot)} — 연속 ${MAX_CONSECUTIVE_ERRORS}회 실패로 자동 정지`,
           details: { ...buildErrorDetails(err), consecutiveErrors },
         });
         try {
@@ -430,10 +440,10 @@ async function schedulerPlugin(fastify, opts) {
         }
         // Persist the alert before delivery; stopped bots no longer run to retry it.
         try {
-          const name = bot?.channelName || bot?.displayName || bot?.name || bot?.username || botId;
+          const name = botAlertLabel(botId, bot);
           const { reason, action } = describeBotError(bot, err);
           const pushResult = await notify(fastify.db, {
-            title: `봇 정지: ${name}`,
+            title: `${name} — 자동 정지`,
             body: `${reason} — ${action}`,
             data: { botId, kind: 'bot_stopped', reason, rawError: err.message },
           });
@@ -450,8 +460,8 @@ async function schedulerPlugin(fastify, opts) {
   }
 
   async function recoveryNotice(botId, bot, waiting, err) {
-    const name = bot.channelName || bot.displayName || bot.name || bot.username || botId;
-    const summary = waiting ? `${name} 통신 오류로 자동 복구 대기` : `${name} 연결 복구 · 수집 재개`;
+    const name = botAlertLabel(botId, bot);
+    const summary = waiting ? `${name} — 수집 오류 · 자동 복구 대기` : `${name} — 복구 완료 · 수집 재개`;
     await logActivity(fastify.db, {
       actor: botId, action: 'update', category: 'bot', summary,
       details: waiting ? buildErrorDetails(err) : { recovered: true },
@@ -459,7 +469,7 @@ async function schedulerPlugin(fastify, opts) {
     try {
       await notify(fastify.db, {
         title: summary,
-        body: waiting ? '연결이 돌아오면 자동으로 수집합니다. 재시도 간격은 최대 30분까지 늘어납니다.' : '동기화가 정상 완료되어 기존 수집 주기로 돌아갑니다.',
+        body: waiting ? '해당 봇이 수집 대상에 연결하지 못해 자동 재시도 중입니다. 재시도 간격은 최대 30분입니다.' : '해당 봇의 동기화가 정상 완료되어 기존 수집 주기로 돌아갑니다.',
         data: { botId, kind: waiting ? 'bot_recovering' : 'bot_recovered' },
       });
     } catch (err) { fastify.log.warn(`[${botId}] 복구 상태 알림 실패: ${err.message}`); }
