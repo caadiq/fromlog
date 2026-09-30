@@ -5,7 +5,7 @@ import { CATEGORY_IDS } from '../../config/index.js';
 import { parseJsonColumn } from '../../utils/json.js';
 import { logActivity } from '../../utils/log.js';
 import { insertEtcSchedule, insertEventSchedule, insertVarietySchedule, geocodeVenue } from '../../services/event.js';
-import { uploadEtcPoster, uploadEventPoster } from '../../services/image.js';
+import { uploadEtcPoster, uploadEventPoster, uploadVarietyThumbnail } from '../../services/image.js';
 import { insertTempYoutubeSchedule } from '../../utils/tempSchedule.js';
 
 // 큐에서 서버 등록을 지원하는 카테고리 (그 외는 관리자 폼에서 직접 추가)
@@ -196,6 +196,13 @@ export default async function pendingRoutes(fastify) {
             imageIds.push(await saveImageRecord(conn, urls));
           }
           await conn.query('UPDATE ?? SET poster_image_ids = ? WHERE schedule_id = ?', [table, JSON.stringify(imageIds), scheduleId]);
+        }
+        if (posterFiles.length && schedule.category_id === CATEGORY_IDS.VARIETY) {
+          const [[details]] = await conn.query('SELECT thumbnail_id FROM schedule_variety WHERE schedule_id = ? FOR UPDATE', [scheduleId]);
+          if (!details) throw requestError(409, '일정 상세 정보를 찾을 수 없습니다.');
+          const urls = await uploadVarietyThumbnail(scheduleId, posterFiles[0].buffer);
+          const thumbnailId = await saveImageRecord(conn, urls);
+          await conn.query('UPDATE schedule_variety SET thumbnail_id = ? WHERE schedule_id = ?', [thumbnailId, scheduleId]);
         }
         await conn.query(
           "UPDATE bot_pending_schedules SET status = 'registered', resolved_at = NOW() WHERE id = ?", [id]

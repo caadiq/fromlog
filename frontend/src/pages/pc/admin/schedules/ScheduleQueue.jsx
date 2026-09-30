@@ -1,3 +1,5 @@
+import BroadcasterPresets from '@/components/pc/admin/schedule/BroadcasterPresets';
+import QueueVarietyThumbnail from '@/components/pc/admin/schedule/QueueVarietyThumbnail';
 import useAdminModal from '@/hooks/common/useAdminModal';
 import { useDialogBackClose } from '@/hooks/common';
 import ConfirmDialog from '@/components/pc/admin/common/ConfirmDialog';
@@ -144,7 +146,7 @@ function ScheduleQueue() {
       };
       const formData = new FormData();
       formData.append('payload', JSON.stringify(payload));
-      posterFiles.forEach((item) => formData.append('posters', item.file));
+      (editing.category === '예능' ? posterFiles.slice(0, 1) : posterFiles).forEach((item) => formData.append('posters', item.file));
 
       await registerPending(editing.id, formData);
       busy.current = false;
@@ -383,6 +385,7 @@ function ScheduleQueue() {
                         onChange={(e) => setEditing((p) => ({ ...p, broadcaster: e.target.value }))}
                         className={`${F.underline} mt-1.5`}
                       />
+                      <BroadcasterPresets value={editing.broadcaster} onChange={value => setEditing(previous => ({ ...previous, broadcaster: value }))} />
                     </div>
                     <div>
                       <label className={F.label}>내용 (선택)</label>
@@ -485,6 +488,7 @@ function ScheduleQueue() {
                   </div>
                 )}
 
+                {editing.category === '예능' && <QueueVarietyThumbnail items={posterFiles} setItems={setPosterFiles} />}
                 {/* 포스터 */}
                 {hasDetailFields && (
                   <div>

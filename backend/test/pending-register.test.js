@@ -24,7 +24,7 @@ before(async () => {
     `CREATE TABLE IF NOT EXISTS event_venues (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(200), address TEXT, road_address TEXT, lat DOUBLE, lng DOUBLE, kakao_id VARCHAR(100)) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS schedule_etc (schedule_id INT PRIMARY KEY, venue_id INT, description TEXT, post_urls JSON, poster_image_ids JSON, FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS schedule_event (schedule_id INT PRIMARY KEY, subtype VARCHAR(30) NOT NULL, school_name VARCHAR(100), description TEXT, venue_id INT, post_urls JSON, poster_image_ids JSON, FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
-    `CREATE TABLE IF NOT EXISTS schedule_variety (schedule_id INT PRIMARY KEY, broadcaster VARCHAR(100) NOT NULL, description TEXT, replay_url VARCHAR(500), FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
+    `CREATE TABLE IF NOT EXISTS schedule_variety (schedule_id INT PRIMARY KEY, broadcaster VARCHAR(100) NOT NULL, thumbnail_id INT, description TEXT, replay_url VARCHAR(500), FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS schedule_youtube (id INT AUTO_INCREMENT PRIMARY KEY, schedule_id INT NOT NULL UNIQUE, video_id VARCHAR(20) UNIQUE, video_type ENUM('video','shorts') NOT NULL DEFAULT 'video', channel_id VARCHAR(30), channel_name VARCHAR(100), FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS images (id INT AUTO_INCREMENT PRIMARY KEY, original_url VARCHAR(500) NOT NULL, medium_url VARCHAR(500), thumb_url VARCHAR(500)) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS bot_pending_schedules (id INT PRIMARY KEY, source VARCHAR(20) DEFAULT 'dc', source_ref VARCHAR(100), category_name VARCHAR(30) NOT NULL, title VARCHAR(500) NOT NULL, date DATE, time TIME, members JSON, venue_name VARCHAR(200), description TEXT, dup_hint VARCHAR(255), stale_at TIMESTAMP NULL, status ENUM('pending','registered','dismissed') NOT NULL DEFAULT 'pending', created_schedule_id INT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, resolved_at TIMESTAMP NULL) ENGINE=InnoDB`,
@@ -244,4 +244,20 @@ test('search failure reports the saved ID and a retry indexes the same completed
   failSearch = false;
   const retried = await register(); await expectOneSchedule(retried);
   assert.equal(retried.json().id, id);
+});
+
+
+test('variety thumbnail survives retry without creating duplicate schedules or images', async () => {
+  const payload = { category: '예능', broadcaster: 'JTBC' };
+  const failed = await register(payload, [Buffer.from('broken')]);
+  assert.equal(failed.statusCode, 500);
+  assert.equal(await count('schedules'), 1);
+  await expectOneSchedule(await register(payload, [png]));
+  const [[details]] = await db.query('SELECT thumbnail_id, broadcaster FROM schedule_variety');
+  assert.ok(details.thumbnail_id);
+  assert.equal(details.broadcaster, 'JTBC');
+  assert.equal(await count('images'), 1);
+  await expectOneSchedule(await register(payload, [png]));
+  assert.equal(uploads.length, 3);
+  assert.equal(await count('images'), 1);
 });
