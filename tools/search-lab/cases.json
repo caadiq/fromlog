@@ -1,0 +1,634 @@
+[
+  {
+    "group": "exact",
+    "q": "계약결혼",
+    "terms": [
+      [
+        "계약결혼"
+      ]
+    ]
+  },
+  {
+    "group": "exact",
+    "q": "아는형님",
+    "terms": [
+      [
+        "아는형님"
+      ]
+    ]
+  },
+  {
+    "group": "exact",
+    "q": "워크돌",
+    "terms": [
+      [
+        "워크돌"
+      ]
+    ]
+  },
+  {
+    "group": "exact",
+    "q": "방판소녀들",
+    "terms": [
+      [
+        "방판소녀들"
+      ]
+    ]
+  },
+  {
+    "group": "exact",
+    "q": "헬스키친",
+    "terms": [
+      [
+        "헬스키친",
+        "hellskitchen"
+      ]
+    ]
+  },
+  {
+    "group": "exact",
+    "q": "백양체전",
+    "terms": [
+      [
+        "백양체전"
+      ]
+    ]
+  },
+  {
+    "group": "exact",
+    "q": "성연",
+    "terms": [
+      [
+        "성연"
+      ]
+    ]
+  },
+  {
+    "group": "exact",
+    "q": "일감연",
+    "terms": [
+      [
+        "일감연"
+      ]
+    ]
+  },
+  {
+    "group": "spacing",
+    "q": "계약 결혼",
+    "terms": [
+      [
+        "계약결혼"
+      ]
+    ]
+  },
+  {
+    "group": "spacing",
+    "q": "아는 형님",
+    "terms": [
+      [
+        "아는형님"
+      ]
+    ]
+  },
+  {
+    "group": "spacing",
+    "q": "헬스 키친",
+    "terms": [
+      [
+        "헬스키친",
+        "hellskitchen"
+      ]
+    ]
+  },
+  {
+    "group": "spacing",
+    "q": "프로미스 나인",
+    "terms": [
+      [
+        "프로미스나인",
+        "fromis9"
+      ]
+    ]
+  },
+  {
+    "group": "spacing",
+    "q": "강남 대학교",
+    "terms": [
+      [
+        "강남대학교"
+      ]
+    ]
+  },
+  {
+    "group": "inflection",
+    "q": "박지원이",
+    "terms": [
+      [
+        "박지원"
+      ]
+    ]
+  },
+  {
+    "group": "inflection",
+    "q": "이채영의",
+    "terms": [
+      [
+        "이채영"
+      ]
+    ]
+  },
+  {
+    "group": "inflection",
+    "q": "뮤지컬에",
+    "terms": [
+      [
+        "뮤지컬",
+        "musical"
+      ]
+    ]
+  },
+  {
+    "group": "inflection",
+    "q": "축제에서",
+    "terms": [
+      [
+        "축제",
+        "대동제"
+      ]
+    ]
+  },
+  {
+    "group": "alias",
+    "q": "건대",
+    "terms": [
+      [
+        "건국대학교"
+      ]
+    ]
+  },
+  {
+    "group": "alias",
+    "q": "호서대",
+    "terms": [
+      [
+        "호서대학교"
+      ]
+    ]
+  },
+  {
+    "group": "alias",
+    "q": "아주대",
+    "terms": [
+      [
+        "아주대학교"
+      ]
+    ]
+  },
+  {
+    "group": "alias",
+    "q": "에리카",
+    "terms": [
+      [
+        "에리카",
+        "erica"
+      ]
+    ]
+  },
+  {
+    "group": "alias",
+    "q": "프나",
+    "terms": [
+      [
+        "프로미스나인",
+        "fromis9",
+        "프나"
+      ]
+    ]
+  },
+  {
+    "group": "alias",
+    "q": "메건",
+    "terms": [
+      [
+        "박지원",
+        "메건"
+      ]
+    ]
+  },
+  {
+    "group": "typo",
+    "q": "계약결흔",
+    "terms": [
+      [
+        "계약결혼"
+      ]
+    ]
+  },
+  {
+    "group": "typo",
+    "q": "워크둘",
+    "terms": [
+      [
+        "워크돌"
+      ]
+    ]
+  },
+  {
+    "group": "typo",
+    "q": "헬스키찬",
+    "terms": [
+      [
+        "헬스키친",
+        "hellskitchen"
+      ]
+    ]
+  },
+  {
+    "group": "typo",
+    "q": "프로미스나잉",
+    "terms": [
+      [
+        "프로미스나인",
+        "fromis9"
+      ]
+    ]
+  },
+  {
+    "group": "english",
+    "q": "fromis_9",
+    "terms": [
+      [
+        "프로미스나인",
+        "fromis9",
+        "프나"
+      ]
+    ]
+  },
+  {
+    "group": "english",
+    "q": "Glow ME",
+    "terms": [
+      [
+        "glowme"
+      ]
+    ]
+  },
+  {
+    "group": "english",
+    "q": "TOMORROW GLOW",
+    "terms": [
+      [
+        "tomorrowglow"
+      ]
+    ]
+  },
+  {
+    "group": "english",
+    "q": "LIKE YOU BETTER",
+    "terms": [
+      [
+        "likeyoubetter"
+      ]
+    ]
+  },
+  {
+    "group": "keyboard",
+    "q": "dnjzmehf",
+    "terms": [
+      [
+        "워크돌"
+      ]
+    ]
+  },
+  {
+    "group": "metadata",
+    "q": "JTBC",
+    "terms": [
+      [
+        "jtbc"
+      ]
+    ]
+  },
+  {
+    "group": "metadata",
+    "q": "MBC every1",
+    "terms": [
+      [
+        "mbcevery1"
+      ]
+    ]
+  },
+  {
+    "group": "metadata",
+    "q": "박지원 불참",
+    "terms": [
+      [
+        "박지원"
+      ],
+      [
+        "불참"
+      ]
+    ]
+  },
+  {
+    "group": "metadata",
+    "q": "이채영 MC",
+    "terms": [
+      [
+        "이채영"
+      ],
+      [
+        "mc"
+      ]
+    ]
+  },
+  {
+    "group": "multi",
+    "q": "워크돌 박지원",
+    "terms": [
+      [
+        "워크돌"
+      ],
+      [
+        "박지원",
+        "지원"
+      ]
+    ]
+  },
+  {
+    "group": "multi",
+    "q": "방판소녀들 시즌2",
+    "terms": [
+      [
+        "방판소녀들"
+      ],
+      [
+        "시즌2"
+      ]
+    ]
+  },
+  {
+    "group": "multi",
+    "q": "호서대학교 POLARIS",
+    "terms": [
+      [
+        "호서대학교"
+      ],
+      [
+        "polaris"
+      ]
+    ]
+  },
+  {
+    "group": "multi",
+    "q": "계약결혼 2회",
+    "terms": [
+      [
+        "계약결혼"
+      ],
+      [
+        "2회"
+      ]
+    ]
+  },
+  {
+    "group": "filtered",
+    "q": "워크돌",
+    "terms": [
+      [
+        "워크돌"
+      ]
+    ],
+    "category": "유튜브",
+    "from": "2026-09-01",
+    "to": "2026-09-30"
+  },
+  {
+    "group": "filtered",
+    "q": "계약결혼",
+    "terms": [
+      [
+        "계약결혼"
+      ]
+    ],
+    "category": "예능"
+  },
+  {
+    "group": "negative",
+    "q": "없는행사테스트9999",
+    "terms": [
+      [
+        "없는행사테스트9999"
+      ]
+    ],
+    "zero": true
+  },
+  {
+    "group": "negative",
+    "q": "서울대학교 POLARIS",
+    "terms": [
+      [
+        "서울대학교"
+      ],
+      [
+        "polaris"
+      ]
+    ],
+    "zero": true
+  },
+  {
+    "group": "negative",
+    "q": "계약결혼 999회",
+    "terms": [
+      [
+        "계약결혼"
+      ],
+      [
+        "999회"
+      ]
+    ],
+    "zero": true
+  },
+  {
+    "split": "holdout",
+    "group": "exact",
+    "q": "성수기",
+    "terms": [
+      [
+        "성수기"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "exact",
+    "q": "이단장",
+    "terms": [
+      [
+        "이단장"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "exact",
+    "q": "Supersonic",
+    "terms": [
+      [
+        "supersonic"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "exact",
+    "q": "Talk & Talk",
+    "terms": [
+      [
+        "talktalk"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "spacing",
+    "q": "성 수기",
+    "terms": [
+      [
+        "성수기"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "spacing",
+    "q": "방판 소녀들",
+    "terms": [
+      [
+        "방판소녀들"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "spacing",
+    "q": "인천 대학교",
+    "terms": [
+      [
+        "인천대학교"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "inflection",
+    "q": "송하영이",
+    "terms": [
+      [
+        "송하영"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "inflection",
+    "q": "백지헌의",
+    "terms": [
+      [
+        "백지헌"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "inflection",
+    "q": "콘서트에서",
+    "terms": [
+      [
+        "콘서트",
+        "concert"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "alias",
+    "q": "성균관대",
+    "terms": [
+      [
+        "성균관대학교"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "alias",
+    "q": "인천대",
+    "terms": [
+      [
+        "인천대학교"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "typo",
+    "q": "방판소녀듷",
+    "terms": [
+      [
+        "방판소녀들"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "typo",
+    "q": "성슈기",
+    "terms": [
+      [
+        "성수기"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "multi",
+    "q": "계약결혼 3회",
+    "terms": [
+      [
+        "계약결혼"
+      ],
+      [
+        "3회"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "multi",
+    "q": "성수기 이채영",
+    "terms": [
+      [
+        "성수기"
+      ],
+      [
+        "이채영",
+        "채영"
+      ]
+    ]
+  },
+  {
+    "split": "holdout",
+    "group": "negative",
+    "q": "없는대학교 축제XYZ",
+    "terms": [
+      [
+        "없는대학교"
+      ],
+      [
+        "축제xyz"
+      ]
+    ],
+    "zero": true
+  }
+]

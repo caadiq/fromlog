@@ -275,6 +275,7 @@ PUSH_INTERNAL_KEY=...   # 내부 스크립트가 알림 발송 시 사용
 ### 관련 문서
 
 - [사이트 전체 검증 계획 및 진행 현황](docs/site-validation-plan.md)
+- [Meilisearch / OpenSearch + Nori 비교 결과](docs/validation/search-comparison-2026-10-15.md) — 격리 실험, 운영 검색 유지
 - [운영·장애 복구 안내](docs/operations.md)
 - [앱/웹 반영 기록](docs/validation/app-web-parity.md)
 - [시스템 구조](docs/architecture.md)

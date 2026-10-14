@@ -1312,3 +1312,11 @@ docker run -d --name fromlog-poster-test-db -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD
 docker run --rm --network container:fromlog-poster-test-db -e POSTER_TEST_HOST=127.0.0.1 -e RUSTFS_PUBLIC_URL=https://images.example.test -e JWT_SECRET=isolated-test-only -v /docker/fromlog/backend:/app -w /app node:20-alpine node --test test/schedule-posters.test.js
 docker rm -f fromlog-poster-test-db
 ```
+
+
+## 2026-10-15 기존 일정 포스터 운영 배포 및 검색 엔진 비교
+
+- 기존 일정 포스터 재사용 기능을 운영 프론트에 배포했다. PC/모바일 운영 번들에서 모의 API로 선택·오류·저장 요청을 검증했고 운영 health/ready가 정상이다. [배포 기록](deployments/2026-10-15.md).
+- 사용자 요청에 따라 운영 Meilisearch를 교체하지 않고 OpenSearch 3.9.0 + Nori와 동일 버전 Meilisearch 1.34.0을 별도 내부 네트워크에 설치했다. 실험 환경만 `tools/search-lab/compose.yml`로 관리하며 봇/운영 API/동기화 설정은 변경하지 않았다.
+- 일정 2,423건, 62조건, 6후보를 비교했다. Nori 보완 후보의 키워드 관련도는 높았지만 오타·최신 일정 순서의 퇴보와 메모리 증가를 확인했다. 현행 Meili의 데이터/질의 개선을 우선 권장한다. 이는 비교 결과에 따른 제안이며 검색 개선을 운영 적용한 것은 아니다.
+- 생성·수정·삭제/필터/페이지/강조/재시작 유지 통과. 성능은 실제 사이트 응답이 아닌 로컬 실험 수치다. [결과·한계·재현 방법](validation/search-comparison-2026-10-15.md).

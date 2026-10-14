@@ -1,0 +1,43 @@
+# Opt-in comparison only: no production API, bot, or index configuration changes.
+services:
+  opensearch:
+    build: .
+    image: fromlog-search-lab-nori:3.9.0
+    container_name: fromlog-search-lab-opensearch
+    environment:
+      discovery.type: single-node
+      DISABLE_INSTALL_DEMO_CONFIG: 'true'
+      DISABLE_SECURITY_PLUGIN: 'true'
+      OPENSEARCH_JAVA_OPTS: '-Xms1g -Xmx1g'
+    mem_limit: 2g
+    cpus: 2
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    networks: [lab]
+    labels:
+      com.centurylinklabs.watchtower.enable: 'false'
+    logging:
+      driver: local
+      options: { max-size: '10m', max-file: '2' }
+  meilisearch:
+    image: getmeili/meilisearch:v1.34.0
+    container_name: fromlog-search-lab-meilisearch
+    environment:
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: 'true'
+    mem_limit: 2g
+    cpus: 2
+    volumes:
+      - meili-data:/meili_data
+    networks: [lab]
+    labels:
+      com.centurylinklabs.watchtower.enable: 'false'
+    logging:
+      driver: local
+      options: { max-size: '10m', max-file: '2' }
+networks:
+  lab:
+    internal: true
+volumes:
+  opensearch-data:
+  meili-data:

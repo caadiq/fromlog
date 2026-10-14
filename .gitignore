@@ -52,3 +52,7 @@ backups/
 /CLAUDE.md
 /docs/improvement-plan.md
 /design-drafts/
+
+# Local search comparison snapshots and detailed runtime statistics
+/tools/search-lab/output/
+/tools/search-lab/__pycache__/
