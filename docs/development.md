@@ -1294,3 +1294,21 @@ invalidateSchedules(queryClient);
 - 이전 화살표·년월·다음 화살표를 하나의 행으로 묶고 제목에는 느슨한 너비 제한을 적용했다. 남는 공간은 월 이동 묶음과 고정 링크/달력/검색 사이에 두며 좁은 화면의 제목 축소 동작을 유지한다.
 - 기존 일정 검색 화면 테스트 3개 통과. flutter analyze는 error/warning 없이 기존 info 10개.
 - Otto **2.0.0+138 / versionCode 2138** 발행 및 2137 기준 업데이트 응답 확인. 추가 웹/앱 디자인 정합 요청은 다음 작업으로 이어간다.
+
+
+## 2026-10-14 기존 일정 포스터·썸네일 재사용
+
+- 공용 `PosterAddDialog`에 **기존 일정** 탭 추가. 입력 중인 제목에서 말미 `5회`/`제5화`/`EP.5` 등의 회차를 제외한 검색어를 제안하고, 직접 검색/검색어 지우기/최근 이미지/더 보기를 제공한다. 의미상 같은 프로그램을 자동 확정하거나 자동 첨부하지 않고 관리자가 선택한다.
+- PC·모바일 큐 등록, 예능/행사/기타 일정 추가·수정, PC 콘서트 추가·수정에 연결했다. 예능/콘서트는 1장, 행사/기타는 기존 첨부와 합쳐 최대 20장. PC 예능·큐의 파일 전용 선택기도 공용 다이얼로그로 통일했다.
+- 선택 후 **추가하기**에서 인증된 원본 가져오기 → `File` 변환 → 기존 폼에 미리보기 추가. 이미지 레코드 ID를 새 일정에서 공유하지 않는다. 여러 장 중 실패하면 선택 상태를 유지하고 전체 첨부를 보류하여 재시도 시 중복 첨부를 막는다. 닫기/뒤로가기 시 요청 중단, 제목 검색 변경 시 선택 초기화, 실패/빈 목록/최대 선택 수 처리.
+- 서버: `routes/admin/schedule-posters.js`, `services/schedulePosters.js`. DB 변경 없음. 목록은 실제 연결된 이미지에 한해 조회하고 가져오기는 연결을 재검증한다. 저장소 주소·용량·이미지 형식 제한, 성공 활동 로그. 관리자 외 호출은 401.
+- 검증: 격리 MariaDB의 신규 API 테스트 **10개**, 기존 큐 저장/실패 재시도 테스트 **19개** 통과. 실제 계약결혼 1~4회 이미지 목록과 원본 읽기 성공(일정·스토리지 변경 없음). PC 1440px/모바일 390px·320px의 큐 선택·1장 제한·검색 변경·빈 결과·오류 복구·multipart 확인, PC/모바일 예능 추가·수정 미리보기 및 저장 요청 확인. 행사 여러 장·가져오기 실패/재시도·파일/인스타 가져오기 회귀·중첩 다이얼로그 뒤로가기 확인. 프론트 빌드 통과.
+- UI 검증은 모의 API를 사용하여 실제 일정을 등록/수정하지 않았다. 개발 프론트 반영, 공용 백엔드에는 새 읽기 API 추가. 운영 프론트 배포 및 push는 하지 않았다.
+- 신규 API 테스트는 운영 DB가 아닌 빈 `fromlog_test_posters` DB에서 실행한다:
+
+```bash
+docker run -d --name fromlog-poster-test-db -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1 -e MARIADB_DATABASE=fromlog_test_posters mariadb:11
+# MariaDB 준비 후 실행
+docker run --rm --network container:fromlog-poster-test-db -e POSTER_TEST_HOST=127.0.0.1 -e RUSTFS_PUBLIC_URL=https://images.example.test -e JWT_SECRET=isolated-test-only -v /docker/fromlog/backend:/app -w /app node:20-alpine node --test test/schedule-posters.test.js
+docker rm -f fromlog-poster-test-db
+```

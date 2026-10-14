@@ -488,14 +488,14 @@ function ScheduleQueue() {
                   </div>
                 )}
 
-                {editing.category === '예능' && <QueueVarietyThumbnail items={posterFiles} setItems={setPosterFiles} />}
+                {editing.category === '예능' && <QueueVarietyThumbnail title={editing.title} items={posterFiles} setItems={setPosterFiles} />}
                 {/* 포스터 */}
                 {hasDetailFields && (
                   <div>
                     <label className={F.label}>포스터 (선택 · 여러 장 가능)</label>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <PosterPreviews items={posterFiles} setItems={setPosterFiles} sizeClass="h-24 w-24" />
-                      <PosterAddButton className={`${F.dropzone} h-24 w-24`} sourceUrls={[...postUrls, urlInput]} onAdd={(items) => setPosterFiles((previous) => [...previous, ...items])}>
+                      <PosterAddButton disabled={posterFiles.length >= 20} maxCount={Math.max(1, 20 - posterFiles.length)} scheduleTitle={editing.title} className={`${F.dropzone} h-24 w-24`} sourceUrls={[...postUrls, urlInput]} onAdd={(items) => setPosterFiles((previous) => [...previous, ...items])}>
                         <ImageIcon size={17} className="text-faint" />
                         <span className="text-[12.5px]">추가</span>
                       </PosterAddButton>

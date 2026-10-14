@@ -6,6 +6,7 @@ import { fetchAuthApi } from '@/api/client';
 import { useDialogBackClose } from '@/hooks/common';
 import usePopoverViewport from '@/hooks/common/usePopoverViewport';
 import { uid } from '@/utils';
+import ExistingSchedulePosters from './ExistingSchedulePosters';
 import { F } from '@/components/pc/admin/common/formStyles';
 
 function instagramUrl(urls) {
@@ -24,7 +25,7 @@ function readFile(file) {
   });
 }
 
-export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose }) {
+export function PosterAddDialog({ initialUrl = '', scheduleTitle = '', maxCount = 20, onAdd, onClose }) {
   const dialogRef = useRef(null);
   usePopoverViewport(dialogRef);
   const present = useIsPresent();
@@ -38,6 +39,7 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
   const [images, setImages] = useState([]);
   const [files, setFiles] = useState([]);
   const [selected, setSelected] = useState([]);
+  const [existingSelected, setExistingSelected] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -52,6 +54,19 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
       document.body.style.overflow = previous;
     };
   }, []);
+
+  useEffect(() => {
+    if (!present) {
+      aliveRef.current = false;
+      requestRef.current?.abort();
+    }
+  }, [present]);
+
+  const close = () => {
+    aliveRef.current = false;
+    requestRef.current?.abort();
+    onClose();
+  };
 
   const pickFiles = async (incoming) => {
     if (busyRef.current) return;
@@ -97,39 +112,56 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
       : maxCount === 1 ? [index] : previous.length < maxCount ? [...previous, index] : previous);
   };
 
-  const count = tab === 'file' ? files.length : selected.length;
-  const add = () => {
-    if (busyRef.current) return;
-    const items = tab === 'file' ? files : images.filter((_, index) => selected.includes(index)).map((image) => {
-      const bytes = Uint8Array.from(atob(image.dataUrl.split(',')[1]), (character) => character.charCodeAt(0));
-      return { id: uid(), file: new File([bytes], image.name, { type: 'image/jpeg' }), preview: image.dataUrl };
-    });
-    onAdd(items);
-    onClose();
+  const count = tab === 'file' ? files.length : tab === 'existing' ? existingSelected.length : selected.length;
+  const add = async () => {
+    if (busyRef.current || !count) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError('');
+    requestRef.current = new AbortController();
+    try {
+      let candidates = images.filter((_, index) => selected.includes(index));
+      if (tab === 'existing') {
+        candidates = [];
+        for (const { scheduleId, imageId } of existingSelected) {
+          const image = await fetchAuthApi('/admin/schedule-posters/import', {
+            method: 'POST', body: JSON.stringify({ scheduleId, imageId }), signal: requestRef.current.signal,
+          });
+          candidates.push(image);
+        }
+      }
+      const items = tab === 'file' ? files : candidates.map(image => {
+        const bytes = Uint8Array.from(atob(image.dataUrl.split(',')[1]), character => character.charCodeAt(0));
+        const type = image.dataUrl.slice(5, image.dataUrl.indexOf(';'));
+        return { id: uid(), file: new File([bytes], image.name, { type }), preview: image.dataUrl };
+      });
+      if (aliveRef.current && !requestRef.current.signal.aborted) { onAdd(items); close(); }
+    } catch (err) { if (aliveRef.current && err.name !== 'AbortError') setError(err.message); }
+    finally { busyRef.current = false; if (aliveRef.current) setBusy(false); }
   };
 
   return createPortal(
     <motion.dialog ref={dialogRef} data-admin-popover={present ? 'open' : 'closing'} inert={present ? undefined : ''}
       initial={{ opacity: 0, scale: reduced ? 1 : 0.98 }} animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: reduced ? 1 : 0.98 }} transition={{ duration: reduced ? 0 : 0.18 }} aria-labelledby="poster-dialog-title"
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
-      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onCancel={(event) => { event.preventDefault(); close(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) close(); }}
       style={{ top: 'calc(var(--popover-top, 0px) + var(--popover-height, 100dvh) / 2)', translate: '0 -50%' }}
       className="fixed bottom-auto m-0 mx-auto w-[calc(100%_-_32px)] max-w-lg overflow-hidden border border-ink bg-white p-0 text-ink backdrop:bg-black/50">
       <div className="flex flex-col" style={{ maxHeight: 'calc(var(--popover-height, 100dvh) - 24px)' }} onClick={(event) => event.stopPropagation()}>
         <header className="flex items-center justify-between px-5 pb-4 pt-5">
           <h2 id="poster-dialog-title" className="text-[19px] font-extrabold">포스터 추가</h2>
-          <button type="button" aria-label="닫기" onClick={onClose} className="flex h-10 w-10 items-center justify-center"><X size={21} /></button>
+          <button type="button" aria-label="닫기" onClick={close} className="flex h-10 w-10 items-center justify-center"><X size={21} /></button>
         </header>
         <div className="mx-5 flex border-b border-hairline" aria-label="포스터 추가 방법">
-          {[['file', '파일 첨부'], ['link', '인스타그램 링크']].map(([value, label]) => (
+          {[['file', '파일 첨부'], ['link', '인스타그램 링크'], ['existing', '기존 일정']].map(([value, label]) => (
             <button key={value} type="button" aria-pressed={tab === value} disabled={busy}
-              onClick={() => { setTab(value); setError(''); }}
-              className={`flex-1 border-b-2 py-3 text-[14px] font-bold ${tab === value ? 'border-ink text-ink' : 'border-transparent text-mute'}`}>{label}</button>
+              onClick={() => { setTab(value); setExistingSelected([]); setError(''); }}
+              className={`flex-1 whitespace-nowrap border-b-2 px-1 py-3 text-[13px] font-bold sm:text-[14px] ${tab === value ? 'border-ink text-ink' : 'border-transparent text-mute'}`}>{label}</button>
           ))}
         </div>
         <div className="min-h-0 overflow-y-auto overscroll-contain px-5 py-5">
-          {tab === 'link' ? <>
+          {tab === 'existing' ? <ExistingSchedulePosters title={scheduleTitle} maxCount={maxCount} selected={existingSelected} onSelect={setExistingSelected} disabled={busy} /> : tab === 'link' ? <>
             <label htmlFor="poster-instagram-url" className="mb-2 block text-[13px] font-bold">인스타그램 게시글 링크</label>
             <input id="poster-instagram-url" type="url" value={url} disabled={busy} placeholder="https://www.instagram.com/p/..."
               onChange={(event) => { setUrl(event.target.value); setImages([]); setSelected([]); setError(''); }}
@@ -164,8 +196,8 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
           {error && <p role="alert" className="mt-4 text-[13px] leading-relaxed text-[#C0392B]">{error}</p>}
         </div>
         <footer className="flex justify-end gap-2 border-t border-hairline p-5">
-          <button type="button" onClick={onClose} className={F.btn}>취소</button>
-          <button type="button" disabled={busy || (!count && (tab === 'file' || !url.trim()))}
+          <button type="button" onClick={close} className={F.btn}>취소</button>
+          <button type="button" disabled={busy || (!count && (tab !== 'link' || !url.trim()))}
             onClick={count ? add : loadImages} className={F.btnInk}>
             {busy ? '불러오는 중...' : count ? `추가하기 · ${count}장` : tab === 'link' ? '불러오기' : '추가하기'}
           </button>
@@ -175,12 +207,12 @@ export function PosterAddDialog({ initialUrl = '', maxCount = 20, onAdd, onClose
   );
 }
 
-export default function PosterAddButton({ sourceUrls = [], onAdd, maxCount = 20, children, className, disabled = false }) {
+export default function PosterAddButton({ sourceUrls = [], scheduleTitle = '', onAdd, maxCount = 20, children, className, disabled = false }) {
   const [open, setOpen] = useState(false);
   // Keep history ownership mounted while closed; StrictMode replays mount effects.
   useDialogBackClose(open, () => setOpen(false));
   return <>
     <button type="button" aria-label="포스터 추가" disabled={disabled} onClick={() => setOpen(true)} className={className}>{children}</button>
-    <AnimatePresence>{open && <PosterAddDialog initialUrl={instagramUrl(sourceUrls)} maxCount={maxCount} onAdd={onAdd} onClose={() => setOpen(false)} />}</AnimatePresence>
+    <AnimatePresence>{open && <PosterAddDialog initialUrl={instagramUrl(sourceUrls)} scheduleTitle={scheduleTitle} maxCount={maxCount} onAdd={onAdd} onClose={() => setOpen(false)} />}</AnimatePresence>
   </>;
 }

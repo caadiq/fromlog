@@ -238,7 +238,7 @@ function EventForm() {
         </div>
         <div className="mt-[18px] flex flex-wrap gap-2.5">
           <PosterPreviews items={posterFiles} setItems={setPosterFiles} />
-          <PosterAddButton className={`${F.dropzone} h-32 w-32`} sourceUrls={[...postUrls, urlInput]} onAdd={(items) => setPosterFiles((previous) => [...previous, ...items])}>
+          <PosterAddButton disabled={posterFiles.length >= 20} maxCount={Math.max(1, 20 - posterFiles.length)} scheduleTitle={title} className={`${F.dropzone} h-32 w-32`} sourceUrls={[...postUrls, urlInput]} onAdd={(items) => setPosterFiles((previous) => [...previous, ...items])}>
             <ImageIcon size={18} className="text-faint" />
             <span className="text-[13px]">추가</span>
           </PosterAddButton>

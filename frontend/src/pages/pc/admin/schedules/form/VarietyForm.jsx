@@ -1,3 +1,4 @@
+import PosterAddButton from '@/components/pc/admin/schedule/PosterAddButton';
 /**
  * 예능 일정 추가 폼 — 에디토리얼 리뉴얼
  */
@@ -198,24 +199,10 @@ function VarietyForm() {
                 </button>
               </div>
             ) : (
-              <label className={`${F.dropzone} mt-2.5 h-36 w-full`}>
-                <Image size={20} className="text-faint" />
-                <span className="text-[13px]">클릭하여 이미지 선택</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      setThumbnailFile(file);
-                      const reader = new FileReader();
-                      reader.onloadend = () => setThumbnailPreview(reader.result);
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-              </label>
+              <PosterAddButton scheduleTitle={title} maxCount={1} className={`${F.dropzone} mt-2.5 h-36 w-full`}
+                onAdd={([item]) => { setThumbnailFile(item.file); setThumbnailPreview(item.preview); }}>
+                <Image size={20} className="text-faint" /><span className="text-[13px]">이미지 선택</span>
+              </PosterAddButton>
             )}
           </div>
         </div>

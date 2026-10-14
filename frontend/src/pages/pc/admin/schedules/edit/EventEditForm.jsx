@@ -297,7 +297,7 @@ function EventEditForm() {
               </div>
             ))}
             <PosterPreviews items={newPosterFiles} setItems={setNewPosterFiles} />
-            <PosterAddButton sourceUrls={[...postUrls, urlInput]} disabled={saving || existingPosters.length + newPosterFiles.length >= 20} maxCount={Math.max(1, 20 - existingPosters.length - newPosterFiles.length)} onAdd={items => setNewPosterFiles(previous => [...previous, ...items])} className={`${F.dropzone} h-32 w-32 disabled:opacity-40`}>
+            <PosterAddButton scheduleTitle={title} sourceUrls={[...postUrls, urlInput]} disabled={saving || existingPosters.length + newPosterFiles.length >= 20} maxCount={Math.max(1, 20 - existingPosters.length - newPosterFiles.length)} onAdd={items => setNewPosterFiles(previous => [...previous, ...items])} className={`${F.dropzone} h-32 w-32 disabled:opacity-40`}>
               <ImageIcon size={18} className="text-faint" />
               <span className="text-[13px]">추가</span>
             </PosterAddButton>

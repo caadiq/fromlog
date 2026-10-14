@@ -1232,3 +1232,12 @@ DB/Redis/Meilisearch 준비 상태 확인. 인증 없이 공개하며 내부 주
 `GET /api/admin/bots`의 `status`는 `running | recovering | stopped | error`이며, `next_retry_at`은 복구 대기 시 UTC ISO 8601 시각, 그 외에는 `null`이다. `recovering`은 활성 상태(`enabled=true`)이므로 시작이 아닌 정지 버튼을 표시한다. 관리자 PC/모바일은 다음 재시도 시각을 KST로 표시한다.
 
 일시적인 네트워크/408/429/5xx 오류는 1·2·4·8·16·30분 대기 후 재시도한다. 봇 정지 API는 재시도를 취소하고 DB enabled를 비활성화한다. 시작 API는 이전 대기/오류를 초기화한다. 서버 재시작은 저장된 대기 시간을 유지한다. 전체 수동 동기화 API는 기존대로 1회 실행하며 자동 복구 대기 자체를 해제하지는 않는다. 자세한 정책과 복구 한계는 [운영 안내](operations.md#봇과-알림)를 참고한다.
+
+
+### 기존 일정 포스터 재사용 (2026-10-14)
+
+- `GET /api/admin/schedule-posters/?q=계약결혼&offset=0`: 관리자 인증 필수. 예능 썸네일·행사/기타 포스터·콘서트 포스터 중 실제 일정에 연결된 이미지 검색. 제목 부분 일치(`%`, `_`는 일반 문자), 정확한 제목 우선 후 최신 날짜순. `q` 최대 500자, 생략하면 전체 최근 이미지. `offset` 0~100000, 30개 단위로 `{ items, hasMore }` 반환.
+- `items`: `{ scheduleId, title, date: "YYYY-MM-DD", imageId, previewUrl }`. 한 일정의 포스터가 여러 장이면 각 이미지가 별도 후보이며, 목록에는 원본 데이터가 포함되지 않는다.
+- `POST /api/admin/schedule-posters/import`: 관리자 인증 필수. JSON `{ scheduleId, imageId }`(양의 정수), 본문 최대 1KB, 분당 최대 60회. 해당 일정에 연결된 이미지인지 다시 확인한 뒤 `{ name, dataUrl }` 반환. 연결이 없어졌으면 404, 스토리지/형식/용량 오류면 502로 재시도 또는 파일 첨부 안내.
+- DB에 저장된 URL이 설정된 RustFS 공개 URL·버킷에 속하는 경우에만 S3 키를 읽는다. 요청에서 URL을 받지 않으며 임의 외부 URL 다운로드를 지원하지 않는다. 파일 최대 10MB(헤더·실제 스트림 양쪽 제한), S3 요청 15초, JPEG/PNG/WebP/GIF만 허용한다. 두 응답 모두 `Cache-Control: no-store`.
+- 가져오기 자체는 일정/이미지 레코드나 스토리지 객체를 생성·수정하지 않는다. 성공 시 `upload / schedule / schedule_poster` 활동 로그에 원본 일정·이미지 ID를 남긴다. 프론트에서 실제 MIME의 `File`로 변환해 기존 등록/수정 API로 전송한다. 최종 저장 시 대상 일정에 독립된 파일이 만들어지므로 원본 일정 수정·삭제와 분리된다.

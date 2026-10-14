@@ -1,3 +1,4 @@
+import schedulePosterRoutes from './admin/schedule-posters.js';
 import instagramAdminRoutes from './admin/instagram.js';
 import authRoutes from './auth.js';
 import membersRoutes from './members/index.js';
@@ -90,6 +91,7 @@ export default async function routes(fastify) {
   fastify.register(etcAdminRoutes, { prefix: '/admin/etc' });
 
   fastify.register(instagramAdminRoutes, { prefix: '/admin/instagram' });
+  fastify.register(schedulePosterRoutes, { prefix: '/admin/schedule-posters' });
 
   // 관리자 - 수집 큐(검토 대기) 라우트
   fastify.register(pendingAdminRoutes, { prefix: '/admin/pending' });
