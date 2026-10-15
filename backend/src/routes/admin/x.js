@@ -1,5 +1,5 @@
 import { fetchSingleTweet, extractTitle, resolveWrappedRetweet } from '../../services/x/scraper.js';
-import { addOrUpdateSchedule, syncScheduleById } from '../../services/meilisearch/index.js';
+import { syncScheduleById } from '../../services/meilisearch/index.js';
 import { formatDate, formatTime } from '../../utils/date.js';
 import config, { CATEGORY_IDS } from '../../config/index.js';
 import {
@@ -143,22 +143,8 @@ export default async function xRoutes(fastify) {
       );
 
       // Meilisearch 동기화
-      const [categoryRows] = await db.query(
-        'SELECT name, color FROM schedule_categories WHERE id = ?',
-        [X_CATEGORY_ID]
-      );
-      const category = categoryRows[0] || {};
 
-      await addOrUpdateSchedule(meilisearch, {
-        id: scheduleId,
-        title: finalTitle,
-        date,
-        time: time || '',
-        category_id: X_CATEGORY_ID,
-        category_name: category.name || '',
-        category_color: category.color || '',
-        source_name: '',
-      }, fastify.redis);
+      await syncScheduleById(meilisearch, db, scheduleId, fastify.redis);
 
       logActivity(db, { actor: 'admin', action: 'create', category: 'schedule', targetType: 'x_schedule', targetId: scheduleId, summary: `X 일정 생성: ${finalTitle}` });
       return { success: true, scheduleId };

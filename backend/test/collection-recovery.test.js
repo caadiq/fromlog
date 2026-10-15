@@ -117,9 +117,12 @@ test('collection recovery in isolated MariaDB', { skip: process.env.COLLECTION_A
     assert.deepEqual(rows.map(r=>r.title), ['비정기 새 웹예능','송하영 생일카페']);
   });
   await t.test('stale marker clears when the source item returns and empty extraction never marks everything stale', async () => {
-    await reset(); await run(); body += ' 다른 일정'; items=[item('새 항목')]; await run();
+    await reset();
+    const [{ date }] = await query("SELECT DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 1 DAY), '%Y-%m-%d') AS date");
+    items = [item(undefined, { date })]; await run();
+    body += ' 다른 일정'; items=[item('새 항목', { date })]; await run();
     assert.ok((await query("SELECT stale_at FROM bot_pending_schedules WHERE title='학교 축제 일정'"))[0].stale_at);
-    body += ' 원래 항목 복귀'; items=[item()]; await run();
+    body += ' 원래 항목 복귀'; items=[item(undefined, { date })]; await run();
     assert.equal((await query("SELECT stale_at FROM bot_pending_schedules WHERE title='학교 축제 일정'"))[0].stale_at, null);
     body += ' 빈 응답'; items=[]; await run();
     assert.equal((await query("SELECT stale_at FROM bot_pending_schedules WHERE title='학교 축제 일정'"))[0].stale_at, null);

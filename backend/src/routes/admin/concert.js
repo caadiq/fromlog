@@ -1,4 +1,4 @@
-import { addOrUpdateSchedule, deleteSchedule } from '../../services/meilisearch/index.js';
+import { syncScheduleById, deleteSchedule } from '../../services/meilisearch/index.js';
 import { uploadConcertPoster, uploadConcertMerchandise } from '../../services/image.js';
 import { CATEGORY_IDS } from '../../config/index.js';
 import { withTransaction } from '../../utils/transaction.js';
@@ -104,23 +104,8 @@ async function insertConcertSetlists(conn, concertIds, setlists) {
  */
 async function syncConcertSchedules(fastify, scheduleIds) {
   const { db, meilisearch, redis } = fastify;
-  const [categoryRows] = await db.query('SELECT name, color FROM schedule_categories WHERE id = ?', [CONCERT_CATEGORY_ID]);
-  const category = categoryRows[0] || {};
-
   for (const scheduleId of scheduleIds) {
-    const [scheduleRows] = await db.query('SELECT title, date, time FROM schedules WHERE id = ?', [scheduleId]);
-    const s = scheduleRows[0];
-    if (s) {
-      await addOrUpdateSchedule(meilisearch, {
-        id: scheduleId,
-        title: s.title,
-        date: s.date instanceof Date ? s.date.toISOString().split('T')[0] : s.date,
-        time: s.time || '',
-        category_id: CONCERT_CATEGORY_ID,
-        category_name: category.name || '',
-        category_color: category.color || '',
-      }, redis);
-    }
+    await syncScheduleById(meilisearch, db, scheduleId, redis);
   }
 }
 

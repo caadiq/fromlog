@@ -1,7 +1,7 @@
 import { updateVideoType } from '../../services/video-type.js';
 import { withTransaction } from '../../utils/transaction.js';
 import { fetchVideoInfo } from '../../services/youtube/api.js';
-import { addOrUpdateSchedule } from '../../services/meilisearch/index.js';
+import { syncScheduleById } from '../../services/meilisearch/index.js';
 import { archiveVideo, inferCategory } from '../../services/videos.js';
 import { CATEGORY_IDS } from '../../config/index.js';
 import {
@@ -150,22 +150,8 @@ export default async function youtubeRoutes(fastify) {
       });
 
       // Meilisearch 동기화
-      const [categoryRows] = await db.query(
-        'SELECT name, color FROM schedule_categories WHERE id = ?',
-        [YOUTUBE_CATEGORY_ID]
-      );
-      const category = categoryRows[0] || {};
 
-      await addOrUpdateSchedule(meilisearch, {
-        id: scheduleId,
-        title,
-        date,
-        time: time || '',
-        category_id: YOUTUBE_CATEGORY_ID,
-        category_name: category.name || '',
-        category_color: category.color || '',
-        source_name: channelName || '',
-      }, fastify.redis);
+      await syncScheduleById(meilisearch, db, scheduleId, fastify.redis);
 
       logActivity(db, { actor: 'admin', action: 'create', category: 'schedule', targetType: 'youtube_schedule', targetId: scheduleId, summary: `YouTube 일정 생성: ${title}` });
       return { success: true, scheduleId };
@@ -224,32 +210,7 @@ export default async function youtubeRoutes(fastify) {
         });
       }
 
-      // YouTube 채널 정보 조회
-      const [youtubeInfo] = await db.query(
-        'SELECT channel_name FROM schedule_youtube WHERE schedule_id = ?',
-        [id]
-      );
-      const channelName = youtubeInfo[0]?.channel_name || '';
-
-      // 카테고리 정보 조회
-      const [categoryRows] = await db.query(
-        'SELECT name, color FROM schedule_categories WHERE id = ?',
-        [YOUTUBE_CATEGORY_ID]
-      );
-      const category = categoryRows[0] || {};
-
-      // Meilisearch 동기화
-      const schedule = schedules[0];
-      await addOrUpdateSchedule(meilisearch, {
-        id: schedule.id,
-        title: schedule.title,
-        date: schedule.date,
-        time: schedule.time || '',
-        category_id: YOUTUBE_CATEGORY_ID,
-        category_name: category.name || '',
-        category_color: category.color || '',
-        source_name: channelName,
-      }, fastify.redis);
+      await syncScheduleById(meilisearch, db, parseInt(id), fastify.redis);
 
       logActivity(db, { actor: 'admin', action: 'update', category: 'schedule', targetType: 'youtube_schedule', targetId: parseInt(id), summary: `YouTube 일정 수정: ${schedules[0].title}` });
       return { success: true };

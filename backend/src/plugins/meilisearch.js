@@ -47,8 +47,10 @@ async function initIndex(client, log) {
     // 검색 가능한 필드 설정 (순서가 우선순위 결정)
     await index.updateSearchableAttributes([
       'title',
-      'description',
+      'title_compact',
       'source_name',
+      'broadcaster',
+      'description',
       'category_name',
     ]);
 
@@ -71,6 +73,7 @@ async function initIndex(client, log) {
     // 오타 허용 설정
     await index.updateTypoTolerance({
       enabled: true,
+      disableOnNumbers: true,
       minWordSizeForTypos: {
         oneTypo: 2,
         twoTypos: 4,

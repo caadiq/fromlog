@@ -1,0 +1,2084 @@
+{
+  "snapshotAt": "2026-10-14T23:33:45.899Z",
+  "count": 2423,
+  "summary": {
+    "before": {
+      "ndcg10": 0.8615706573452303,
+      "recall_all": 0.6795924546596832,
+      "hit5": 0.9310344827586207
+    },
+    "after": {
+      "ndcg10": 0.883845329140187,
+      "recall_all": 0.8271658943397386,
+      "hit5": 0.9655172413793104
+    }
+  },
+  "negativeCorrect": 4,
+  "pageCheck": {
+    "total": 1877,
+    "hydrated": 20,
+    "returned": 20
+  },
+  "results": [
+    {
+      "query": {
+        "group": "exact",
+        "q": "계약결혼",
+        "terms": [
+          [
+            "계약결혼"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 9,
+      "top10": [
+        4065,
+        4064,
+        4017,
+        4001,
+        4057,
+        4033,
+        4032,
+        4005,
+        4004
+      ]
+    },
+    {
+      "query": {
+        "group": "exact",
+        "q": "아는형님",
+        "terms": [
+          [
+            "아는형님"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.8333333333333334,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 12,
+      "top10": [
+        3848,
+        3849,
+        4029,
+        4000,
+        4028,
+        4003,
+        3999,
+        4002,
+        3858,
+        3856
+      ]
+    },
+    {
+      "query": {
+        "group": "exact",
+        "q": "워크돌",
+        "terms": [
+          [
+            "워크돌"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.08333333333333333,
+        "recall_all": 0.9083333333333333
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 120,
+      "top10": [
+        4069,
+        4070,
+        4042,
+        4041,
+        4016,
+        4015,
+        3976,
+        3949,
+        3948,
+        3906
+      ]
+    },
+    {
+      "query": {
+        "group": "exact",
+        "q": "방판소녀들",
+        "terms": [
+          [
+            "방판소녀들"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.23809523809523808,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 42,
+      "top10": [
+        4048,
+        4020,
+        3955,
+        3958,
+        3914,
+        3910,
+        3316,
+        3207,
+        3206,
+        3168
+      ]
+    },
+    {
+      "query": {
+        "group": "exact",
+        "q": "헬스키친",
+        "terms": [
+          [
+            "헬스키친",
+            "hellskitchen"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.23809523809523808,
+        "recall_all": 0.9761904761904762
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 42,
+      "top10": [
+        3613,
+        3932,
+        3931,
+        3930,
+        3929,
+        3928,
+        3927,
+        3926,
+        3925,
+        3924
+      ]
+    },
+    {
+      "query": {
+        "group": "exact",
+        "q": "백양체전",
+        "terms": [
+          [
+            "백양체전"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        3986
+      ]
+    },
+    {
+      "query": {
+        "group": "exact",
+        "q": "성연",
+        "terms": [
+          [
+            "성연"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 5,
+      "top10": [
+        3989,
+        915,
+        204,
+        444,
+        1114
+      ]
+    },
+    {
+      "query": {
+        "group": "exact",
+        "q": "일감연",
+        "terms": [
+          [
+            "일감연"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        3987
+      ]
+    },
+    {
+      "query": {
+        "group": "spacing",
+        "q": "계약 결혼",
+        "terms": [
+          [
+            "계약결혼"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 9,
+      "top10": [
+        4065,
+        4064,
+        4017,
+        4001,
+        4057,
+        4033,
+        4032,
+        4005,
+        4004
+      ]
+    },
+    {
+      "query": {
+        "group": "spacing",
+        "q": "아는 형님",
+        "terms": [
+          [
+            "아는형님"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.8333333333333334,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 12,
+      "top10": [
+        3848,
+        3849,
+        4029,
+        4000,
+        4028,
+        4003,
+        3999,
+        4002,
+        3858,
+        3856
+      ]
+    },
+    {
+      "query": {
+        "group": "spacing",
+        "q": "헬스 키친",
+        "terms": [
+          [
+            "헬스키친",
+            "hellskitchen"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.23809523809523808,
+        "recall_all": 0.9761904761904762
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 42,
+      "top10": [
+        3613,
+        3932,
+        3931,
+        3930,
+        3929,
+        3928,
+        3927,
+        3926,
+        3925,
+        3924
+      ]
+    },
+    {
+      "query": {
+        "group": "spacing",
+        "q": "프로미스 나인",
+        "terms": [
+          [
+            "프로미스나인",
+            "fromis9"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.004549590536851683,
+        "recall_all": 0.3616924476797088
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 0.8539581437670609,
+        "hit5": 1
+      },
+      "total": 1877,
+      "top10": [
+        3968,
+        3960,
+        3831,
+        3448,
+        3583,
+        3338,
+        3288,
+        3264,
+        3205,
+        2757
+      ]
+    },
+    {
+      "query": {
+        "group": "spacing",
+        "q": "강남 대학교",
+        "terms": [
+          [
+            "강남대학교"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        3986
+      ]
+    },
+    {
+      "query": {
+        "group": "inflection",
+        "q": "박지원이",
+        "terms": [
+          [
+            "박지원"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 0.4,
+        "ndcg10": 0.027884142970094443,
+        "recall10": 0.007220216606498195,
+        "recall_all": 0.007220216606498195
+      },
+      "after": {
+        "ndcg10": 0.03200079450216794,
+        "recall_all": 0.007220216606498195,
+        "hit5": 1
+      },
+      "total": 6,
+      "top10": [
+        2387,
+        3069,
+        3196,
+        2413,
+        2412,
+        189
+      ]
+    },
+    {
+      "query": {
+        "group": "inflection",
+        "q": "이채영의",
+        "terms": [
+          [
+            "이채영"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 0.8701249883466594,
+        "recall10": 0.032520325203252036,
+        "recall_all": 0.08943089430894309
+      },
+      "after": {
+        "ndcg10": 0.8701249883466594,
+        "recall_all": 0.07723577235772358,
+        "hit5": 1
+      },
+      "total": 21,
+      "top10": [
+        3391,
+        2487,
+        3390,
+        480,
+        1155,
+        503,
+        1204,
+        2371,
+        3290,
+        3289
+      ]
+    },
+    {
+      "query": {
+        "group": "inflection",
+        "q": "뮤지컬에",
+        "terms": [
+          [
+            "뮤지컬",
+            "musical"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 0.8006937664098821,
+        "recall10": 0.14583333333333334,
+        "recall_all": 0.14583333333333334
+      },
+      "after": {
+        "ndcg10": 0.8836981896647147,
+        "recall_all": 0.8541666666666666,
+        "hit5": 1
+      },
+      "total": 41,
+      "top10": [
+        3769,
+        4031,
+        4030,
+        3940,
+        3593,
+        1385,
+        3613,
+        3919,
+        3989,
+        3932
+      ]
+    },
+    {
+      "query": {
+        "group": "inflection",
+        "q": "축제에서",
+        "terms": [
+          [
+            "축제",
+            "대동제"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 0.8,
+        "ndcg10": 0.5637884576902256,
+        "recall10": 0.10810810810810811,
+        "recall_all": 0.10810810810810811
+      },
+      "after": {
+        "ndcg10": 0.5637884576902256,
+        "recall_all": 0.10810810810810811,
+        "hit5": 1
+      },
+      "total": 6,
+      "top10": [
+        3120,
+        3121,
+        4022,
+        3992,
+        4013,
+        2561
+      ]
+    },
+    {
+      "query": {
+        "group": "alias",
+        "q": "건대",
+        "terms": [
+          [
+            "건국대학교"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 0,
+        "p5_normalized": 0.0,
+        "ndcg10": 0.0,
+        "recall10": 0.0,
+        "recall_all": 0.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        3987
+      ]
+    },
+    {
+      "query": {
+        "group": "alias",
+        "q": "호서대",
+        "terms": [
+          [
+            "호서대학교"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        4022
+      ]
+    },
+    {
+      "query": {
+        "group": "alias",
+        "q": "아주대",
+        "terms": [
+          [
+            "아주대학교"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 2,
+      "top10": [
+        4021,
+        3919
+      ]
+    },
+    {
+      "query": {
+        "group": "alias",
+        "q": "에리카",
+        "terms": [
+          [
+            "에리카",
+            "erica"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 0,
+        "p5_normalized": 0.0,
+        "ndcg10": 0.0,
+        "recall10": 0.0,
+        "recall_all": 0.0
+      },
+      "after": {
+        "ndcg10": 0.0,
+        "recall_all": 0.0,
+        "hit5": 0
+      },
+      "total": 0,
+      "top10": []
+    },
+    {
+      "query": {
+        "group": "alias",
+        "q": "프나",
+        "terms": [
+          [
+            "프로미스나인",
+            "fromis9",
+            "프나"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.004547521600727604,
+        "recall_all": 0.02455661664392906
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 0.8549340609367895,
+        "hit5": 1
+      },
+      "total": 1880,
+      "top10": [
+        3256,
+        369,
+        3900,
+        3354,
+        710,
+        2428,
+        3224,
+        3225,
+        1174,
+        490
+      ]
+    },
+    {
+      "query": {
+        "group": "alias",
+        "q": "메건",
+        "terms": [
+          [
+            "박지원",
+            "메건"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 0.4,
+        "ndcg10": 0.35895421017163476,
+        "recall10": 0.007168458781362007,
+        "recall_all": 0.007168458781362007
+      },
+      "after": {
+        "ndcg10": 0.35895421017163476,
+        "recall_all": 0.007168458781362007,
+        "hit5": 1
+      },
+      "total": 2,
+      "top10": [
+        711,
+        56
+      ]
+    },
+    {
+      "query": {
+        "group": "typo",
+        "q": "계약결흔",
+        "terms": [
+          [
+            "계약결혼"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 9,
+      "top10": [
+        4065,
+        4064,
+        4057,
+        4033,
+        4017,
+        4032,
+        4005,
+        4001,
+        4004
+      ]
+    },
+    {
+      "query": {
+        "group": "typo",
+        "q": "워크둘",
+        "terms": [
+          [
+            "워크돌"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.08333333333333333,
+        "recall_all": 0.9083333333333333
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 122,
+      "top10": [
+        4069,
+        4070,
+        4042,
+        4041,
+        4016,
+        4015,
+        3976,
+        3949,
+        3948,
+        3906
+      ]
+    },
+    {
+      "query": {
+        "group": "typo",
+        "q": "헬스키찬",
+        "terms": [
+          [
+            "헬스키친",
+            "hellskitchen"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.23809523809523808,
+        "recall_all": 0.9761904761904762
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 0.9761904761904762,
+        "hit5": 1
+      },
+      "total": 41,
+      "top10": [
+        3593,
+        3613,
+        3932,
+        3931,
+        3930,
+        3929,
+        3928,
+        3927,
+        3926,
+        3925
+      ]
+    },
+    {
+      "query": {
+        "group": "typo",
+        "q": "프로미스나잉",
+        "terms": [
+          [
+            "프로미스나인",
+            "fromis9"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.004549590536851683,
+        "recall_all": 0.3607825295723385
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 0.8544131028207461,
+        "hit5": 1
+      },
+      "total": 1879,
+      "top10": [
+        3960,
+        3959,
+        3900,
+        3414,
+        3203,
+        3199,
+        2605,
+        178,
+        588,
+        875
+      ]
+    },
+    {
+      "query": {
+        "group": "english",
+        "q": "fromis_9",
+        "terms": [
+          [
+            "프로미스나인",
+            "fromis9",
+            "프나"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.004547521600727604,
+        "recall_all": 0.43292405638926784
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 0.9899954524783993,
+        "hit5": 1
+      },
+      "total": 2177,
+      "top10": [
+        3973,
+        3969,
+        3895,
+        3892,
+        3700,
+        3675,
+        3581,
+        3462,
+        3438,
+        3415
+      ]
+    },
+    {
+      "query": {
+        "group": "english",
+        "q": "Glow ME",
+        "terms": [
+          [
+            "glowme"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.04132231404958678,
+        "recall_all": 0.47520661157024796
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 250,
+      "top10": [
+        3563,
+        3562,
+        3844,
+        3843,
+        3808,
+        3807,
+        3806,
+        3805,
+        3804,
+        3690
+      ]
+    },
+    {
+      "query": {
+        "group": "english",
+        "q": "TOMORROW GLOW",
+        "terms": [
+          [
+            "tomorrowglow"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.2702702702702703,
+        "recall_all": 0.972972972972973
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 39,
+      "top10": [
+        3897,
+        3894,
+        3890,
+        4023,
+        3939,
+        3896,
+        3895,
+        3786,
+        3785,
+        3893
+      ]
+    },
+    {
+      "query": {
+        "group": "english",
+        "q": "LIKE YOU BETTER",
+        "terms": [
+          [
+            "likeyoubetter"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.04291845493562232,
+        "recall_all": 0.5579399141630901
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 233,
+      "top10": [
+        116,
+        284,
+        213,
+        201,
+        150,
+        611,
+        210,
+        205,
+        170,
+        3253
+      ]
+    },
+    {
+      "query": {
+        "group": "keyboard",
+        "q": "dnjzmehf",
+        "terms": [
+          [
+            "워크돌"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.08333333333333333,
+        "recall_all": 0.9083333333333333
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 120,
+      "top10": [
+        4069,
+        4070,
+        4042,
+        4041,
+        4016,
+        4015,
+        3976,
+        3949,
+        3948,
+        3906
+      ]
+    },
+    {
+      "query": {
+        "group": "metadata",
+        "q": "JTBC",
+        "terms": [
+          [
+            "jtbc"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 0.8404505794221258,
+        "recall10": 0.5555555555555556,
+        "recall_all": 0.5555555555555556
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 9,
+      "top10": [
+        3584,
+        4028,
+        4002,
+        3856,
+        3163,
+        4000,
+        3999,
+        3848,
+        3849
+      ]
+    },
+    {
+      "query": {
+        "group": "metadata",
+        "q": "MBC every1",
+        "terms": [
+          [
+            "mbcevery1"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 0.6,
+        "ndcg10": 0.7674001818008186,
+        "recall10": 0.42857142857142855,
+        "recall_all": 0.42857142857142855
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 7,
+      "top10": [
+        4057,
+        4032,
+        4004,
+        4065,
+        4064,
+        4017,
+        4001
+      ]
+    },
+    {
+      "query": {
+        "group": "metadata",
+        "q": "박지원 불참",
+        "terms": [
+          [
+            "박지원"
+          ],
+          [
+            "불참"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 0.2,
+        "ndcg10": 0.7032727136036657,
+        "recall10": 0.125,
+        "recall_all": 0.125
+      },
+      "after": {
+        "ndcg10": 0.7775225425289931,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 8,
+      "top10": [
+        3988,
+        3902,
+        3921,
+        3990,
+        3977,
+        3989,
+        3941,
+        3919
+      ]
+    },
+    {
+      "query": {
+        "group": "metadata",
+        "q": "이채영 MC",
+        "terms": [
+          [
+            "이채영"
+          ],
+          [
+            "mc"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 0.6,
+        "ndcg10": 0.8607761330035307,
+        "recall10": 0.11538461538461539,
+        "recall_all": 0.11538461538461539
+      },
+      "after": {
+        "ndcg10": 0.6008276099231175,
+        "recall_all": 0.5,
+        "hit5": 1
+      },
+      "total": 70,
+      "top10": [
+        4065,
+        4064,
+        4017,
+        4001,
+        3503,
+        3479,
+        134,
+        855,
+        2487,
+        447
+      ]
+    },
+    {
+      "query": {
+        "group": "multi",
+        "q": "워크돌 박지원",
+        "terms": [
+          [
+            "워크돌"
+          ],
+          [
+            "박지원",
+            "지원"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 0.8,
+        "ndcg10": 0.5895129526105489,
+        "recall10": 0.08181818181818182,
+        "recall_all": 0.8909090909090909
+      },
+      "after": {
+        "ndcg10": 0.14285714285714288,
+        "recall_all": 0.6181818181818182,
+        "hit5": 1
+      },
+      "total": 68,
+      "top10": [
+        4042,
+        4016,
+        3949,
+        3872,
+        3842,
+        3709,
+        3599,
+        3347,
+        3268,
+        3220
+      ]
+    },
+    {
+      "query": {
+        "group": "multi",
+        "q": "방판소녀들 시즌2",
+        "terms": [
+          [
+            "방판소녀들"
+          ],
+          [
+            "시즌2"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.9090909090909091,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 11,
+      "top10": [
+        4048,
+        3909,
+        3984,
+        3956,
+        3913,
+        3910,
+        4049,
+        3914,
+        4020,
+        3955
+      ]
+    },
+    {
+      "query": {
+        "group": "multi",
+        "q": "호서대학교 POLARIS",
+        "terms": [
+          [
+            "호서대학교"
+          ],
+          [
+            "polaris"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        4022
+      ]
+    },
+    {
+      "query": {
+        "group": "multi",
+        "q": "계약결혼 2회",
+        "terms": [
+          [
+            "계약결혼"
+          ],
+          [
+            "2회"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        4017
+      ]
+    },
+    {
+      "query": {
+        "group": "filtered",
+        "q": "워크돌",
+        "terms": [
+          [
+            "워크돌"
+          ]
+        ],
+        "category": "유튜브",
+        "from": "2026-09-01",
+        "to": "2026-09-30"
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 5,
+      "top10": [
+        3947,
+        3904,
+        3975,
+        3870,
+        3840
+      ]
+    },
+    {
+      "query": {
+        "group": "filtered",
+        "q": "계약결혼",
+        "terms": [
+          [
+            "계약결혼"
+          ]
+        ],
+        "category": "예능"
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 4,
+      "top10": [
+        4065,
+        4064,
+        4017,
+        4001
+      ]
+    },
+    {
+      "query": {
+        "group": "negative",
+        "q": "없는행사테스트9999",
+        "terms": [
+          [
+            "없는행사테스트9999"
+          ]
+        ],
+        "zero": true
+      },
+      "before": {
+        "unexpected": 0
+      },
+      "after": {
+        "unexpected": 0
+      },
+      "total": 0,
+      "top10": []
+    },
+    {
+      "query": {
+        "group": "negative",
+        "q": "서울대학교 POLARIS",
+        "terms": [
+          [
+            "서울대학교"
+          ],
+          [
+            "polaris"
+          ]
+        ],
+        "zero": true
+      },
+      "before": {
+        "unexpected": 7
+      },
+      "after": {
+        "unexpected": 0
+      },
+      "total": 0,
+      "top10": []
+    },
+    {
+      "query": {
+        "group": "negative",
+        "q": "계약결혼 999회",
+        "terms": [
+          [
+            "계약결혼"
+          ],
+          [
+            "999회"
+          ]
+        ],
+        "zero": true
+      },
+      "before": {
+        "unexpected": 0
+      },
+      "after": {
+        "unexpected": 0
+      },
+      "total": 0,
+      "top10": []
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "exact",
+        "q": "성수기",
+        "terms": [
+          [
+            "성수기"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.15625,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 64,
+      "top10": [
+        1346,
+        1345,
+        1337,
+        1336,
+        1312,
+        1286,
+        1228,
+        1168,
+        1166,
+        1139
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "exact",
+        "q": "이단장",
+        "terms": [
+          [
+            "이단장"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.2,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 50,
+      "top10": [
+        4058,
+        4056,
+        4055,
+        3230,
+        3062,
+        3060,
+        2656,
+        2654,
+        2601,
+        2510
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "exact",
+        "q": "Supersonic",
+        "terms": [
+          [
+            "supersonic"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 4,
+      "top10": [
+        1126,
+        451,
+        3249,
+        3338
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "exact",
+        "q": "Talk & Talk",
+        "terms": [
+          [
+            "talktalk"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        3245
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "spacing",
+        "q": "성 수기",
+        "terms": [
+          [
+            "성수기"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.15625,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 64,
+      "top10": [
+        1346,
+        1345,
+        1337,
+        1336,
+        1312,
+        1286,
+        1228,
+        1168,
+        1166,
+        1139
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "spacing",
+        "q": "방판 소녀들",
+        "terms": [
+          [
+            "방판소녀들"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.23809523809523808,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 42,
+      "top10": [
+        4048,
+        4020,
+        3955,
+        3958,
+        3914,
+        3910,
+        3316,
+        3207,
+        3206,
+        3168
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "spacing",
+        "q": "인천 대학교",
+        "terms": [
+          [
+            "인천대학교"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 2,
+      "top10": [
+        2672,
+        2685
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "inflection",
+        "q": "송하영이",
+        "terms": [
+          [
+            "송하영"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.050761421319796954,
+        "recall_all": 0.14213197969543148
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 0.17766497461928935,
+        "hit5": 1
+      },
+      "total": 35,
+      "top10": [
+        3958,
+        3955,
+        3914,
+        3956,
+        3913,
+        3984,
+        4039,
+        3979,
+        4020,
+        4049
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "inflection",
+        "q": "백지헌의",
+        "terms": [
+          [
+            "백지헌"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 0.727329844310522,
+        "recall10": 0.043478260869565216,
+        "recall_all": 0.043478260869565216
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 0.10144927536231885,
+        "hit5": 1
+      },
+      "total": 14,
+      "top10": [
+        4018,
+        4046,
+        1108,
+        430,
+        2594,
+        2593,
+        207,
+        3962,
+        3963,
+        245
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "inflection",
+        "q": "콘서트에서",
+        "terms": [
+          [
+            "콘서트",
+            "concert"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 0,
+        "p5_normalized": 0.0,
+        "ndcg10": 0.0,
+        "recall10": 0.0,
+        "recall_all": 0.0
+      },
+      "after": {
+        "ndcg10": 0.03325515444619258,
+        "recall_all": 0.1,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        1074
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "alias",
+        "q": "성균관대",
+        "terms": [
+          [
+            "성균관대학교"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 0.3333333333333333,
+        "ndcg10": 0.8609101556836468,
+        "recall10": 0.3333333333333333,
+        "recall_all": 0.3333333333333333
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 3,
+      "top10": [
+        2685,
+        2637,
+        2636
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "alias",
+        "q": "인천대",
+        "terms": [
+          [
+            "인천대학교"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 2,
+      "top10": [
+        2672,
+        2685
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "typo",
+        "q": "방판소녀듷",
+        "terms": [
+          [
+            "방판소녀들"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.23809523809523808,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 42,
+      "top10": [
+        4048,
+        4066,
+        4052,
+        4049,
+        4020,
+        4038,
+        3985,
+        3984,
+        3955,
+        3978
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "typo",
+        "q": "성슈기",
+        "terms": [
+          [
+            "성수기"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 0,
+        "p5_normalized": 0.0,
+        "ndcg10": 0.0,
+        "recall10": 0.0,
+        "recall_all": 0.015625
+      },
+      "after": {
+        "ndcg10": 0.0,
+        "recall_all": 0.015625,
+        "hit5": 0
+      },
+      "total": 17,
+      "top10": [
+        2585,
+        2386,
+        2385,
+        3370,
+        2702,
+        3538,
+        3369,
+        3539,
+        2701,
+        2454
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "multi",
+        "q": "계약결혼 3회",
+        "terms": [
+          [
+            "계약결혼"
+          ],
+          [
+            "3회"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 1.0,
+        "recall_all": 1.0
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 1.0,
+        "hit5": 1
+      },
+      "total": 1,
+      "top10": [
+        4064
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "multi",
+        "q": "성수기 이채영",
+        "terms": [
+          [
+            "성수기"
+          ],
+          [
+            "이채영",
+            "채영"
+          ]
+        ]
+      },
+      "before": {
+        "hit5": 1,
+        "p5_normalized": 1.0,
+        "ndcg10": 1.0,
+        "recall10": 0.1724137931034483,
+        "recall_all": 0.5689655172413793
+      },
+      "after": {
+        "ndcg10": 1.0,
+        "recall_all": 0.8793103448275862,
+        "hit5": 1
+      },
+      "total": 51,
+      "top10": [
+        1050,
+        1008,
+        1096,
+        1336,
+        1036,
+        1027,
+        1345,
+        1228,
+        410,
+        300
+      ]
+    },
+    {
+      "query": {
+        "split": "holdout",
+        "group": "negative",
+        "q": "없는대학교 축제XYZ",
+        "terms": [
+          [
+            "없는대학교"
+          ],
+          [
+            "축제xyz"
+          ]
+        ],
+        "zero": true
+      },
+      "before": {
+        "unexpected": 0
+      },
+      "after": {
+        "unexpected": 0
+      },
+      "total": 0,
+      "top10": []
+    }
+  ],
+  "limitations": "Rule-based offline comparison, not human accuracy. Uses default manual groups and generated school aliases, not future administrator changes. Query timings omitted: fake DB and un-warmed single samples do not represent live latency."
+}

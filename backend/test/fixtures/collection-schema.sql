@@ -35,15 +35,6 @@ CREATE TABLE `bot_pending_schedules` (
   UNIQUE KEY `uniq_dedup` (`dedup_key`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-CREATE TABLE `schedule_variety` (
-  `schedule_id` int(11) NOT NULL,
-  `broadcaster` varchar(100) NOT NULL COMMENT '방송사/플랫폼 (KBS, MBC, 유튜브, 티빙 등)',
-  `description` text DEFAULT NULL,
-  `replay_url` varchar(500) DEFAULT NULL COMMENT '다시보기 링크',
-  `thumbnail_id` int(11) DEFAULT NULL COMMENT '썸네일 이미지 ID (images 테이블 참조)',
-  PRIMARY KEY (`schedule_id`),
-  CONSTRAINT `schedule_variety_fk_variety_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='예능 일정 상세';
 CREATE TABLE `festival_crawl_log` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `post_url` varchar(500) NOT NULL,

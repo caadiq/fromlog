@@ -22,3 +22,13 @@ export async function saveDict(content) {
     body: JSON.stringify({ content }),
   });
 }
+
+export function getAliases() {
+  return fetchAuthApi('/schedules/suggestions/aliases');
+}
+
+export function saveAliases(settings) {
+  return fetchAuthApi('/schedules/suggestions/aliases', {
+    method: 'PUT', body: JSON.stringify(settings),
+  });
+}

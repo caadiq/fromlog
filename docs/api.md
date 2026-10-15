@@ -203,7 +203,7 @@ X 게시물 일정의 이미지를 원본 화질(name=orig)로 프록시 스트�
 
 ※ `search`, `startDate`, `year/month` 중 하나는 필수
 
-검색 응답은 `{ schedules, total, offset, limit, hasMore }`입니다. 일정은 월별 조회와 같은 DB 포맷을 사용하며 `datePrecision`(`day`/`month`), `source.url`, `albumFolder`, `concertSeriesId`, 행사 정보를 보존합니다. 월 단위 일정의 `date`는 저장용 월 첫날이며 UI는 일·요일 대신 날짜 미정으로 표시합니다. 관련도 동점은 날짜·시간·ID 내림차순입니다. 검색 서비스 장애는 빈 결과가 아닌 오류 응답으로 반환합니다. 내부 후보 상한은 색인 설정과 같은 10,000건입니다.
+검색 응답은 `{ schedules, total, offset, limit, hasMore }`입니다. 일정은 월별 조회와 같은 DB 포맷을 사용하며 `datePrecision`(`day`/`month`), `source.url`, `albumFolder`, `concertSeriesId`, 행사 정보를 보존합니다. 월 단위 일정의 `date`는 저장용 월 첫날이며 UI는 일·요일 대신 날짜 미정으로 표시합니다. 제목/회차 제외 프로그램명 정확 일치를 우선하며 같은 프로그램은 날짜·시간·ID 내림차순입니다. 제목 내 원문 일치, 별칭 일치, 기타 관련도 순으로 이어집니다. 별칭은 단어 경계에서 대표 이름으로 확장하며 설명·방송사도 검색합니다. 상세 DB 조회는 페이지 단위로 수행합니다. 검색 서비스 장애는 빈 결과가 아닌 오류 응답으로 반환합니다. 내부 후보 상한은 색인 설정과 같은 10,000건입니다.
 
 **월별 조회 응답:**
 ```json
@@ -1241,3 +1241,12 @@ DB/Redis/Meilisearch 준비 상태 확인. 인증 없이 공개하며 내부 주
 - `POST /api/admin/schedule-posters/import`: 관리자 인증 필수. JSON `{ scheduleId, imageId }`(양의 정수), 본문 최대 1KB, 분당 최대 60회. 해당 일정에 연결된 이미지인지 다시 확인한 뒤 `{ name, dataUrl }` 반환. 연결이 없어졌으면 404, 스토리지/형식/용량 오류면 502로 재시도 또는 파일 첨부 안내.
 - DB에 저장된 URL이 설정된 RustFS 공개 URL·버킷에 속하는 경우에만 S3 키를 읽는다. 요청에서 URL을 받지 않으며 임의 외부 URL 다운로드를 지원하지 않는다. 파일 최대 10MB(헤더·실제 스트림 양쪽 제한), S3 요청 15초, JPEG/PNG/WebP/GIF만 허용한다. 두 응답 모두 `Cache-Control: no-store`.
 - 가져오기 자체는 일정/이미지 레코드나 스토리지 객체를 생성·수정하지 않는다. 성공 시 `upload / schedule / schedule_poster` 활동 로그에 원본 일정·이미지 ID를 남긴다. 프론트에서 실제 MIME의 `File`로 변환해 기존 등록/수정 API로 전송한다. 최종 저장 시 대상 일정에 독립된 파일이 만들어지므로 원본 일정 수정·삭제와 분리된다.
+
+
+## 검색 별칭 사전 (관리자)
+
+- `GET /schedules/suggestions/aliases`: `{ groups: [{ canonical, aliases }], disabledSchools, revision, automatic: [{ canonical, aliases, enabled }] }`. 학교 약칭은 등록된 학교명에서 자동 생성한다.
+- `PUT /schedules/suggestions/aliases`: `{ groups, disabledSchools, revision }` 저장. GET에서 받은 revision 필수. 대표 이름/별칭은 2글자 이상(공백·기호 제외), 최대 80자, 그룹 최대 100개/그룹당 별칭 최대 20개/비활성 학교 최대 300개/저장 JSON 50KB 제한.
+- 두 API 모두 관리자 인증 필요. 입력 중복·잘못된 형식은 400, 다른 창에서 변경한 revision은 409. 저장은 `dict` 활동 로그에 남는다.
+- 기존 `/schedules/suggestions/dict`의 Kiwi 단어 사전과 별도 역할이며, 저장된 단어 목록은 변경하지 않는다. 별칭 데이터는 `app_settings.schedule_search_aliases`에 저장한다.
+- [동작·검증·반영 범위](validation/search-improvements-2026-10-15.md).

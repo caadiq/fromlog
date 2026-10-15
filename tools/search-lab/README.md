@@ -9,6 +9,10 @@
 - [결과 및 판단](../../docs/validation/search-comparison-2026-10-15.md), [평가 결과 JSON](../../docs/validation/search-comparison-2026-10-15.json).
 - 메모리 제한은 서비스마다 2GiB/CPU 2개, OpenSearch JVM heap 1GiB. 실험 종료 시 아래 중지 명령으로 자원을 반환할 수 있습니다.
 
+## 후속 구현 검증
+
+2026-10-15 Meilisearch 유지 개선을 구현했다. `verify-improvement.mjs`는 실제 검색 함수를 격리 `lab-improved` 인덱스와 고정 데이터에 실행한다. [개선 결과·재현 명령](../../docs/validation/search-improvements-2026-10-15.md). 기존 6후보 비교 자료는 변경하지 않는다.
+
 ## 재현
 
 호스트 Python 3 표준 라이브러리와 Docker만 사용합니다. `benchmark.py`는 Docker inspect로 내부 IP를 찾아 호스트에서 연결합니다. Linux Docker bridge 환경 기준이며 Docker Desktop에서는 별도 runner 구성이 필요합니다.

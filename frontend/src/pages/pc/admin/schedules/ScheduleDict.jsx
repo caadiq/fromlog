@@ -1,3 +1,4 @@
+import SearchAliases from '@/components/pc/admin/schedule/SearchAliases';
 import AdminQueryState from '@/components/pc/admin/common/AdminQueryState';
 /**
  * 관리자 사전 관리 — 에디토리얼 리뉴얼 (design-drafts/ADM_dict 시안)
@@ -18,6 +19,7 @@ function ScheduleDict() {
   const { user, isAuthenticated } = useAdminAuth();
   const { toast, setToast } = useToast();
   useDocumentTitle('검색어 사전');
+  const [tab, setTab] = useState('words');
   const [entries, setEntries] = useState([]); // [{word, pos, isComment, id}]
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -316,10 +318,15 @@ function ScheduleDict() {
         >
           <AdminPageHeader crumb="ADMIN / SCHEDULE / DICTIONARY" solid="DICTIO" outline="NARY" />
           <p className="mt-3 text-[14px] text-mute">
-            검색 형태소 분석기가 사용하는 사용자 사전입니다. 고유명사를 등록하면 검색 품질이 좋아집니다.
+            단어 인식과 검색 별칭을 관리합니다. 단어 사전은 추천·초성 검색에, 별칭은 일정 검색에 사용합니다.
           </p>
         </motion.div>
 
+        <div className="mt-7 flex border-b border-hairline" aria-label="사전 종류">
+          {[['words', '단어 사전'], ['aliases', '검색 별칭']].map(([value, label]) => <button key={value} aria-pressed={tab === value} onClick={() => setTab(value)} className={`px-6 py-3 text-sm font-extrabold transition-colors ${tab === value ? 'border-b-2 border-ink text-ink' : 'text-mute hover:text-ink'}`}>{label}</button>)}
+        </div>
+        {tab === 'aliases' ? <SearchAliases setToast={setToast} /> : <>
+        <p className="mt-5 text-sm text-mute">고유명사를 하나의 단어로 인식하도록 등록합니다. 같은 뜻의 이름을 연결하려면 검색 별칭을 사용해주세요.</p>
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -520,6 +527,7 @@ function ScheduleDict() {
             </>
           )}
         </motion.div>
+        </>}
       </div>
     </AdminLayout>
   );

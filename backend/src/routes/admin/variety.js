@@ -1,6 +1,6 @@
 import { CATEGORY_IDS } from '../../config/index.js';
 import { uploadVarietyThumbnail } from '../../services/image.js';
-import { addOrUpdateSchedule, syncScheduleById } from '../../services/meilisearch/index.js';
+import { syncScheduleById } from '../../services/meilisearch/index.js';
 import { badRequest, notFound, serverError } from '../../utils/error.js';
 import { logActivity } from '../../utils/log.js';
 
@@ -103,17 +103,7 @@ export default async function varietyRoutes(fastify) {
       );
 
       // Meilisearch 동기화
-      const [categoryRows] = await db.query('SELECT name, color FROM schedule_categories WHERE id = ?', [VARIETY_CATEGORY_ID]);
-      const category = categoryRows[0] || {};
-      await addOrUpdateSchedule(meilisearch, {
-        id: scheduleId,
-        title: title.trim(),
-        date,
-        time: time || '',
-        category_id: VARIETY_CATEGORY_ID,
-        category_name: category.name || '',
-        category_color: category.color || '',
-      }, redis);
+      await syncScheduleById(meilisearch, db, scheduleId, redis);
 
       // 방송사 캐시 무효화
       await redis.del(BROADCASTER_KEY);

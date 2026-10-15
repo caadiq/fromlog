@@ -5,12 +5,14 @@ import { readFile, writeFile } from 'fs/promises';
 import { SuggestionService } from '../../services/suggestions/index.js';
 import { reloadMorpheme, getUserDictPath } from '../../services/suggestions/morpheme.js';
 import { badRequest, serverError } from '../../utils/error.js';
+import searchAliasRoutes from './search-aliases.js';
 import { logActivity } from '../../utils/log.js';
 
 let suggestionService = null;
 
 export default async function suggestionsRoutes(fastify) {
   const { db, redis } = fastify;
+  await fastify.register(searchAliasRoutes);
 
   // 서비스 초기화 (한 번만)
   if (!suggestionService) {

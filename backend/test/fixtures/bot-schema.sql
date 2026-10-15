@@ -172,3 +172,18 @@ CREATE TABLE `bot_x` (
   UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 SET FOREIGN_KEY_CHECKS=1;
+
+CREATE TABLE `schedule_variety` (
+  `schedule_id` int(11) NOT NULL,
+  `broadcaster` varchar(100) NOT NULL COMMENT '방송사/플랫폼 (KBS, MBC, 유튜브, 티빙 등)',
+  `description` text DEFAULT NULL,
+  `replay_url` varchar(500) DEFAULT NULL COMMENT '다시보기 링크',
+  `thumbnail_id` int(11) DEFAULT NULL COMMENT '썸네일 이미지 ID (images 테이블 참조)',
+  PRIMARY KEY (`schedule_id`),
+  CONSTRAINT `schedule_variety_fk_variety_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='예능 일정 상세';
+
+CREATE TABLE `schedule_etc` (
+  `schedule_id` int(11) NOT NULL PRIMARY KEY,
+  `description` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
