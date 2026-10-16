@@ -275,7 +275,8 @@ PUSH_INTERNAL_KEY=...   # 내부 스크립트가 알림 발송 시 사용
 ### 관련 문서
 
 - [사이트 전체 검증 계획 및 진행 현황](docs/site-validation-plan.md)
-- [검색 개선·별칭 사전 검증](docs/validation/search-improvements-2026-10-15.md) — 검색 API 반영, 새 관리자 탭은 개발 프론트 반영
+- [10/16 운영 배포](docs/deployments/2026-10-16.md) — PC 일정 목록 A안·검색 별칭 관리
+- [검색 개선·별칭 사전 검증](docs/validation/search-improvements-2026-10-15.md) — 검색 API·관리자 별칭 탭 운영 반영
 - [Meilisearch / OpenSearch + Nori 비교 결과](docs/validation/search-comparison-2026-10-15.md) — 격리 실험, 운영 검색 유지
 - [운영·장애 복구 안내](docs/operations.md)
 - [앱/웹 반영 기록](docs/validation/app-web-parity.md)

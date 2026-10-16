@@ -3,7 +3,7 @@
 ## 반영 상태
 
 - 운영 검색 엔진은 **Meilisearch 유지**. OpenSearch/Nori는 격리 비교 환경에만 남아 있다.
-- 검색 별칭 관리 UI는 개발 사이트 `/admin/schedule/dict`에 반영. 이번 작업에서는 운영 프론트 빌드 이미지를 배포하지 않았다.
+- 검색 별칭 관리 UI는 `/admin/schedule/dict`에 반영. 2026-10-16 운영 프론트 배포 완료([기록](../deployments/2026-10-16.md)).
 - 백엔드는 개발/운영 공용 bind mount/watch 구성이다. 검색 API 개선은 웹 PC·모바일·앱 모두에 반영됐으며 APK 변경은 없다.
 - 기존 일정 **2,423건 재색인 완료**. 일정 원본을 수정하거나 삭제하지 않았다. 운영 `/api/ready`의 database/redis/search 정상, 관리자 별칭 API 비인증 401 확인.
 
