@@ -99,7 +99,6 @@ function Schedules() {
   }, []);
 
   const [slideDirection, setSlideDirection] = useState(0);
-  const [editMode, setEditMode] = useState(false); // 편집 모드 (수정/삭제 버튼 표시)
 
   // 년월 선택 관련
   const [showYearMonthPicker, setShowYearMonthPicker] = useState(false);
@@ -446,13 +445,13 @@ function Schedules() {
 
         {/* 스프레드: 달력·필터 | 일정 리스트 */}
         <motion.div
-          className="mt-8 grid min-h-0 flex-1 grid-cols-[1fr_1.15fr] border-t-2 border-ink"
+          className="mt-8 grid min-h-0 flex-1 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] border-t-2 border-ink"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: EASE, delay: 0.08 }}
         >
           {/* 왼쪽: 달력 + 카테고리 필터 */}
-          <div className="min-h-0 overflow-y-auto border-r border-hairline py-7 pl-1 pr-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="min-h-0 overflow-y-auto border-r border-hairline py-7 pl-1 pr-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <motion.div
               ref={pickerRef}
               animate={{ opacity: isSearchMode ? 0.4 : 1 }}
@@ -676,7 +675,7 @@ function Schedules() {
           </div>
 
           {/* 오른쪽: 일정 목록 */}
-          <div className="flex min-h-0 min-w-0 flex-col py-7 pl-10 pr-1">
+          <div className="flex min-h-0 min-w-0 flex-col py-7 pl-8 pr-1">
             {/* 리스트 헤더 */}
             <div className="shrink-0 border-b-2 border-ink pb-3">
               <AnimatePresence mode="wait">
@@ -803,16 +802,6 @@ function Schedules() {
                         {filteredSchedules.length + undatedSchedules.length}개
                       </span>
                       <button
-                        onClick={() => setEditMode((v) => !v)}
-                        className={`flex items-center gap-1.5 border px-3.5 py-2 text-[12px] font-extrabold tracking-k2 transition-colors ${
-                          editMode
-                            ? 'border-ink bg-ink text-white'
-                            : 'border-hairline bg-white text-esub hover:border-ink hover:text-ink'
-                        }`}
-                      >
-                        {editMode ? '완료' : '편집'}
-                      </button>
-                      <button
                         onClick={() => setIsSearchMode(true)}
                         className="flex items-center gap-1.5 border border-hairline bg-white px-3.5 py-2 text-[12px] font-extrabold tracking-k2 text-esub transition-colors hover:border-ink hover:text-ink"
                       >
@@ -892,7 +881,6 @@ function Schedules() {
                               openDeleteDialog={openDeleteDialog}
                               showYear
                               animated={false}
-                              editMode={editMode}
                             />
                           </div>
                         );
@@ -926,7 +914,6 @@ function Schedules() {
                         getColorStyle={getColorStyle}
                         navigate={navigate}
                         openDeleteDialog={openDeleteDialog}
-                        editMode={editMode}
                       />
                     ))}
 
@@ -949,7 +936,6 @@ function Schedules() {
                         getColorStyle={getColorStyle}
                         navigate={navigate}
                         openDeleteDialog={openDeleteDialog}
-                        editMode={editMode}
                       />
                     ))}
                   </>

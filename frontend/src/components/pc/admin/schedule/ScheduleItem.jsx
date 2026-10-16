@@ -1,10 +1,11 @@
 /**
- * 일정 아이템 컴포넌트 — 에디토리얼 리뉴얼 (design-drafts/ADM_schedule 시안)
+ * 일정 아이템 컴포넌트 — 상시 작업 아이콘 목록 (2026-10-16 A안)
  * - 일정 목록에서 사용되는 개별 아이템
  * - 일반 모드와 검색 모드에서 공통 사용
  */
 import { memo } from 'react';
 import { motion } from 'framer-motion';
+import { Pencil, Trash2 } from 'lucide-react';
 import { decodeHtmlEntities } from '@/utils';
 import { getScheduleDate, getScheduleTime, getCategoryInfo } from '@/utils/schedule';
 import { WEEKDAYS } from '@/constants';
@@ -60,7 +61,6 @@ const ScheduleItem = memo(function ScheduleItem({
   openDeleteDialog,
   showYear = false,
   animated = true,
-  editMode = false,
   className = '',
 }) {
   const scheduleDate = new Date(getScheduleDate(schedule));
@@ -74,91 +74,97 @@ const ScheduleItem = memo(function ScheduleItem({
   // 특수 일정(생일 등)은 상세 페이지가 없음
   const canOpenDetail = !isBirthday && (typeof schedule.id === 'number' || /^\d+$/.test(String(schedule.id)));
 
-  // 평상시 행 클릭 → 공개 상세 페이지 (앨범 일정은 상세에서 자동 리다이렉트)
-  const handleOpen = () => {
-    if (editMode || !canOpenDetail) return;
-    navigate(`/schedule/${schedule.id}`);
-  };
+  const title = decodeHtmlEntities(schedule.title);
+  const Detail = canOpenDetail ? 'button' : 'div';
+  const actionClassName = 'flex h-9 w-9 items-center justify-center border border-hairline bg-white text-esub transition-colors hover:border-faint hover:bg-canvas hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 
   const content = (
-    <div className="flex items-baseline gap-4">
-      {/* 날짜/시간 컬럼 */}
-      {showYear ? (
-        <span className="w-[86px] shrink-0">
-          <b
-            className="block text-[15px] font-extrabold tracking-[-0.3px] text-ink"
+    <div className="flex items-start gap-3 xl:gap-4">
+      <Detail
+        {...(canOpenDetail ? {
+          type: 'button',
+          onClick: () => navigate(`/schedule/${schedule.id}`),
+          'aria-label': `${title} 상세 보기`,
+        } : {})}
+        className="flex min-w-0 flex-1 items-start gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary xl:gap-4"
+      >
+        {showYear ? (
+          <span className="w-[86px] shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <span className="block text-[13px] leading-5 text-mute">{scheduleDate.getFullYear()}</span>
+            <b className="block whitespace-nowrap text-[16px] font-extrabold leading-[25px] tracking-[-0.3px] text-ink">
+              {isUndated
+                ? `${scheduleDate.getMonth() + 1}월 중`
+                : `${scheduleDate.getMonth() + 1}. ${scheduleDate.getDate()}.`}
+            </b>
+            {!isUndated && (
+              <span className="text-[13px] text-esub">
+                {WEEKDAYS[scheduleDate.getDay()]}{timeStr ? ` · ${timeStr}` : ''}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span
+            className={`w-[52px] shrink-0 text-[16px] font-extrabold leading-[25px] ${isUndated || !timeStr ? 'text-mute' : 'text-ink'}`}
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
-            {isUndated
-              ? `${scheduleDate.getFullYear()}. ${scheduleDate.getMonth() + 1}월 중`
-              : `${scheduleDate.getFullYear()}. ${scheduleDate.getMonth() + 1}. ${scheduleDate.getDate()}.`}
-          </b>
-          {!isUndated && (
-            <span className="text-[12px] font-bold tracking-k1 text-mute">
-              {WEEKDAYS[scheduleDate.getDay()]}
-              {timeStr ? ` · ${timeStr}` : ''}
-            </span>
-          )}
-        </span>
-      ) : (
-        <span
-          className={`w-[52px] shrink-0 text-[15.5px] font-extrabold ${
-            isUndated ? 'text-faint' : timeStr ? 'text-ink' : 'text-faint'
-          }`}
-          style={{ fontVariantNumeric: 'tabular-nums' }}
-        >
-          {isUndated ? `${scheduleDate.getMonth() + 1}월 중` : timeStr || '--:--'}
-        </span>
-      )}
-
-      {/* 제목 + 소스 */}
-      <span className="min-w-0 flex-1">
-        <b className="block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[16px] font-bold tracking-[-0.2px] text-ink">
-          {decodeHtmlEntities(schedule.title)}
-        </b>
-        {schedule.source?.name && (
-          <span className="mt-0.5 block text-[13px] text-mute">{schedule.source.name}</span>
+            {isUndated ? `${scheduleDate.getMonth() + 1}월 중` : timeStr || '--:--'}
+          </span>
         )}
-      </span>
-
-      {/* 카테고리 */}
-      <span
-        className="min-w-[44px] whitespace-nowrap text-right text-[12.5px] font-extrabold tracking-[0.3px]"
-        style={{ color: categoryColor }}
-      >
-        {categoryInfo.name}
-      </span>
-
-      {/* 액션 — 편집 모드에서만 표시 (생일 일정은 수정/삭제 불가) */}
-      {editMode && (
-        <span className="flex w-[68px] shrink-0 items-baseline justify-end gap-3">
-          {!isBirthday && (
-            <>
-              {/* X(트윗)는 수정할 항목이 없어 수정 버튼 미표시 */}
-              {categoryInfo.name !== 'X' && (
-                <button
-                  onClick={() => navigate(getEditPath(schedule.id, categoryInfo.name, schedule))}
-                  className="text-[13px] font-bold text-mute transition-colors hover:text-ink"
-                >
-                  수정
-                </button>
-              )}
-              <button
-                onClick={() => openDeleteDialog(schedule)}
-                className="text-[13px] font-bold text-[#C97070] transition-colors hover:text-[#C0392B]"
-              >
-                삭제
-              </button>
-            </>
-          )}
+        <span className="min-w-0 flex-1">
+          <b
+            title={title}
+            className="line-clamp-2 break-words text-[16px] font-bold leading-[25px] tracking-[-0.2px] text-ink [word-break:keep-all] [overflow-wrap:anywhere]"
+          >
+            {title}
+          </b>
+          <span className="mt-2 flex min-w-0 items-center gap-2 text-[13px] leading-5">
+            <span className="flex shrink-0 items-center gap-1.5 font-bold" style={{ color: categoryColor }}>
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+              {categoryInfo.name}
+            </span>
+            {schedule.source?.name && (
+              <>
+                <span aria-hidden="true" className="h-2.5 w-px shrink-0 bg-hairline" />
+                <span className="truncate text-mute" title={schedule.source.name}>{schedule.source.name}</span>
+              </>
+            )}
+          </span>
         </span>
-      )}
+      </Detail>
+
+      {/* Keep actions separate from the detail target, including keyboard navigation. */}
+      <div className="flex w-[78px] shrink-0 justify-end gap-1.5">
+        {canOpenDetail && (
+          <>
+            {categoryInfo.name !== 'X' && (
+              <button
+                type="button"
+                title="수정"
+                aria-label={`${title} 수정`}
+                onClick={() => navigate(getEditPath(schedule.id, categoryInfo.name, schedule))}
+                className={actionClassName}
+              >
+                <Pencil size={16} strokeWidth={1.7} aria-hidden="true" />
+              </button>
+            )}
+            <button
+              type="button"
+              title="삭제"
+              aria-label={`${title} 삭제`}
+              onClick={() => openDeleteDialog(schedule)}
+              className={`${actionClassName} !text-[#95655f] hover:!border-[#E3C2BC] hover:!bg-[#FFF1EF] hover:!text-[#B23930]`}
+            >
+              <Trash2 size={16} strokeWidth={1.7} aria-hidden="true" />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 
-  const baseClassName = `group border-b border-hairline px-1 py-[15px] transition-colors hover:bg-canvas ${
+  const baseClassName = `border-b border-hairline px-1 py-5 transition-colors hover:bg-canvas ${
     isUndated ? '!border-dashed' : ''
-  } ${!editMode && canOpenDetail ? 'cursor-pointer' : ''} ${className}`;
+  } ${className}`;
 
   if (animated) {
     return (
@@ -168,7 +174,6 @@ const ScheduleItem = memo(function ScheduleItem({
         animate={{ opacity: 1 }}
         transition={{ delay: Math.min(index, 10) * 0.03 }}
         className={baseClassName}
-        onClick={handleOpen}
       >
         {content}
       </motion.div>
@@ -176,7 +181,7 @@ const ScheduleItem = memo(function ScheduleItem({
   }
 
   return (
-    <div className={baseClassName} onClick={handleOpen}>
+    <div className={baseClassName}>
       {content}
     </div>
   );
